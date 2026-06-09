@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adomi-platform-controller"
+version = "0.1.0"
+description = "Kubernetes operator for SSOApplication resources on the Adomi platform, backed by Authentik, OpenBao, and External Secrets."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Adomi Software" }]
+keywords = ["kubernetes", "operator", "sso", "authentik", "openbao", "external-secrets"]
+
+dependencies = [
+    "kopf>=1.37",
+    "kubernetes>=29.0",
+    # Official Authentik API client. Track the version to your Authentik release.
+    "authentik-client>=2024.2",
+    # Standard Vault client; OpenBao is API-compatible.
+    "hvac>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+# Convenience entry point; the container runs `kopf run` directly (see Dockerfile).
+adomi-platform-controller = "adomi_platform_controller.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/adomi-io/adomi-platform-controller"
+Source = "https://github.com/adomi-io/adomi-platform-controller"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

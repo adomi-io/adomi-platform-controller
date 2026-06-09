@@ -1,0 +1,20 @@
+# Reuse credentials already stored at a flat OpenBao path. Setting
+# credentials.openbaoPath to "argo-workflows" points the controller at
+# secret/argo-workflows and reuses the credentials stored there, and the
+# targetSecret publishes them into the argo-workflows-sso Secret.
+apiVersion: identity.adomi.io/v1alpha1
+kind: SSOApplication
+metadata:
+  name: argo-workflows
+  namespace: argo
+spec:
+  displayName: Argo Workflows
+  protocol: oauth2
+  redirectUris:
+    - https://argo.example.com/oauth2/callback
+  scopes: [openid, profile, email, groups]
+  credentials:
+    openbaoPath: argo-workflows
+    targetSecret:
+      name: argo-workflows-sso
+      namespace: argo

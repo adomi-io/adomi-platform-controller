@@ -1,0 +1,19 @@
+apiVersion: v2
+name: adomi-platform-controller
+description: |
+  The Kubernetes control plane for SSO-enabled applications on the Adomi platform,
+  backed by Authentik, OpenBao, and External Secrets. Drops into the
+  kubernetes-provisioner platform.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - sso
+  - authentik
+  - openbao
+  - external-secrets
+home: https://github.com/adomi-io/adomi-platform-controller
+sources:
+  - https://github.com/adomi-io/adomi-platform-controller
+maintainers:
+  - name: Adomi Software

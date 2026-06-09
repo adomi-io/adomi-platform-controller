@@ -1,0 +1,78 @@
+{{- $fullname := include "adomi-platform-controller.fullname" . -}}
+{{- $sa := include "adomi-platform-controller.serviceAccountName" . -}}
+# ClusterRole: the SSOApplication CRD the controller reconciles, plus the
+# ExternalSecrets it manages on their behalf, plus Events it posts.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $fullname }}-manager
+  labels:
+    {{- include "adomi-platform-controller.labels" . | nindent 4 }}
+rules:
+  # Kopf posts Kubernetes Events about handler outcomes.
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, patch]
+  - apiGroups: [events.k8s.io]
+    resources: [events]
+    verbs: [create, patch]
+  - apiGroups: [external-secrets.io]
+    resources: [externalsecrets]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [identity.adomi.io]
+    resources: [ssoapplications]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [identity.adomi.io]
+    resources: [ssoapplications/status]
+    verbs: [get, patch, update]
+  - apiGroups: [identity.adomi.io]
+    resources: [ssoapplications/finalizers]
+    verbs: [update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $fullname }}-manager
+  labels:
+    {{- include "adomi-platform-controller.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $fullname }}-manager
+subjects:
+  - kind: ServiceAccount
+    name: {{ $sa }}
+    namespace: {{ .Release.Namespace }}
+{{- if eq .Values.backend.openbao.authMode "token" }}
+---
+# Token mode: read just the OpenBao token Secret in its namespace (least
+# privilege -- the controller never lists Secrets cluster-wide).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $fullname }}-openbao-token
+  namespace: {{ .Values.backend.openbao.token.secretNamespace }}
+  labels:
+    {{- include "adomi-platform-controller.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames: [{{ .Values.backend.openbao.token.secretName | quote }}]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $fullname }}-openbao-token
+  namespace: {{ .Values.backend.openbao.token.secretNamespace }}
+  labels:
+    {{- include "adomi-platform-controller.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $fullname }}-openbao-token
+subjects:
+  - kind: ServiceAccount
+    name: {{ $sa }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

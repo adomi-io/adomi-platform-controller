@@ -1,0 +1,24 @@
+adomi-platform-controller {{ .Chart.AppVersion }} is installed in namespace {{ .Release.Namespace }}.
+
+The controller reconciles:
+  - SSOApplication    (identity.adomi.io)   namespaced
+
+Backend wiring:
+  OpenBao:    {{ .Values.backend.openbao.address }} (auth mode: {{ .Values.backend.openbao.authMode }})
+  Authentik:  {{ .Values.backend.authentik.address }}
+  Store:      ClusterSecretStore/{{ .Values.backend.externalSecrets.clusterSecretStore }}
+
+{{- if eq .Values.backend.openbao.authMode "kubernetes" }}
+
+NOTE: authMode is "kubernetes". Make sure OpenBao has a kubernetes auth role
+"{{ .Values.backend.openbao.kubernetes.authRole }}" bound to ServiceAccount
+"{{ include "adomi-platform-controller.serviceAccountName" . }}" in namespace
+"{{ .Release.Namespace }}" with a policy that can write the credential paths.
+{{- end }}
+
+Try it:
+  kubectl apply -f https://raw.githubusercontent.com/adomi-io/adomi-platform-controller/main/examples/ssoapplication.yaml
+
+Check status:
+  kubectl get ssoapplications
+  kubectl get ssoapplication app-prod -n example -o jsonpath='{.status.conditions}'

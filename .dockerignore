@@ -1,0 +1,19 @@
+# More info: https://docs.docker.com/engine/reference/builder/#dockerignore-file
+.git
+.github
+.devcontainer
+.idea
+.vscode
+charts
+deploy
+docs
+examples
+tests
+**/__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.ruff_cache
+*.egg-info
+.venv
+venv

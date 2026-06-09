@@ -1,0 +1,225 @@
+{{- if .Values.installCRDs }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ssoapplications.identity.adomi.io
+spec:
+  group: identity.adomi.io
+  names:
+    kind: SSOApplication
+    listKind: SSOApplicationList
+    plural: ssoapplications
+    shortNames:
+    - ssoapp
+    singular: ssoapplication
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.slug
+      name: Slug
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: SSOApplication is the Schema for the ssoapplications API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of SSOApplication
+            properties:
+              credentials:
+                description: credentials controls where OAuth credentials are stored
+                  and published.
+                properties:
+                  openbaoPath:
+                    description: |-
+                      openbaoPath overrides the secret-store path where the client-id and
+                      client-secret are stored, relative to the KV mount. Defaults to the
+                      slug. Credentials are generated once and never overwritten.
+                    type: string
+                  targetSecret:
+                    description: |-
+                      targetSecret describes the Kubernetes Secret the credentials are published
+                      into via an ExternalSecret. When omitted, no ExternalSecret is created.
+                    properties:
+                      clientIDKey:
+                        description: |-
+                          clientIDKey is the Secret data key for the client id. Defaults to
+                          "client-id".
+                        type: string
+                      clientSecretKey:
+                        description: |-
+                          clientSecretKey is the Secret data key for the client secret. Defaults to
+                          "client-secret".
+                        type: string
+                      name:
+                        description: name is the name of the Secret to create.
+                        minLength: 1
+                        type: string
+                      namespace:
+                        description: |-
+                          namespace is the namespace of the Secret. Defaults to the SSOApplication's
+                          namespace.
+                        type: string
+                    required:
+                    - name
+                    type: object
+                type: object
+              displayName:
+                description: |-
+                  displayName is a human-readable name for the application. Defaults to the
+                  resource name when empty.
+                type: string
+              protocol:
+                default: oauth2
+                description: |-
+                  protocol selects the SSO protocol. Only oauth2 is supported in this
+                  version.
+                enum:
+                - oauth2
+                type: string
+              redirectUris:
+                description: redirectUris are the allowed OAuth2 redirect URIs (strict
+                  matching).
+                items:
+                  type: string
+                minItems: 1
+                type: array
+              scopes:
+                description: |-
+                  scopes are the OAuth2 scope mappings requested for this application.
+                  Defaults to [openid, profile, email, groups].
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: set
+              slug:
+                description: |-
+                  slug is the stable identifier used for the identity-backend application and
+                  provider, and (by default) the secret-store path. Defaults to the resource
+                  name.
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                type: string
+            required:
+            - redirectUris
+            type: object
+          status:
+            description: status defines the observed state of SSOApplication
+            properties:
+              clientID:
+                description: |-
+                  clientID is the OAuth2 client id (public; the secret is never surfaced in
+                  status).
+                type: string
+              conditions:
+                description: |-
+                  conditions represent the current state of the SSOApplication resource.
+                  Known types: "Ready".
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                description: |-
+                  observedGeneration is the .metadata.generation the status was last
+                  reconciled against.
+                format: int64
+                type: integer
+              openbaoPath:
+                description: openbaoPath is the resolved secret-store path holding
+                  the credentials.
+                type: string
+              providerID:
+                description: providerID is the identifier (pk) of the backing OAuth2
+                  provider.
+                type: string
+              slug:
+                description: slug is the resolved identity-backend application/provider
+                  slug.
+                type: string
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+{{- end }}

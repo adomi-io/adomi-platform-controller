@@ -1,0 +1,89 @@
+# Default values for adomi-platform-controller.
+
+# The operator runs standalone (Kopf, no peering), so a single replica owns
+# reconciliation. Do not raise above 1 unless you enable Kopf peering.
+replicaCount: 1
+
+image:
+  repository: ghcr.io/adomi-io/adomi-platform-controller
+  # tag defaults to the chart appVersion when empty.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Created by the chart. The name is fixed (not release-prefixed) so it matches
+  # the OpenBao kubernetes-auth role that binds this ServiceAccount. Keep it in
+  # sync with backend.openbao.kubernetes.authRole's bound_service_account_names.
+  create: true
+  name: adomi-platform-controller
+  annotations: {}
+
+resources:
+  requests:
+    cpu: 20m
+    memory: 96Mi
+  limits:
+    memory: 256Mi
+
+# Extra environment variables for the controller container (advanced).
+extraEnv: []
+
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+securityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Backend wiring. Defaults match the kubernetes-provisioner conventions so the
+# controller drops into an existing OpenBao / Authentik / External Secrets setup.
+backend:
+  openbao:
+    address: http://openbao.openbao.svc.cluster.local:8200
+    kvMount: secret
+    # How the controller authenticates to OpenBao:
+    #   "kubernetes" (recommended) logs in with this controller's ServiceAccount
+    #     via OpenBao's kubernetes auth. No static token is stored anywhere.
+    #     Requires an OpenBao role + write policy (created by openbao-bootstrap).
+    #   "token" reads a static token from a Secret (the openbao-keys root-token
+    #     by default). Simple, but the root token is broad; prefer kubernetes.
+    authMode: kubernetes
+    kubernetes:
+      authMount: kubernetes
+      authRole: adomi-platform-controller
+    token:
+      secretNamespace: openbao
+      secretName: openbao-keys
+      secretKey: root-token
+
+  authentik:
+    address: http://authentik-server.authentik.svc.cluster.local
+    # OpenBao KV path + key holding the Authentik API (bootstrap) token.
+    secretPath: authentik
+    tokenKey: bootstrap-token
+    authorizationFlowSlug: default-provider-authorization-implicit-consent
+    invalidationFlowSlug: default-provider-invalidation-flow
+    signingKeyName: "authentik Self-signed Certificate"
+
+  externalSecrets:
+    # ClusterSecretStore used to deliver credentials into app namespaces.
+    clusterSecretStore: openbao
+
+# Install the CRDs with the chart. Helm only installs CRDs from crds/ on first
+# install (it never upgrades or deletes them); set to false to manage them out
+# of band.
+installCRDs: true

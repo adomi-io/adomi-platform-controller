@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# editor and IDE paraphernalia
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Kubeconfig might contain secrets
+*.kubeconfig
+
+# AI assistants and tooling
+.claude/settings.local.json
+.claude/projects/
+.cursor/
+.cursorignore
+.cursorindexingignore
+.windsurf/
+.windsurfrules
+.continue/
+.codeium/
+.cody/
+.gemini/
+.goose/
+.opencode/
+.aider*
+*.aider.tags.cache*
+repomix-output.*
+.repomix/

@@ -1,0 +1,26 @@
+# An SSOApplication is the single, self-contained resource for giving an app
+# single sign-on. The controller:
+#   1. generates client-id/client-secret once in OpenBao (never regenerated),
+#   2. reconciles the Authentik OAuth2 provider + application,
+#   3. publishes the credentials into the app namespace via an ExternalSecret.
+apiVersion: identity.adomi.io/v1alpha1
+kind: SSOApplication
+metadata:
+  name: app-prod
+  namespace: example
+spec:
+  displayName: Example App
+  protocol: oauth2
+  redirectUris:
+    - https://app.example.com/oauth/callback
+  scopes:
+    - openid
+    - profile
+    - email
+    - groups
+  credentials:
+    # openbaoPath defaults to the slug (here "app-prod").
+    targetSecret:
+      name: app-oauth        # Secret created in this namespace via ExternalSecret
+      # clientIDKey: client-id
+      # clientSecretKey: client-secret

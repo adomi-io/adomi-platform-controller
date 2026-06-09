@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "adomi-platform-controller.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "adomi-platform-controller.labels" . | nindent 4 }}
+spec:
+  # The operator runs standalone (no peering); a single replica owns
+  # reconciliation. Increase only if you also enable Kopf peering.
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "adomi-platform-controller.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "adomi-platform-controller.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "adomi-platform-controller.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      containers:
+        - name: manager
+          image: {{ include "adomi-platform-controller.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # The image's ENTRYPOINT runs `kopf run` (see Dockerfile). All backend
+          # wiring is passed via environment variables.
+          env:
+            # OpenBao.
+            - name: OPENBAO_ADDR
+              value: {{ .Values.backend.openbao.address | quote }}
+            - name: OPENBAO_KV_MOUNT
+              value: {{ .Values.backend.openbao.kvMount | quote }}
+            - name: OPENBAO_AUTH_MODE
+              value: {{ .Values.backend.openbao.authMode | quote }}
+            {{- if eq .Values.backend.openbao.authMode "token" }}
+            - name: OPENBAO_TOKEN_SECRET_NAMESPACE
+              value: {{ .Values.backend.openbao.token.secretNamespace | quote }}
+            - name: OPENBAO_TOKEN_SECRET_NAME
+              value: {{ .Values.backend.openbao.token.secretName | quote }}
+            - name: OPENBAO_TOKEN_SECRET_KEY
+              value: {{ .Values.backend.openbao.token.secretKey | quote }}
+            {{- else }}
+            - name: OPENBAO_KUBERNETES_AUTH_MOUNT
+              value: {{ .Values.backend.openbao.kubernetes.authMount | quote }}
+            - name: OPENBAO_KUBERNETES_AUTH_ROLE
+              value: {{ .Values.backend.openbao.kubernetes.authRole | quote }}
+            {{- end }}
+            # Authentik.
+            - name: AUTHENTIK_ADDR
+              value: {{ .Values.backend.authentik.address | quote }}
+            - name: AUTHENTIK_SECRET_PATH
+              value: {{ .Values.backend.authentik.secretPath | quote }}
+            - name: AUTHENTIK_TOKEN_KEY
+              value: {{ .Values.backend.authentik.tokenKey | quote }}
+            - name: AUTHENTIK_AUTHORIZATION_FLOW
+              value: {{ .Values.backend.authentik.authorizationFlowSlug | quote }}
+            - name: AUTHENTIK_INVALIDATION_FLOW
+              value: {{ .Values.backend.authentik.invalidationFlowSlug | quote }}
+            - name: AUTHENTIK_SIGNING_KEY_NAME
+              value: {{ .Values.backend.authentik.signingKeyName | quote }}
+            # External Secrets.
+            - name: CLUSTER_SECRET_STORE
+              value: {{ .Values.backend.externalSecrets.clusterSecretStore | quote }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: health
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
