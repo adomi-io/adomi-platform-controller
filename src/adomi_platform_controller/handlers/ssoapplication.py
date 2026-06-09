@@ -56,13 +56,17 @@ def reconcile(spec, meta, status, patch, name, namespace, logger, **_) -> None:
             openbao_path,
             ["client-id", "client-secret"],
             lambda key: secretgen.random_string(
-                secretgen.CLIENT_ID_LENGTH
-                if key == "client-id"
-                else secretgen.CLIENT_SECRET_LENGTH
+                secretgen.CLIENT_ID_LENGTH if key == "client-id" else secretgen.CLIENT_SECRET_LENGTH
             ),
         )
     except Exception as exc:  # noqa: BLE001
-        fail(patch, status, conditions.REASON_BACKEND_ERROR, f"storing credentials: {exc}", generation)
+        fail(
+            patch,
+            status,
+            conditions.REASON_BACKEND_ERROR,
+            f"storing credentials: {exc}",
+            generation,
+        )
 
     # Shared Authentik references.
     try:
@@ -158,7 +162,9 @@ def finalize(spec, status, name, logger, **_) -> None:
         try:
             ak.delete_provider(int(str(provider_id).strip()))
         except Exception as exc:  # noqa: BLE001
-            logger.error(f"Failed deleting Authentik provider {provider_id!r} during finalize: {exc}")
+            logger.error(
+                f"Failed deleting Authentik provider {provider_id!r} during finalize: {exc}"
+            )
 
 
 def _publish_credentials(target, meta, namespace, openbao_path, store) -> None:

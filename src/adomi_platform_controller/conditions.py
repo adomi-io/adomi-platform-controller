@@ -83,7 +83,5 @@ def mark_not_ready(
     generation: int,
 ) -> None:
     """Set Ready=False with the given reason and message on the patch."""
-    patch.status["conditions"] = _upsert(
-        _conditions(status), "False", reason, message, generation
-    )
+    patch.status["conditions"] = _upsert(_conditions(status), "False", reason, message, generation)
     patch.status["observedGeneration"] = generation

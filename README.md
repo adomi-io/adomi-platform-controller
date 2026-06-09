@@ -130,8 +130,10 @@ the official [authentik-client](https://pypi.org/project/authentik-client/), and
 
 ```sh
 pip install -e ".[dev]"     # install the operator and dev tools
+pre-commit install          # format and lint on every commit
 pytest                      # run the unit tests
 ruff check src tests        # lint
+ruff format src tests       # format
 
 # Run locally against your current kubeconfig context:
 kubectl apply -f deploy/crds/

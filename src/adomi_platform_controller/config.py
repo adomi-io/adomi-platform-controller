@@ -59,9 +59,7 @@ class Config:
             openbao_addr=_env("OPENBAO_ADDR", d.openbao_addr),
             kv_mount=_env("OPENBAO_KV_MOUNT", d.kv_mount),
             auth_mode=AuthMode(_env("OPENBAO_AUTH_MODE", d.auth_mode.value)),
-            token_secret_namespace=_env(
-                "OPENBAO_TOKEN_SECRET_NAMESPACE", d.token_secret_namespace
-            ),
+            token_secret_namespace=_env("OPENBAO_TOKEN_SECRET_NAMESPACE", d.token_secret_namespace),
             token_secret_name=_env("OPENBAO_TOKEN_SECRET_NAME", d.token_secret_name),
             token_secret_key=_env("OPENBAO_TOKEN_SECRET_KEY", d.token_secret_key),
             k8s_auth_mount=_env("OPENBAO_KUBERNETES_AUTH_MOUNT", d.k8s_auth_mount),
@@ -70,12 +68,8 @@ class Config:
             authentik_addr=_env("AUTHENTIK_ADDR", d.authentik_addr),
             authentik_secret_path=_env("AUTHENTIK_SECRET_PATH", d.authentik_secret_path),
             authentik_token_key=_env("AUTHENTIK_TOKEN_KEY", d.authentik_token_key),
-            authorization_flow_slug=_env(
-                "AUTHENTIK_AUTHORIZATION_FLOW", d.authorization_flow_slug
-            ),
-            invalidation_flow_slug=_env(
-                "AUTHENTIK_INVALIDATION_FLOW", d.invalidation_flow_slug
-            ),
+            authorization_flow_slug=_env("AUTHENTIK_AUTHORIZATION_FLOW", d.authorization_flow_slug),
+            invalidation_flow_slug=_env("AUTHENTIK_INVALIDATION_FLOW", d.invalidation_flow_slug),
             signing_key_name=_env("AUTHENTIK_SIGNING_KEY_NAME", d.signing_key_name),
             cluster_secret_store=_env("CLUSTER_SECRET_STORE", d.cluster_secret_store),
         )

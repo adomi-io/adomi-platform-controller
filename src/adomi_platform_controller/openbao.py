@@ -112,9 +112,7 @@ def kubernetes_login(addr: str, auth_mount: str, role: str, jwt: str) -> tuple[s
     """
     client = hvac.Client(url=addr.rstrip("/"), timeout=_TIMEOUT)
     try:
-        resp = client.auth.kubernetes.login(
-            role=role, jwt=jwt, mount_point=auth_mount.strip("/")
-        )
+        resp = client.auth.kubernetes.login(role=role, jwt=jwt, mount_point=auth_mount.strip("/"))
     except Exception as exc:  # noqa: BLE001 - surface any login failure uniformly
         raise OpenBaoError(f"openbao kubernetes login: {exc}") from exc
 

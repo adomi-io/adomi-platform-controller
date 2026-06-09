@@ -75,9 +75,7 @@ def apply(s: Spec) -> None:
     desired = build(s)
 
     try:
-        api.get_namespaced_custom_object(
-            GROUP, VERSION, s.namespace, PLURAL, s.name
-        )
+        api.get_namespaced_custom_object(GROUP, VERSION, s.namespace, PLURAL, s.name)
     except ApiException as exc:
         if exc.status != 404:
             raise
@@ -85,6 +83,4 @@ def apply(s: Spec) -> None:
         return
 
     # Exists: merge-patch the spec, labels, and owner references to match desired.
-    api.patch_namespaced_custom_object(
-        GROUP, VERSION, s.namespace, PLURAL, s.name, desired
-    )
+    api.patch_namespaced_custom_object(GROUP, VERSION, s.namespace, PLURAL, s.name, desired)
