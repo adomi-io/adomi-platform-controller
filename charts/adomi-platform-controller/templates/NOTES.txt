@@ -17,7 +17,7 @@ NOTE: authMode is "kubernetes". Make sure OpenBao has a kubernetes auth role
 {{- end }}
 
 Try it:
-  kubectl apply -f https://raw.githubusercontent.com/adomi-io/adomi-platform-controller/main/examples/ssoapplication.yaml
+  kubectl apply -f https://raw.githubusercontent.com/adomi-io/adomi-platform-controller/master/examples/ssoapplication.yaml
 
 Check status:
   kubectl get ssoapplications
