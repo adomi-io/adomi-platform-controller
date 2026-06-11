@@ -100,6 +100,14 @@ class AuthentikClient:
             "authorization_flow": spec.authorization_flow_pk,
             "invalidation_flow": spec.invalidation_flow_pk,
             "client_type": "confidential",
+            # Authentik (2024.12+) gates each provider on an explicit grant-type
+            # allowlist; an empty list permits no grants and the OIDC code flow
+            # fails with "Invalid grant_type for provider". Enable the standard
+            # authorization-code flow plus refresh tokens for web SSO clients.
+            "grant_types": [
+                authentik_client.GrantTypesEnum.AUTHORIZATION_CODE,
+                authentik_client.GrantTypesEnum.REFRESH_TOKEN,
+            ],
             "client_id": spec.client_id,
             "client_secret": spec.client_secret,
             "property_mappings": spec.property_mapping_pks,
