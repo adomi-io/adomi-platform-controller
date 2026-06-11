@@ -25,9 +25,12 @@ serviceAccount:
 resources:
   requests:
     cpu: 20m
-    memory: 96Mi
+    memory: 128Mi
   limits:
-    memory: 256Mi
+    # Cluster-wide kopf observes every CRD + namespace at startup on top of the
+    # Python/aiohttp baseline; 256Mi OOMKills during initial listing. 512Mi
+    # leaves comfortable headroom.
+    memory: 512Mi
 
 # Extra environment variables for the controller container (advanced).
 extraEnv: []
