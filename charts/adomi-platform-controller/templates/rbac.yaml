@@ -9,6 +9,15 @@ metadata:
   labels:
     {{- include "adomi-platform-controller.labels" . | nindent 4 }}
 rules:
+  # Kopf watches CRDs and namespaces cluster-wide at startup to discover which
+  # resources exist and which namespaces to operate in (run with -A). Without
+  # these it cannot establish its watches and reconciliation never starts.
+  - apiGroups: [apiextensions.k8s.io]
+    resources: [customresourcedefinitions]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [namespaces]
+    verbs: [get, list, watch]
   # Kopf posts Kubernetes Events about handler outcomes.
   - apiGroups: [""]
     resources: [events]
