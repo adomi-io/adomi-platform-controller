@@ -110,6 +110,12 @@ def reconcile(spec, meta, status, patch, name, namespace, logger, **_) -> None:
             )
         )
         ak.ensure_application(slug, display_name, provider_pk)
+
+        # Ensure any declared Authentik groups exist. Membership is managed in
+        # Authentik; consuming apps reference these group names in their SSO RBAC
+        # rules (e.g. an Argo Workflows group-to-ServiceAccount mapping).
+        for group_name in spec.get("groups") or []:
+            ak.ensure_group(group_name)
     except Exception as exc:  # noqa: BLE001
         fail(patch, status, conditions.REASON_BACKEND_ERROR, str(exc), generation)
 

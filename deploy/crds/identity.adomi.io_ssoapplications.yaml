@@ -92,6 +92,15 @@ spec:
                   displayName is a human-readable name for the application. Defaults to the
                   resource name when empty.
                 type: string
+              groups:
+                description: |-
+                  groups are Authentik group names to ensure exist. Membership is
+                  managed in Authentik; consuming apps reference these names in their
+                  SSO RBAC rules (e.g. Argo Workflows group-to-ServiceAccount mapping).
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: set
               protocol:
                 default: oauth2
                 description: |-

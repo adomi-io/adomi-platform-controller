@@ -89,6 +89,21 @@ class AuthentikClient:
         )
         return str(created.pk) or None
 
+    def ensure_group(self, name: str) -> str:
+        """Ensure a group exists by name; return its pk.
+
+        Membership is managed in Authentik, not here - this only guarantees the
+        group is present so apps can reference it by name in their SSO RBAC rules.
+        """
+        page = self._core.core_groups_list(name=name, include_users=False)
+        for group in page.results:
+            if group.name == name:
+                return str(group.pk)
+        created = self._core.core_groups_create(
+            group_request=authentik_client.GroupRequest(name=name)
+        )
+        return str(created.pk)
+
     def ensure_oauth2_provider(self, spec: OAuth2ProviderSpec) -> int:
         """Create or update the provider matched by name; return its pk.
 
