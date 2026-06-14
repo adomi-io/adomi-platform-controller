@@ -17,7 +17,7 @@ from __future__ import annotations
 import kopf
 
 from .. import conditions, externalsecrets, secretgen, state
-from ..authentik import OAuth2ProviderSpec, ProxyProviderSpec
+from ..authentik import ApplicationSpec, OAuth2ProviderSpec, ProxyProviderSpec
 from ._common import fail
 
 GROUP = "identity.adomi.io"
@@ -101,11 +101,31 @@ def reconcile(spec, meta, status, patch, name, namespace, logger, **_) -> None:
             ak, cfg, bao, spec, slug, authz_pk, inval_pk, mapping_pks, patch, status, generation
         )
 
-    # Application + any declared Authentik groups (shared). Membership is managed
-    # in Authentik; consuming apps reference these group names in their SSO RBAC
-    # rules (e.g. an Argo Workflows group-to-ServiceAccount mapping).
+    # Application (with metadata) + any declared Authentik groups (shared).
+    # Membership is managed in Authentik; consuming apps reference these group names
+    # in their SSO RBAC rules (e.g. an Argo Workflows group-to-ServiceAccount mapping).
     try:
-        ak.ensure_application(slug, display_name, provider_pk)
+        backchannel_pks = []
+        for bp in spec.get("backchannelProviders") or []:
+            pk = ak.find_provider_pk(bp)
+            if pk:
+                backchannel_pks.append(pk)
+            else:
+                logger.info(f"Backchannel provider {bp!r} not found in Authentik; skipping")
+
+        ak.ensure_application(
+            ApplicationSpec(
+                slug=slug,
+                name=display_name,
+                provider_pk=provider_pk,
+                group=spec.get("group") or "",
+                icon=spec.get("icon") or "",
+                description=spec.get("description") or "",
+                publisher=spec.get("publisher") or "",
+                launch_url=spec.get("launchUrl") or "",
+                backchannel_provider_pks=backchannel_pks,
+            )
+        )
         for group_name in spec.get("groups") or []:
             ak.ensure_group(group_name)
     except Exception as exc:  # noqa: BLE001

@@ -52,6 +52,25 @@ class ProxyProviderSpec:
     property_mapping_pks: list[str] = field(default_factory=list)
 
 
+@dataclass
+class ApplicationSpec:
+    """The desired state of an Authentik application's metadata.
+
+    All metadata fields are optional; empty values are left unset so Authentik keeps
+    its default. icon accepts an image URL or an "fa://fa-name" FontAwesome reference.
+    """
+
+    slug: str
+    name: str
+    provider_pk: int | None = None
+    group: str = ""  # dashboard category apps are grouped under
+    icon: str = ""  # image URL or "fa://fa-name"
+    description: str = ""
+    publisher: str = ""
+    launch_url: str = ""
+    backchannel_provider_pks: list[int] = field(default_factory=list)
+
+
 class AuthentikClient:
     """Talks to a single Authentik server with a bearer API token."""
 
@@ -242,23 +261,50 @@ class AuthentikClient:
             patched_outpost_request=authentik_client.PatchedOutpostRequest(providers=providers),
         )
 
-    def ensure_application(self, slug: str, name: str, provider_pk: int) -> str:
-        """Create or update the application (looked up by slug); return its pk (a UUID)."""
+    def find_provider_pk(self, name: str) -> int | None:
+        """Resolve a provider (OAuth2 or proxy) by exact name to its pk, or None.
+
+        Used to turn backchannel-provider names into the pks Authentik expects.
+        """
+        for lister in (self._providers.providers_oauth2_list, self._providers.providers_proxy_list):
+            for provider in lister(search=name).results:
+                if provider.name == name:
+                    return provider.pk
+        return None
+
+    def ensure_application(self, spec: ApplicationSpec) -> str:
+        """Create or update the application (looked up by slug); return its pk (a UUID).
+
+        Metadata fields are only sent when set, so empty values keep Authentik's
+        defaults rather than clearing existing data.
+        """
+        fields: dict = {"name": spec.name}
+        if spec.provider_pk is not None:
+            fields["provider"] = spec.provider_pk
+        if spec.group:
+            fields["group"] = spec.group
+        if spec.icon:
+            fields["meta_icon"] = spec.icon
+        if spec.description:
+            fields["meta_description"] = spec.description
+        if spec.publisher:
+            fields["meta_publisher"] = spec.publisher
+        if spec.launch_url:
+            fields["meta_launch_url"] = spec.launch_url
+        if spec.backchannel_provider_pks:
+            fields["backchannel_providers"] = spec.backchannel_provider_pks
+
         try:
-            existing = self._core.core_applications_retrieve(slug=slug)
+            existing = self._core.core_applications_retrieve(slug=spec.slug)
         except NotFoundException:
             created = self._core.core_applications_create(
-                application_request=authentik_client.ApplicationRequest(
-                    name=name, slug=slug, provider=provider_pk
-                )
+                application_request=authentik_client.ApplicationRequest(slug=spec.slug, **fields)
             )
             return str(created.pk)
 
         self._core.core_applications_partial_update(
-            slug=slug,
-            patched_application_request=authentik_client.PatchedApplicationRequest(
-                name=name, provider=provider_pk
-            ),
+            slug=spec.slug,
+            patched_application_request=authentik_client.PatchedApplicationRequest(**fields),
         )
         return str(existing.pk)
 

@@ -101,6 +101,35 @@ spec:
                   type: string
                 type: array
                 x-kubernetes-list-type: set
+              backchannelProviders:
+                description: |-
+                  backchannelProviders are names of other providers to attach to this
+                  application as backchannel providers (e.g. SCIM/LDAP). Resolved to
+                  Authentik providers by name; unresolved names are skipped.
+                items:
+                  type: string
+                type: array
+                x-kubernetes-list-type: set
+              description:
+                description: description is the application's meta description shown in Authentik.
+                type: string
+              group:
+                description: |-
+                  group is the dashboard category the application is grouped under in
+                  Authentik (e.g. "Developer Tools").
+                type: string
+              icon:
+                description: |-
+                  icon is the application icon: an image URL, or "fa://fa-name" for a
+                  FontAwesome icon.
+                type: string
+              launchUrl:
+                description: |-
+                  launchUrl overrides the application's launch URL shown in Authentik.
+                type: string
+              publisher:
+                description: publisher is the application's meta publisher shown in Authentik.
+                type: string
               protocol:
                 default: oauth2
                 description: |-

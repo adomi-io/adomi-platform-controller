@@ -11,6 +11,12 @@ metadata:
 spec:
   displayName: Example App
   protocol: oauth2
+  # Application metadata shown in Authentik (all optional).
+  group: Developer Tools          # dashboard category apps are grouped under
+  icon: fa://fa-rocket            # an image URL, or fa://fa-name for FontAwesome
+  publisher: Example Inc
+  description: An example application.
+  launchUrl: https://app.example.com
   redirectUris:
     - https://app.example.com/oauth/callback
   scopes:
