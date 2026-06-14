@@ -5,8 +5,8 @@ description: |
   backed by Authentik, OpenBao, and External Secrets. Drops into the
   kubernetes-provisioner platform.
 type: application
-version: 0.1.5
-appVersion: "0.1.5"
+version: 0.1.6
+appVersion: "0.1.6"
 keywords:
   - sso
   - authentik

@@ -237,13 +237,14 @@ class AuthentikClient:
         self, outpost_name: str, provider_pk: int, browser_host: str = ""
     ) -> None:
         """Attach a provider to an outpost (merge) and, when browser_host is set, point
-        the outpost's browser-facing URL at it.
+        the outpost's URL at it.
 
         Used for the built-in embedded outpost the Authentik server serves at
         /outpost.goauthentik.io/. browser_host must be the public Authentik URL: forward
         auth reaches the outpost over the internal Service URL, so the outpost can't infer
-        the external host and would otherwise redirect the browser to localhost. Setting
-        authentik_host_browser fixes the authorize-endpoint redirect.
+        the external host and would otherwise redirect the browser to localhost. The
+        embedded outpost builds the authorize redirect from authentik_host (not
+        authentik_host_browser), so set both to the public URL.
         """
         outpost = self._find_outpost(outpost_name)
         if outpost is None:
@@ -251,8 +252,12 @@ class AuthentikClient:
 
         providers = sorted(set(outpost.providers or []) | {provider_pk})
         config = dict(outpost.config or {})
-        config_changed = bool(browser_host) and config.get("authentik_host_browser") != browser_host
+        config_changed = bool(browser_host) and (
+            config.get("authentik_host") != browser_host
+            or config.get("authentik_host_browser") != browser_host
+        )
         if browser_host:
+            config["authentik_host"] = browser_host
             config["authentik_host_browser"] = browser_host
 
         if providers == sorted(outpost.providers or []) and not config_changed:
