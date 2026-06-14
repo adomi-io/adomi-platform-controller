@@ -87,11 +87,30 @@ When this resource is created, the controller generates OAuth credentials, sets 
 > path (for example `argo-workflows`) and the controller reads the existing
 > `secret/argo-workflows` instead of generating new ones. See [examples/argo-workflows.yaml](./examples/argo-workflows.yaml).
 
+### Proxy providers (forward-auth)
+
+Set `protocol: proxy` for an app with no native SSO. The controller reconciles an Authentik
+proxy provider and application and attaches the provider to an outpost (the built-in embedded
+outpost unless `proxy.outpost` names another). Point a reverse proxy's forward-auth at that
+outpost to require sign-in. No credentials are generated or published - the proxy client is
+owned by Authentik.
+
+```yaml
+spec:
+  protocol: proxy
+  proxy:
+    mode: forwardDomain          # forwardSingle | forwardDomain | proxy
+    externalHost: https://auth.example.com
+    cookieDomain: example.com
+```
+
+See [examples/ssoapplication-proxy.yaml](./examples/ssoapplication-proxy.yaml).
+
 # How it works
 
 OpenBao is the source of truth for credentials, and Authentik is always made to match what is stored there.
 
-When you create an `SSOApplication`, the controller reads the Authentik API token from OpenBao at `secret/authentik` (key `bootstrap-token`), then generates a `client-id` and `client-secret` and stores them at `secret/<slug>`. Set `credentials.openbaoPath` to choose another path. Existing credentials are left untouched, so they are generated once and never regenerated. The controller creates or updates the Authentik OAuth2 provider and application, matched by name and slug, then writes an `ExternalSecret` that copies the credentials from OpenBao into a Kubernetes Secret in the app's namespace through the shared `ClusterSecretStore` named `openbao`.
+When you create an OAuth2 `SSOApplication`, the controller reads the Authentik API token from OpenBao at `secret/authentik` (key `bootstrap-token`), then generates a `client-id` and `client-secret` and stores them at `secret/<slug>`. Set `credentials.openbaoPath` to choose another path. Existing credentials are left untouched, so they are generated once and never regenerated. The controller creates or updates the Authentik OAuth2 provider and application, matched by name and slug, then writes an `ExternalSecret` that copies the credentials from OpenBao into a Kubernetes Secret in the app's namespace through the shared `ClusterSecretStore` named `openbao`. A `proxy` application skips the credential and ExternalSecret steps and instead reconciles a proxy provider and attaches it to an outpost.
 
 Default addresses, secret paths, flow slugs, and the signing key name match the provisioner, so a default install needs no extra configuration.
 

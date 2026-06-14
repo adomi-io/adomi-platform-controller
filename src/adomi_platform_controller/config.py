@@ -46,6 +46,8 @@ class Config:
     authentik_token_key: str = "bootstrap-token"  # key within that path
     authorization_flow_slug: str = "default-provider-authorization-implicit-consent"
     invalidation_flow_slug: str = "default-provider-invalidation-flow"
+    # Flow proxy providers send un-authenticated users through (forward-auth login).
+    authentication_flow_slug: str = "default-authentication-flow"
     signing_key_name: str = "authentik Self-signed Certificate"
 
     # External Secrets.
@@ -70,6 +72,9 @@ class Config:
             authentik_token_key=_env("AUTHENTIK_TOKEN_KEY", d.authentik_token_key),
             authorization_flow_slug=_env("AUTHENTIK_AUTHORIZATION_FLOW", d.authorization_flow_slug),
             invalidation_flow_slug=_env("AUTHENTIK_INVALIDATION_FLOW", d.invalidation_flow_slug),
+            authentication_flow_slug=_env(
+                "AUTHENTIK_AUTHENTICATION_FLOW", d.authentication_flow_slug
+            ),
             signing_key_name=_env("AUTHENTIK_SIGNING_KEY_NAME", d.signing_key_name),
             cluster_secret_store=_env("CLUSTER_SECRET_STORE", d.cluster_secret_store),
         )

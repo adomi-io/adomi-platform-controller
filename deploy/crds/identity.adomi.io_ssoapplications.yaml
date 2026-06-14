@@ -104,14 +104,57 @@ spec:
               protocol:
                 default: oauth2
                 description: |-
-                  protocol selects the SSO protocol. Only oauth2 is supported in this
-                  version.
+                  protocol selects the SSO protocol. "oauth2" is an OAuth2/OIDC
+                  provider; "proxy" is a proxy provider for forward-auth (apps with
+                  no native SSO), served by an Authentik outpost.
                 enum:
                 - oauth2
+                - proxy
                 type: string
+              proxy:
+                description: |-
+                  proxy configures a proxy provider. Required when protocol is "proxy";
+                  ignored otherwise.
+                properties:
+                  cookieDomain:
+                    description: |-
+                      cookieDomain is the cookie domain for forwardDomain mode, so one
+                      provider can gate every host under it (e.g. example.com).
+                    type: string
+                  externalHost:
+                    description: |-
+                      externalHost is the public URL the provider protects. For
+                      forwardDomain mode this is the authentication URL (the outpost
+                      host, e.g. https://auth.example.com).
+                    type: string
+                  internalHost:
+                    description: internalHost is the upstream URL for "proxy" mode only.
+                    type: string
+                  mode:
+                    default: forwardSingle
+                    description: |-
+                      mode selects the proxy behaviour: forwardSingle (forward-auth for
+                      one host), forwardDomain (forward-auth for a whole domain), or
+                      proxy (Authentik reverse-proxies internalHost).
+                    enum:
+                    - forwardSingle
+                    - forwardDomain
+                    - proxy
+                    type: string
+                  outpost:
+                    description: |-
+                      outpost is the Authentik outpost name the provider is attached to.
+                      Defaults to the built-in "authentik Embedded Outpost".
+                    type: string
+                  skipPathRegex:
+                    description: |-
+                      skipPathRegex lists newline-separated regular expressions for
+                      paths that bypass authentication.
+                    type: string
+                type: object
               redirectUris:
                 description: redirectUris are the allowed OAuth2 redirect URIs (strict
-                  matching).
+                  matching). Required for protocol "oauth2".
                 items:
                   type: string
                 minItems: 1
@@ -131,8 +174,6 @@ spec:
                   name.
                 pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                 type: string
-            required:
-            - redirectUris
             type: object
           status:
             description: status defines the observed state of SSOApplication
@@ -214,9 +255,11 @@ spec:
                 description: openbaoPath is the resolved secret-store path holding
                   the credentials.
                 type: string
+              protocol:
+                description: protocol is the reconciled SSO protocol (oauth2 or proxy).
+                type: string
               providerID:
-                description: providerID is the identifier (pk) of the backing OAuth2
-                  provider.
+                description: providerID is the identifier (pk) of the backing provider.
                 type: string
               slug:
                 description: slug is the resolved identity-backend application/provider

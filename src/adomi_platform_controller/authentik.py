@@ -32,6 +32,26 @@ class OAuth2ProviderSpec:
     signing_key_pk: str = ""  # optional
 
 
+@dataclass
+class ProxyProviderSpec:
+    """The desired state of a proxy provider (forward-auth / reverse-proxy).
+
+    Authentik generates and owns the proxy client credentials internally, so -
+    unlike OAuth2 - none are supplied here.
+    """
+
+    name: str
+    authorization_flow_pk: str
+    invalidation_flow_pk: str
+    external_host: str
+    mode: str  # "forward_single" | "forward_domain" | "proxy"
+    authentication_flow_pk: str = ""  # optional; login flow for un-authed users
+    cookie_domain: str = ""  # forward_domain only
+    internal_host: str = ""  # proxy mode only
+    skip_path_regex: str = ""  # optional; paths that bypass auth
+    property_mapping_pks: list[str] = field(default_factory=list)
+
+
 class AuthentikClient:
     """Talks to a single Authentik server with a bearer API token."""
 
@@ -44,6 +64,7 @@ class AuthentikClient:
         self._crypto = authentik_client.CryptoApi(api)
         self._providers = authentik_client.ProvidersApi(api)
         self._mappings = authentik_client.PropertymappingsApi(api)
+        self._outposts = authentik_client.OutpostsApi(api)
 
     @staticmethod
     def _first_pk(results: list | None) -> str:
@@ -150,6 +171,77 @@ class AuthentikClient:
         )
         return created.pk
 
+    def ensure_proxy_provider(self, spec: ProxyProviderSpec) -> int:
+        """Create or update the proxy provider matched by name; return its pk."""
+        fields = {
+            "name": spec.name,
+            "authorization_flow": spec.authorization_flow_pk,
+            "invalidation_flow": spec.invalidation_flow_pk,
+            "external_host": spec.external_host,
+            "mode": authentik_client.ProxyMode(spec.mode),
+            "property_mappings": spec.property_mapping_pks,
+        }
+        if spec.authentication_flow_pk:
+            fields["authentication_flow"] = spec.authentication_flow_pk
+        if spec.cookie_domain:
+            fields["cookie_domain"] = spec.cookie_domain
+        if spec.internal_host:
+            fields["internal_host"] = spec.internal_host
+        if spec.skip_path_regex:
+            fields["skip_path_regex"] = spec.skip_path_regex
+
+        page = self._providers.providers_proxy_list(search=spec.name)
+        for provider in page.results:
+            if provider.name == spec.name:
+                self._providers.providers_proxy_partial_update(
+                    id=provider.pk,
+                    patched_proxy_provider_request=authentik_client.PatchedProxyProviderRequest(
+                        **fields
+                    ),
+                )
+                return provider.pk
+
+        created = self._providers.providers_proxy_create(
+            proxy_provider_request=authentik_client.ProxyProviderRequest(**fields)
+        )
+        return created.pk
+
+    def _find_outpost(self, name: str):
+        """Return the outpost matched by exact name, or None."""
+        page = self._outposts.outposts_instances_list(search=name)
+        for outpost in page.results:
+            if outpost.name == name:
+                return outpost
+        return None
+
+    def ensure_outpost_provider(self, outpost_name: str, provider_pk: int) -> None:
+        """Add a provider to an outpost's provider list (merge; no-op if already present).
+
+        Used to attach a proxy provider to the built-in embedded outpost, which the
+        Authentik server serves at /outpost.goauthentik.io/.
+        """
+        outpost = self._find_outpost(outpost_name)
+        if outpost is None:
+            raise RuntimeError(f"outpost {outpost_name!r} not found in Authentik")
+        providers = sorted(set(outpost.providers or []) | {provider_pk})
+        if providers == sorted(outpost.providers or []):
+            return
+        self._outposts.outposts_instances_partial_update(
+            uuid=outpost.pk,
+            patched_outpost_request=authentik_client.PatchedOutpostRequest(providers=providers),
+        )
+
+    def remove_outpost_provider(self, outpost_name: str, provider_pk: int) -> None:
+        """Remove a provider from an outpost's provider list. Missing is not an error."""
+        outpost = self._find_outpost(outpost_name)
+        if outpost is None or provider_pk not in (outpost.providers or []):
+            return
+        providers = [p for p in outpost.providers if p != provider_pk]
+        self._outposts.outposts_instances_partial_update(
+            uuid=outpost.pk,
+            patched_outpost_request=authentik_client.PatchedOutpostRequest(providers=providers),
+        )
+
     def ensure_application(self, slug: str, name: str, provider_pk: int) -> str:
         """Create or update the application (looked up by slug); return its pk (a UUID)."""
         try:
@@ -181,5 +273,12 @@ class AuthentikClient:
         """Remove the OAuth2 provider by pk. A missing provider is not an error."""
         try:
             self._providers.providers_oauth2_destroy(id=pk)
+        except NotFoundException:
+            return
+
+    def delete_proxy_provider(self, pk: int) -> None:
+        """Remove the proxy provider by pk. A missing provider is not an error."""
+        try:
+            self._providers.providers_proxy_destroy(id=pk)
         except NotFoundException:
             return

@@ -1,0 +1,24 @@
+# A proxy SSOApplication gives an app with no native SSO a forward-auth gate. The
+# controller reconciles an Authentik proxy provider + application and attaches the
+# provider to an outpost (the built-in embedded outpost by default). Point a Traefik
+# forwardAuth middleware at that outpost to require sign-in. No credentials are
+# published - the proxy client is generated and owned by Authentik.
+apiVersion: identity.adomi.io/v1alpha1
+kind: SSOApplication
+metadata:
+  name: status
+  namespace: uptime-kuma
+spec:
+  displayName: Uptime Kuma
+  protocol: proxy
+  proxy:
+    # forwardDomain: one provider gates every host under the cookie domain.
+    mode: forwardDomain
+    externalHost: https://auth.example.com
+    cookieDomain: example.com
+    # outpost defaults to "authentik Embedded Outpost".
+  scopes:
+    - openid
+    - profile
+    - email
+    - groups
