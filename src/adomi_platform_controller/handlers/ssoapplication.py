@@ -255,7 +255,12 @@ def _reconcile_proxy(
                 property_mapping_pks=mapping_pks,
             )
         )
-        ak.ensure_outpost_provider(proxy.get("outpost") or DEFAULT_OUTPOST, provider_pk)
+        # For domain-level forward auth, externalHost is the public Authentik URL, so
+        # point the outpost's browser URL at it (otherwise it redirects to localhost).
+        browser_host = external_host if mode == "forward_domain" else ""
+        ak.ensure_outpost_provider(
+            proxy.get("outpost") or DEFAULT_OUTPOST, provider_pk, browser_host
+        )
     except Exception as exc:  # noqa: BLE001
         fail(patch, status, conditions.REASON_BACKEND_ERROR, str(exc), generation)
 

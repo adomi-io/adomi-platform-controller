@@ -233,21 +233,37 @@ class AuthentikClient:
                 return outpost
         return None
 
-    def ensure_outpost_provider(self, outpost_name: str, provider_pk: int) -> None:
-        """Add a provider to an outpost's provider list (merge; no-op if already present).
+    def ensure_outpost_provider(
+        self, outpost_name: str, provider_pk: int, browser_host: str = ""
+    ) -> None:
+        """Attach a provider to an outpost (merge) and, when browser_host is set, point
+        the outpost's browser-facing URL at it.
 
-        Used to attach a proxy provider to the built-in embedded outpost, which the
-        Authentik server serves at /outpost.goauthentik.io/.
+        Used for the built-in embedded outpost the Authentik server serves at
+        /outpost.goauthentik.io/. browser_host must be the public Authentik URL: forward
+        auth reaches the outpost over the internal Service URL, so the outpost can't infer
+        the external host and would otherwise redirect the browser to localhost. Setting
+        authentik_host_browser fixes the authorize-endpoint redirect.
         """
         outpost = self._find_outpost(outpost_name)
         if outpost is None:
             raise RuntimeError(f"outpost {outpost_name!r} not found in Authentik")
+
         providers = sorted(set(outpost.providers or []) | {provider_pk})
-        if providers == sorted(outpost.providers or []):
+        config = dict(outpost.config or {})
+        config_changed = bool(browser_host) and config.get("authentik_host_browser") != browser_host
+        if browser_host:
+            config["authentik_host_browser"] = browser_host
+
+        if providers == sorted(outpost.providers or []) and not config_changed:
             return
+
+        fields: dict = {"providers": providers}
+        if config_changed:
+            fields["config"] = config
         self._outposts.outposts_instances_partial_update(
             uuid=outpost.pk,
-            patched_outpost_request=authentik_client.PatchedOutpostRequest(providers=providers),
+            patched_outpost_request=authentik_client.PatchedOutpostRequest(**fields),
         )
 
     def remove_outpost_provider(self, outpost_name: str, provider_pk: int) -> None:
