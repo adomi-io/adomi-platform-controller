@@ -1,7 +1,8 @@
 {{- $fullname := include "adomi-platform-controller.fullname" . -}}
 {{- $sa := include "adomi-platform-controller.serviceAccountName" . -}}
-# ClusterRole: the SSOApplication CRD the controller reconciles, plus the
-# ExternalSecrets it manages on their behalf, plus Events it posts.
+# ClusterRole: the CRDs the controller reconciles, plus the supporting resources
+# it manages on their behalf (ExternalSecrets, SSOApplications, Argo CD
+# Applications, CloudNativePG Clusters, per-environment namespaces), plus Events.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -15,9 +16,11 @@ rules:
   - apiGroups: [apiextensions.k8s.io]
     resources: [customresourcedefinitions]
     verbs: [get, list, watch]
+  # The controller creates per-workspace namespaces and the supporting resources, and prunes them on
+  # teardown (which cascades that environment's database / SSO / ExternalSecret).
   - apiGroups: [""]
     resources: [namespaces]
-    verbs: [get, list, watch]
+    verbs: [create, get, list, patch, update, watch, delete]
   # Kopf posts Kubernetes Events about handler outcomes.
   - apiGroups: [""]
     resources: [events]
@@ -37,6 +40,47 @@ rules:
   - apiGroups: [identity.adomi.io]
     resources: [ssoapplications/finalizers]
     verbs: [update]
+  # Platform CRDs reconciled by this controller.
+  - apiGroups: [platform.adomi.io]
+    resources: [organizations, clients, workspaces, applications, applicationtypes, gitrepositories, snapshots]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [platform.adomi.io]
+    resources: [organizations/status, clients/status, workspaces/status, applications/status, applicationtypes/status, gitrepositories/status, snapshots/status]
+    verbs: [get, patch, update]
+  - apiGroups: [platform.adomi.io]
+    resources: [organizations/finalizers, clients/finalizers, workspaces/finalizers, applications/finalizers, applicationtypes/finalizers, gitrepositories/finalizers, snapshots/finalizers]
+    verbs: [update]
+  # Argo CD Applications: the controller creates one per Application to deploy its
+  # chart, and deletes it on teardown.
+  - apiGroups: [argoproj.io]
+    resources: [applications]
+    verbs: [create, delete, get, list, patch, update, watch]
+  # Argo Workflows: the controller submits image-build Workflows (from the shipped
+  # WorkflowTemplate) and watches them to completion.
+  - apiGroups: [argoproj.io]
+    resources: [workflows]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [argoproj.io]
+    resources: [workflowtemplates]
+    verbs: [get, list, watch]
+  # Argo Events: the controller generates a github EventSource + Sensor per
+  # preview-enabled GitRepository and tears them down with it.
+  - apiGroups: [argoproj.io]
+    resources: [eventsources, sensors]
+    verbs: [create, delete, get, list, patch, update, watch]
+  # Ingresses: the controller exposes each preview EventSource webhook publicly.
+  - apiGroups: [networking.k8s.io]
+    resources: [ingresses]
+    verbs: [create, delete, get, list, patch, update, watch]
+  # CloudNativePG Clusters: provisioned for in-cluster (cnpg-mode) environments.
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [clusters]
+    verbs: [create, delete, get, list, patch, update, watch]
+  # Secrets: read referenced git credentials, and create the Harbor push /
+  # git-token Secrets the build Workflow consumes in the argo namespace.
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [create, get, list, patch, update]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

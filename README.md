@@ -24,6 +24,7 @@ Each app is a resource you can create, update, and delete like any other Kuberne
 The CRD is a stable platform abstraction. It stays the same even if the systems behind it change, so downstream repos never have to know how Authentik or OpenBao are wired.
 
 - 🔑 [**SSO applications**](#ssoapplication): Declare an app and get OAuth credentials, an Authentik provider and application, and a published Secret, all from a single resource.
+- 🏭 [**Application platform**](#platform-resources): Declare a `Client`, `Workspace`, and `Application`; the controller runs any catalog app (Odoo, Mailpit, Superset, …) with a database, SSO, and ingress via Argo CD — and auto-integrates them.
 - 🔐 [**OpenBao as the source of truth**](#how-it-works): Credentials are generated once in OpenBao and never regenerated. Authentik is always made to match.
 - 🤝 [**Drop-in for the provisioner**](#getting-started): Every default matches the kubernetes-provisioner, so a default install needs no extra configuration.
 - ♻️ **Idempotent**: The resource reports a `Ready` status condition and can be reconciled as many times as you like.
@@ -106,6 +107,99 @@ spec:
 
 See [examples/ssoapplication-proxy.yaml](./examples/ssoapplication-proxy.yaml).
 
+# Platform resources
+
+Beyond SSO, the controller is a generic, multi-tenant **application platform**. You provision a
+customer, give them **workspaces**, and run a subset of catalog **applications** (Odoo, Mailpit,
+Superset, …) in each. You describe *what* you want; the controller reconciles the supporting
+objects (namespace, database, SSO, ingress) and hands the workload to **Argo CD**.
+
+```text
+Organization        cluster-wide defaults (base domain, image repo)
+  └── Client        an end customer (e.g. Example Co)
+        └── Workspace        a named env: production | development | pdi | preview | test
+              └── Application "run <type> here" — deploys a catalog chart via Argo CD
+
+ApplicationType     the catalog: chart source + adapter + capabilities (cluster-scoped)
+GitRepository       an external source repo (build input; optional PR preview environments)
+Snapshot            a point-in-time dump of an Application's database (clone source)
+```
+
+One operator, not many: ~80% of "run app X for client Y" is shared (namespace + database + SSO +
+ingress + Argo CD Application). An **ApplicationType** (the catalog) declares each app's chart and an
+**adapter** name; a small code adapter (`odoo`/`superset`/`mailpit`/`generic`) maps the platform's
+standard inputs into that chart's value shape — so charts can be ours (adomi-helm) or upstream
+(apache/superset). The provisioner ships the catalog.
+
+Creating an `Application` makes the controller: resolve `Organization → Client → Workspace →
+ApplicationType` config; provision the database (`none` | in-cluster **CloudNativePG** | `external`);
+declare an `SSOApplication` (native OIDC `oauth2`, or forward-auth `proxy`); run the adapter +
+integrations to build the Helm values; create the **Argo CD `Application`**; and publish a
+**connection contract** (`status.connection`) other apps integrate with.
+
+```yaml
+apiVersion: platform.adomi.io/v1alpha1
+kind: Workspace
+metadata: { name: production, namespace: adomi-system }
+spec:
+  clientRef: { name: acme }
+  class: production
+---
+apiVersion: platform.adomi.io/v1alpha1
+kind: Application
+metadata: { name: odoo, namespace: adomi-system }
+spec:
+  workspaceRef: { name: production }
+  type: odoo
+  database: { mode: cnpg }
+  odoo: { version: "19.0", workers: 2 }
+  sso: { enabled: true }
+```
+
+See [examples/](./examples/) for `Organization`, `Client`, `Workspace`, and `application-*`
+manifests.
+
+### Auto-integration between apps
+
+Apps wire to each other declaratively. The consumer lists `spec.integrations`; when the provider is
+Ready and has published its connection contract, a connector keyed by `type` injects the right
+values. For example, register an Odoo database as a Superset data source:
+
+```yaml
+kind: Application
+spec:
+  type: superset
+  database: { mode: cnpg }
+  integrations:
+    - type: odoo-superset-datasource
+      fromRef: { name: odoo }     # the provider Application
+```
+
+Connectors are a small registry (provider publishes / consumer references — the same pattern as the
+SSO and CNPG secrets). `odoo-mailpit-smtp` similarly routes a dev Odoo's outbound mail to a Mailpit
+trap.
+
+### Building from source
+
+An Odoo `Application` can declare a `source` (a `GitRepository` + git ref). The controller runs an
+**Argo Workflow** (rootless BuildKit) that builds the repo's Dockerfile, pushes to **Harbor**, gates
+the deploy on a successful build, and deploys the built image. This is the foundation for preview
+environments. Set `spec.preview.enabled` on a `GitRepository` (with a `clientRef` and a token with
+`admin:repo_hook`) and the controller wires the whole PR → preview flow via **Argo Events**: a PR
+opened creates a `pr-<n>` Workspace + Application (built from the PR head), synchronize rebuilds,
+closed tears it down, and the preview URL is posted back to the PR. See
+[examples/gitrepository-previews.yaml](./examples/gitrepository-previews.yaml).
+
+### Database snapshots & cloning
+
+A `Snapshot` captures an Application's Postgres database to object storage (SeaweedFS S3) via an Argo
+Workflow (`pg_dump` → upload). Another Application can **clone** it with `restoreFrom`: before
+deploying, a restore Workflow runs `download → pg_restore → optional neutralize` into the
+freshly-provisioned (cnpg) database. `sanitize` runs Odoo's **neutralize** to disarm mail/crons/
+payment keys (default on for non-production), so production data is safe in dev/PDI/preview.
+Restoring is `cnpg`-only and idempotent (`status.restoredFrom`). See
+[examples/snapshot.yaml](./examples/snapshot.yaml).
+
 # How it works
 
 OpenBao is the source of truth for credentials, and Authentik is always made to match what is stored there.
@@ -176,11 +270,25 @@ src/adomi_platform_controller/
   openbao.py           OpenBao KV v2 access via hvac (+ kubernetes-auth login)
   authentik.py         Authentik access via the official authentik-client
   externalsecrets.py   builds/applies ExternalSecret objects
+  argocd.py            builds/applies Argo CD Application objects
+  cnpg.py              builds/applies CloudNativePG Cluster objects
+  workflows.py         builds/submits Argo Workflows (image builds, db jobs)
+  argoevents.py        builds/applies Argo Events EventSource + Sensor (previews)
+  ingress.py           builds/applies the webhook Ingress
+  github.py            tiny GitHub REST client (PR comment + commit status)
+  dbjobs.py            snapshot/restore secret-ensuring + workflow params
+  buildsecrets.py      ensures Harbor push / git-token / webhook / db / s3 Secrets in argo
+  namespaces.py        ensures/deletes per-workspace namespaces
+  ssoapps.py           builds/applies SSOApplication objects (oauth2 + proxy)
+  resolve.py           resolves effective config (org→client→workspace→application)
+  apptypes/            per-app value adapters (odoo, superset, mailpit, generic) + registry
+  integrations/        connector registry (odoo→superset datasource, odoo→mailpit smtp)
   conditions.py        Ready status-condition helpers
   secretgen.py         crypto-random credential generation
   operator.py          Kopf startup + handler registration
-  handlers/            the SSOApplication reconciler
-deploy/crds/           the CustomResourceDefinition (for `kubectl apply`)
+  handlers/            reconcilers: ssoapplication, organization, client, workspace,
+                       applicationtype, application, gitrepository, snapshot
+deploy/crds/           the CustomResourceDefinitions (for `kubectl apply`)
 charts/                the Helm chart
 examples/              sample resources
 ```

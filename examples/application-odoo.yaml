@@ -1,0 +1,23 @@
+# An Odoo Application in the production workspace. The controller provisions a
+# CloudNativePG database, a forward-auth SSOApplication, and an Argo CD Application
+# that deploys the Odoo chart at https://odoo.production.acme.<baseDomain>.
+apiVersion: platform.adomi.io/v1alpha1
+kind: Application
+metadata:
+  name: odoo
+  namespace: adomi-system
+spec:
+  workspaceRef:
+    name: production
+  type: odoo
+  database:
+    mode: cnpg
+    cnpg:
+      storage: 20Gi
+  odoo:
+    version: "19.0"
+    workers: 2
+    addons:
+      initModules: base,web
+  sso:
+    enabled: true

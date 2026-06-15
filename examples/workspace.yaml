@@ -1,0 +1,13 @@
+# A Workspace is a named environment for a Client (production / dev / pdi /
+# preview / test). It owns a namespace (<client>-<workspace>) that its
+# Applications deploy into.
+apiVersion: platform.adomi.io/v1alpha1
+kind: Workspace
+metadata:
+  name: production
+  namespace: adomi-system
+spec:
+  clientRef:
+    name: acme
+  class: production
+  displayName: Acme Production

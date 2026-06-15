@@ -1,0 +1,45 @@
+{{- if .Values.platform.preview.enabled }}
+{{- $ns := .Values.platform.build.argoNamespace }}
+{{- $sa := .Values.platform.preview.sensorServiceAccount }}
+{{- $fullname := include "adomi-platform-controller.fullname" . }}
+# ServiceAccount the preview Sensors run as, plus permission to create/patch/delete
+# preview Workspaces + Applications in the management namespaces. Installed by this chart so
+# the preview feature is self-contained.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $sa }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "adomi-platform-controller.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ $fullname }}-previews
+  labels:
+    {{- include "adomi-platform-controller.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [platform.adomi.io]
+    resources: [workspaces, applications]
+    verbs: [create, get, list, patch, update, delete]
+  # The Argo Events sensor reports trigger outcomes as Events.
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $fullname }}-previews
+  labels:
+    {{- include "adomi-platform-controller.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $fullname }}-previews
+subjects:
+  - kind: ServiceAccount
+    name: {{ $sa }}
+    namespace: {{ $ns }}
+{{- end }}

@@ -1,0 +1,328 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: applications.platform.adomi.io
+spec:
+  group: platform.adomi.io
+  names:
+    kind: Application
+    listKind: ApplicationList
+    plural: applications
+    shortNames:
+    - app
+    singular: application
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.type
+      name: Type
+      type: string
+    - jsonPath: .status.url
+      name: URL
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Application runs a catalog app (by type) in a Workspace via Argo CD.
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of Application
+            properties:
+              workspaceRef:
+                description: workspaceRef names the owning Workspace (same namespace).
+                properties:
+                  name:
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                type: object
+              type:
+                description: type is the ApplicationType (catalog entry) to deploy.
+                minLength: 1
+                type: string
+              displayName:
+                type: string
+              replicas:
+                default: 1
+                format: int64
+                minimum: 0
+                type: integer
+              values:
+                description: values are free-form Helm value overrides (highest precedence).
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              database:
+                description: database configures the app's database backend.
+                properties:
+                  mode:
+                    description: |-
+                      mode selects the database backend. "none" for apps that need no
+                      database; "cnpg" provisions an in-cluster CloudNativePG cluster;
+                      "external" references a managed database. Defaults from the type
+                      (database.required) and workspace class when unset.
+                    enum:
+                    - none
+                    - cnpg
+                    - external
+                    type: string
+                  cnpg:
+                    properties:
+                      instances:
+                        default: 1
+                        format: int64
+                        minimum: 1
+                        type: integer
+                      storage:
+                        default: 10Gi
+                        type: string
+                      storageClass:
+                        type: string
+                    type: object
+                  external:
+                    properties:
+                      host:
+                        type: string
+                      port:
+                        default: 5432
+                        format: int64
+                        type: integer
+                      name:
+                        type: string
+                      user:
+                        type: string
+                      sslmode:
+                        type: string
+                      passwordSecret:
+                        properties:
+                          name:
+                            minLength: 1
+                            type: string
+                          key:
+                            type: string
+                        required:
+                        - name
+                        type: object
+                    type: object
+                type: object
+              ingress:
+                description: ingress overrides ingress settings for the app.
+                properties:
+                  host:
+                    description: host overrides the generated <app>.<workspace>.<client>.<baseDomain>.
+                    type: string
+                  className:
+                    type: string
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  tls:
+                    items:
+                      x-kubernetes-preserve-unknown-fields: true
+                    type: array
+                type: object
+              sso:
+                description: sso toggles single sign-on (protocol is driven by the type).
+                properties:
+                  enabled:
+                    default: true
+                    type: boolean
+                type: object
+              integrations:
+                description: |-
+                  integrations auto-wire this app to others. Each references a provider
+                  Application; a connector keyed by type injects values from the
+                  provider's published connection contract.
+                items:
+                  properties:
+                    type:
+                      description: type is the connector key (e.g. odoo-superset-datasource).
+                      minLength: 1
+                      type: string
+                    fromRef:
+                      description: fromRef names the provider Application (same namespace).
+                      properties:
+                        name:
+                          minLength: 1
+                          type: string
+                      required:
+                      - name
+                      type: object
+                  required:
+                  - type
+                  - fromRef
+                  type: object
+                type: array
+              odoo:
+                description: odoo carries Odoo-specific settings (type "odoo").
+                properties:
+                  version:
+                    type: string
+                  workers:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                  addons:
+                    properties:
+                      initModules:
+                        type: string
+                      updateModules:
+                        type: string
+                    type: object
+                type: object
+              source:
+                description: |-
+                  source builds the app image from a GitRepository (type "odoo"); the
+                  controller runs an Argo Workflow and gates deploy on a successful build.
+                properties:
+                  repositoryRef:
+                    properties:
+                      name:
+                        minLength: 1
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  ref:
+                    type: string
+                  contextPath:
+                    type: string
+                  dockerfile:
+                    type: string
+                  baseImage:
+                    type: string
+                required:
+                - repositoryRef
+                type: object
+              restoreFrom:
+                description: |-
+                  restoreFrom clones a Snapshot's database into this app before deploying
+                  (cnpg only; type "odoo"). Gated and idempotent (status.restoredFrom).
+                properties:
+                  snapshotRef:
+                    properties:
+                      name:
+                        minLength: 1
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  sanitize:
+                    type: boolean
+                required:
+                - snapshotRef
+                type: object
+              adminPassword:
+                description: adminPassword sources the app's admin/master password (e.g. Odoo).
+                properties:
+                  value:
+                    type: string
+                  existingSecret:
+                    type: string
+                  existingSecretKey:
+                    type: string
+                type: object
+            required:
+            - workspaceRef
+            - type
+            type: object
+          status:
+            description: status defines the observed state of Application
+            properties:
+              namespace:
+                type: string
+              url:
+                type: string
+              phase:
+                description: phase is the lifecycle phase (Building, Restoring, Deployed, *Failed).
+                type: string
+              argoApplication:
+                type: string
+              builtImage:
+                type: string
+              buildWorkflow:
+                type: string
+              restoredFrom:
+                type: string
+              restoreWorkflow:
+                type: string
+              ssoSlug:
+                type: string
+              connection:
+                description: |-
+                  connection is the contract this app publishes for integrations
+                  (url / db / smtp / oidc, per the type's "provides").
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              conditions:
+                description: |-
+                  conditions represent the current state of the resource.
+                  Known types: "Ready".
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

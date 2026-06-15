@@ -1,0 +1,129 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: organizations.platform.adomi.io
+spec:
+  group: platform.adomi.io
+  names:
+    kind: Organization
+    listKind: OrganizationList
+    plural: organizations
+    shortNames:
+    - org
+    singular: organization
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.baseDomain
+      name: Base Domain
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Organization holds platform-wide defaults inherited by environments.
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of Organization
+            properties:
+              domain:
+                description: domain configures the platform's DNS.
+                properties:
+                  base:
+                    description: |-
+                      base is the base domain for generated environment hostnames
+                      (<env>.<project>.<client>.<base>). When empty, environments must
+                      set spec.hostname explicitly.
+                    type: string
+                type: object
+              images:
+                description: images configures default container images.
+                properties:
+                  odooRepository:
+                    description: odooRepository is the default Odoo image repository.
+                    type: string
+                type: object
+              ingress:
+                description: ingress configures default ingress behaviour.
+                properties:
+                  className:
+                    description: className is the default IngressClass for environments.
+                    type: string
+                type: object
+            type: object
+          status:
+            description: status defines the observed state of Organization
+            properties:
+              baseDomain:
+                description: baseDomain is the resolved base domain.
+                type: string
+              odooImageRepository:
+                description: odooImageRepository is the resolved default Odoo image repository.
+                type: string
+              conditions:
+                description: |-
+                  conditions represent the current state of the resource.
+                  Known types: "Ready".
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

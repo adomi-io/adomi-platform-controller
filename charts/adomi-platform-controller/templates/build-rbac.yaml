@@ -1,0 +1,49 @@
+{{- if .Values.platform.build.enabled }}
+{{- $ns := .Values.platform.build.argoNamespace }}
+{{- $sa := .Values.platform.build.serviceAccount }}
+# ServiceAccount + Role the image-build Workflow runs as, in the Argo namespace.
+# The Argo executor (emissary) needs these to manage the build pod and report
+# results. Installed by this chart so the build feature is self-contained.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $sa }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "adomi-platform-controller.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $sa }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "adomi-platform-controller.labels" . | nindent 4 }}
+rules:
+  # The Argo Workflows executor manages the workflow's pods and reports results.
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [create, get, list, watch, patch, delete]
+  - apiGroups: [""]
+    resources: [pods/log, pods/exec]
+    verbs: [get, list, watch, create]
+  - apiGroups: [argoproj.io]
+    resources: [workflowtaskresults]
+    verbs: [create, patch, get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $sa }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "adomi-platform-controller.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $sa }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $sa }}
+    namespace: {{ $ns }}
+{{- end }}

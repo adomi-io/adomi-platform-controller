@@ -1,0 +1,34 @@
+# A GitRepository with automatic preview environments enabled. The controller
+# generates an Argo Events github EventSource (which registers the GitHub webhook
+# and validates the HMAC), a Sensor, and a webhook Ingress at hooks.<domain>.
+# Opening a PR builds and deploys a preview Workspace + Application (pr-<n>); pushing
+# rebuilds it; closing the PR tears it down. The preview URL is posted back to the PR.
+#
+# The credentials token needs `repo` + `admin:repo_hook` scopes.
+apiVersion: platform.adomi.io/v1alpha1
+kind: GitRepository
+metadata:
+  name: erp-src
+  namespace: adomi-system
+spec:
+  url: https://github.com/acme/odoo-erp
+  defaultBranch: main
+  credentialsSecretRef:
+    name: acme-github
+    key: token
+  preview:
+    enabled: true
+    clientRef:
+      name: acme              # previews create pr-<n> Workspaces for this Client
+    applicationType: odoo     # the ApplicationType built for each PR
+    # baseImage: ghcr.io/adomi-io/odoo:19.0
+---
+# The GitHub token Secret referenced above (token needs repo + admin:repo_hook).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: acme-github
+  namespace: adomi-system
+type: Opaque
+stringData:
+  token: ghp_replace_me

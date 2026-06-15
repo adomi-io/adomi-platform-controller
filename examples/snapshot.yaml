@@ -1,0 +1,12 @@
+# A Snapshot dumps an Application's Postgres database to object storage (S3).
+# The controller runs an Argo Workflow (pg_dump -> upload) and records the object
+# location in status.location. A dev/pdi Application can then restore (and sanitize)
+# from it via spec.restoreFrom.
+apiVersion: platform.adomi.io/v1alpha1
+kind: Snapshot
+metadata:
+  name: prod-2026-06-14
+  namespace: adomi-system
+spec:
+  applicationRef:
+    name: odoo            # an existing Application to snapshot

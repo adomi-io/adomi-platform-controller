@@ -1,0 +1,118 @@
+{{- if .Values.platform.snapshots.enabled }}
+# Database restore WorkflowTemplate (installed into the Argo namespace). The
+# controller submits a Workflow when an Application declares restoreFrom: it
+# downloads the snapshot, pg_restores it into the target (cnpg) database, and
+# optionally runs Odoo's neutralize ("sanitize") to disarm the cloned data.
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: {{ .Values.platform.snapshots.restoreWorkflowTemplate }}
+  namespace: {{ .Values.platform.snapshots.argoNamespace }}
+  labels:
+    {{- include "adomi-platform-controller.labels" . | nindent 4 }}
+spec:
+  entrypoint: main
+  arguments:
+    parameters:
+      - { name: dbHost }
+      - { name: dbPort, value: "5432" }
+      - { name: dbName, value: odoo }
+      - { name: dbUser, value: odoo }
+      - { name: dbSecret }
+      - { name: s3Endpoint }
+      - { name: s3Bucket }
+      - { name: s3Key }
+      - { name: s3Secret }
+      - { name: pgImage, value: postgres:16 }
+      - { name: awscliImage, value: amazon/aws-cli:2 }
+      - { name: odooImage, value: ghcr.io/adomi-io/odoo:19.0 }
+      - { name: sanitize, value: "true" }
+  volumeClaimTemplates:
+    - metadata:
+        name: work
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: {{ .Values.platform.snapshots.workspaceSize | quote }}
+  templates:
+    - name: main
+      steps:
+        - - name: download
+            template: download
+        - - name: restore
+            template: restore
+        - - name: sanitize
+            template: sanitize
+            when: "{{`{{workflow.parameters.sanitize}}`}} == true"
+    - name: download
+      container:
+        image: "{{`{{workflow.parameters.awscliImage}}`}}"
+        command: [sh, -c]
+        args:
+          - |
+            set -eu
+            aws --endpoint-url "{{`{{workflow.parameters.s3Endpoint}}`}}" \
+              s3 cp "s3://{{`{{workflow.parameters.s3Bucket}}`}}/{{`{{workflow.parameters.s3Key}}`}}" \
+              /work/dump.pgdump
+            echo "downloaded"
+        env:
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: "{{`{{workflow.parameters.s3Secret}}`}}"
+                key: access-key
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: "{{`{{workflow.parameters.s3Secret}}`}}"
+                key: secret-key
+          - name: AWS_DEFAULT_REGION
+            value: us-east-1
+          - name: AWS_EC2_METADATA_DISABLED
+            value: "true"
+        volumeMounts:
+          - name: work
+            mountPath: /work
+    - name: restore
+      container:
+        image: "{{`{{workflow.parameters.pgImage}}`}}"
+        command: [sh, -c]
+        args:
+          - |
+            set -eu
+            H="{{`{{workflow.parameters.dbHost}}`}}"; P="{{`{{workflow.parameters.dbPort}}`}}"
+            U="{{`{{workflow.parameters.dbUser}}`}}"; DB="{{`{{workflow.parameters.dbName}}`}}"
+            echo "waiting for $H:$P"; until pg_isready -h "$H" -p "$P" -U "$U"; do sleep 3; done
+            pg_restore -h "$H" -p "$P" -U "$U" -d "$DB" --no-owner --no-privileges /work/dump.pgdump
+            echo "restore complete"
+        env:
+          - name: PGPASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: "{{`{{workflow.parameters.dbSecret}}`}}"
+                key: password
+        volumeMounts:
+          - name: work
+            mountPath: /work
+    - name: sanitize
+      container:
+        image: "{{`{{workflow.parameters.odooImage}}`}}"
+        # No command override: the image ENTRYPOINT forwards "odoo-bin ..." (and
+        # waits for Postgres) so neutralize runs against the restored database.
+        args: [odoo-bin, neutralize, -d, "{{`{{workflow.parameters.dbName}}`}}", --stop-after-init]
+        env:
+          - name: ODOO_DB_HOST
+            value: "{{`{{workflow.parameters.dbHost}}`}}"
+          - name: ODOO_DB_PORT
+            value: "{{`{{workflow.parameters.dbPort}}`}}"
+          - name: ODOO_DB_USER
+            value: "{{`{{workflow.parameters.dbUser}}`}}"
+          - name: ODOO_DB_NAME
+            value: "{{`{{workflow.parameters.dbName}}`}}"
+          - name: ODOO_DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: "{{`{{workflow.parameters.dbSecret}}`}}"
+                key: password
+{{- end }}

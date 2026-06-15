@@ -53,6 +53,80 @@ class Config:
     # External Secrets.
     cluster_secret_store: str = "openbao"
 
+    # Argo CD. The Application engine creates an Argo CD Application per app; the
+    # chart source comes from each ApplicationType, so only the install location is
+    # configured here.
+    argocd_namespace: str = "argocd"  # where Application objects live
+    argocd_project: str = "default"  # the AppProject apps are placed in
+
+    # Default Odoo container image (the odoo adapter's base image when an Application
+    # doesn't build from source / pin a version). The chart tag defaults to its
+    # appVersion.
+    odoo_image_repository: str = "ghcr.io/adomi-io/odoo"
+
+    # Platform domain. Generated environment hostnames are
+    # "<env>.<project>.<client>.<baseDomain>" unless the environment sets its own
+    # hostname. Empty means an environment must declare spec.hostname or supply an
+    # Organization with a base domain.
+    base_domain: str = ""
+
+    # Forward-auth. The Traefik middleware (in "<namespace>-<name>@kubernetescrd"
+    # form) added to an Odoo Ingress to gate it behind the Authentik outpost when
+    # SSO is enabled. Empty disables ingress wiring (the SSOApplication is still
+    # created).
+    forward_auth_middleware: str = "authentik-authentik@kubernetescrd"
+
+    # Build pipeline. When an Application declares a source, the controller
+    # submits an Argo Workflow (from the shipped WorkflowTemplate) that builds the
+    # repository image and pushes it to Harbor.
+    argo_namespace: str = "argo"  # where Argo Workflows + build secrets live
+    build_workflow_template: str = "odoo-image-build"  # WorkflowTemplate name in argo
+    build_service_account: str = "odoo-build"  # ServiceAccount the build runs as
+
+    # Harbor registry the built images are pushed to.
+    harbor_host: str = ""  # e.g. harbor.example.com; falls back to harbor.<baseDomain>
+    harbor_project: str = "previews"  # Harbor project/repository prefix for built images
+    harbor_username: str = "admin"  # registry push user
+    harbor_secret_path: str = "harbor-app"  # OpenBao KV path holding the push password
+    harbor_secret_key: str = "admin-password"  # key within that path
+
+    def resolved_harbor_host(self) -> str:
+        """The Harbor host, defaulting to harbor.<baseDomain> when not set."""
+        if self.harbor_host:
+            return self.harbor_host
+        if self.base_domain:
+            return f"harbor.{self.base_domain}"
+        return ""
+
+    # Preview environments. When a GitRepository enables previews, the controller
+    # generates an Argo Events github EventSource + Sensor + webhook Ingress; PR
+    # events create/rebuild/destroy preview Workspaces and Applications.
+    webhook_host: str = ""  # public webhook host; falls back to hooks.<baseDomain>
+    cluster_issuer: str = "letsencrypt-prod"  # cert-manager issuer for the webhook Ingress
+    preview_ingress_class: str = "traefik"  # IngressClass for the webhook Ingress
+    preview_sensor_service_account: str = "odoo-previews"  # SA the Sensor runs as
+    github_api_url: str = "https://api.github.com"  # override for GitHub Enterprise
+
+    def resolved_webhook_host(self) -> str:
+        """The webhook host, defaulting to hooks.<baseDomain> when not set."""
+        if self.webhook_host:
+            return self.webhook_host
+        if self.base_domain:
+            return f"hooks.{self.base_domain}"
+        return ""
+
+    # Database snapshots. A Snapshot dumps an environment's Postgres DB to object
+    # storage; an Application can restore (and optionally sanitize) from one.
+    s3_endpoint: str = "http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333"
+    s3_bucket: str = "platform"  # snapshots are stored under the "snapshots/" prefix
+    s3_secret_path: str = "s3"  # OpenBao KV path holding the object-store credentials
+    s3_access_key_key: str = "access-key"  # key within that path
+    s3_secret_key_key: str = "secret-key"  # key within that path
+    snapshot_workflow_template: str = "odoo-db-snapshot"  # WorkflowTemplate in argo
+    restore_workflow_template: str = "odoo-db-restore"  # WorkflowTemplate in argo
+    snapshot_postgres_image: str = "postgres:16"  # image with pg_dump/pg_restore
+    snapshot_awscli_image: str = "amazon/aws-cli:2"  # image with the aws CLI
+
     @classmethod
     def from_env(cls) -> "Config":
         """Build a Config from environment variables, falling back to defaults."""
@@ -77,4 +151,37 @@ class Config:
             ),
             signing_key_name=_env("AUTHENTIK_SIGNING_KEY_NAME", d.signing_key_name),
             cluster_secret_store=_env("CLUSTER_SECRET_STORE", d.cluster_secret_store),
+            argocd_namespace=_env("ARGOCD_NAMESPACE", d.argocd_namespace),
+            argocd_project=_env("ARGOCD_PROJECT", d.argocd_project),
+            odoo_image_repository=_env("ODOO_IMAGE_REPOSITORY", d.odoo_image_repository),
+            base_domain=_env("PLATFORM_BASE_DOMAIN", d.base_domain),
+            forward_auth_middleware=_env("FORWARD_AUTH_MIDDLEWARE", d.forward_auth_middleware),
+            argo_namespace=_env("ARGO_NAMESPACE", d.argo_namespace),
+            build_workflow_template=_env("BUILD_WORKFLOW_TEMPLATE", d.build_workflow_template),
+            build_service_account=_env("BUILD_SERVICE_ACCOUNT", d.build_service_account),
+            harbor_host=_env("HARBOR_HOST", d.harbor_host),
+            harbor_project=_env("HARBOR_PROJECT", d.harbor_project),
+            harbor_username=_env("HARBOR_USERNAME", d.harbor_username),
+            harbor_secret_path=_env("HARBOR_SECRET_PATH", d.harbor_secret_path),
+            harbor_secret_key=_env("HARBOR_SECRET_KEY", d.harbor_secret_key),
+            webhook_host=_env("WEBHOOK_HOST", d.webhook_host),
+            cluster_issuer=_env("CLUSTER_ISSUER", d.cluster_issuer),
+            preview_ingress_class=_env("PREVIEW_INGRESS_CLASS", d.preview_ingress_class),
+            preview_sensor_service_account=_env(
+                "PREVIEW_SENSOR_SERVICE_ACCOUNT", d.preview_sensor_service_account
+            ),
+            github_api_url=_env("GITHUB_API_URL", d.github_api_url),
+            s3_endpoint=_env("S3_ENDPOINT", d.s3_endpoint),
+            s3_bucket=_env("S3_BUCKET", d.s3_bucket),
+            s3_secret_path=_env("S3_SECRET_PATH", d.s3_secret_path),
+            s3_access_key_key=_env("S3_ACCESS_KEY_KEY", d.s3_access_key_key),
+            s3_secret_key_key=_env("S3_SECRET_KEY_KEY", d.s3_secret_key_key),
+            snapshot_workflow_template=_env(
+                "SNAPSHOT_WORKFLOW_TEMPLATE", d.snapshot_workflow_template
+            ),
+            restore_workflow_template=_env(
+                "RESTORE_WORKFLOW_TEMPLATE", d.restore_workflow_template
+            ),
+            snapshot_postgres_image=_env("SNAPSHOT_POSTGRES_IMAGE", d.snapshot_postgres_image),
+            snapshot_awscli_image=_env("SNAPSHOT_AWSCLI_IMAGE", d.snapshot_awscli_image),
         )

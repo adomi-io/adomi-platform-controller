@@ -1,0 +1,94 @@
+{{- if .Values.platform.build.enabled }}
+# Image-build WorkflowTemplate, installed into the Argo namespace. The controller
+# submits a Workflow referencing this template (per Application with a source),
+# which builds the customer repo with rootless BuildKit and pushes to Harbor.
+#
+# BuildKit builds straight from a git context (repoURL#ref[:contextPath]); the
+# Harbor push credentials are mounted as a docker config, and an optional
+# GIT_AUTH_TOKEN authenticates cloning of private repositories.
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: {{ .Values.platform.build.workflowTemplate }}
+  namespace: {{ .Values.platform.build.argoNamespace }}
+  labels:
+    {{- include "adomi-platform-controller.labels" . | nindent 4 }}
+spec:
+  entrypoint: build
+  arguments:
+    parameters:
+      - { name: repoURL }
+      - { name: ref, value: main }
+      - { name: contextPath, value: "." }
+      - { name: dockerfile, value: Dockerfile }
+      - { name: baseImage }
+      - { name: outputImage }
+      - { name: pushSecret, value: harbor-push }
+      - { name: gitSecret }
+  templates:
+    - name: build
+      inputs:
+        parameters:
+          - { name: repoURL }
+          - { name: ref }
+          - { name: contextPath }
+          - { name: dockerfile }
+          - { name: baseImage }
+          - { name: outputImage }
+          - { name: pushSecret }
+          - { name: gitSecret }
+      metadata:
+        annotations:
+          # Rootless BuildKit requires an unconfined AppArmor profile on the container.
+          container.apparmor.security.beta.kubernetes.io/main: unconfined
+      volumes:
+        - name: docker-config
+          secret:
+            secretName: "{{`{{inputs.parameters.pushSecret}}`}}"
+            items:
+              - key: .dockerconfigjson
+                path: config.json
+        - name: buildkitd
+          emptyDir: {}
+      container:
+        image: {{ .Values.platform.build.buildkitImage | quote }}
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+          seccompProfile:
+            type: Unconfined
+        env:
+          - name: DOCKER_CONFIG
+            value: /home/user/.docker
+          # Rootless mode without a nested process sandbox (no privileged needed).
+          - name: BUILDKITD_FLAGS
+            value: --oci-worker-no-process-sandbox
+          # Used by BuildKit's git source to clone private repositories. Empty for
+          # public repos (the secret always exists; the token may be blank).
+          - name: GIT_AUTH_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: "{{`{{inputs.parameters.gitSecret}}`}}"
+                key: token
+        volumeMounts:
+          - name: docker-config
+            mountPath: /home/user/.docker
+          - name: buildkitd
+            mountPath: /home/user/.local/share/buildkit
+        command: [sh, -c]
+        args:
+          - |
+            set -eu
+            CONTEXT="{{`{{inputs.parameters.repoURL}}`}}#{{`{{inputs.parameters.ref}}`}}"
+            CTXPATH="{{`{{inputs.parameters.contextPath}}`}}"
+            if [ -n "$CTXPATH" ] && [ "$CTXPATH" != "." ]; then
+              CONTEXT="$CONTEXT:$CTXPATH"
+            fi
+            echo "Building $CONTEXT -> {{`{{inputs.parameters.outputImage}}`}}"
+            buildctl-daemonless.sh build \
+              --frontend dockerfile.v0 \
+              --opt context="$CONTEXT" \
+              --opt filename="{{`{{inputs.parameters.dockerfile}}`}}" \
+              --opt build-arg:ODOO_BASE_IMAGE="{{`{{inputs.parameters.baseImage}}`}}" \
+              --output type=image,name="{{`{{inputs.parameters.outputImage}}`}}",push=true
+{{- end }}

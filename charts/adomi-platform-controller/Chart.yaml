@@ -1,17 +1,25 @@
 apiVersion: v2
 name: adomi-platform-controller
 description: |
-  The Kubernetes control plane for SSO-enabled applications on the Adomi platform,
-  backed by Authentik, OpenBao, and External Secrets. Drops into the
-  kubernetes-provisioner platform.
+  The Kubernetes control plane for the Adomi platform: manages SSO applications
+  (Authentik, OpenBao, External Secrets) and the Odoo resource model
+  (Organization, Client, Workspace, Application) deployed via Argo CD and
+  CloudNativePG. Drops into the kubernetes-provisioner platform.
 type: application
-version: 0.1.6
-appVersion: "0.1.6"
+version: 0.5.0
+appVersion: "0.5.0"
 keywords:
   - sso
   - authentik
   - openbao
   - external-secrets
+  - odoo
+  - argocd
+  - cloudnative-pg
+  - argo-workflows
+  - argo-events
+  - harbor
+  - preview-environments
 home: https://github.com/adomi-io/adomi-platform-controller
 sources:
   - https://github.com/adomi-io/adomi-platform-controller

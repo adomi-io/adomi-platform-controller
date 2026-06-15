@@ -1,0 +1,93 @@
+{{- if .Values.platform.snapshots.enabled }}
+# Database snapshot WorkflowTemplate (installed into the Argo namespace). The
+# controller submits a Workflow per Snapshot: it dumps the environment's Postgres
+# database (reached over cross-namespace service DNS) and uploads it to object
+# storage. A shared workspace PVC carries the dump between the two steps.
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: {{ .Values.platform.snapshots.snapshotWorkflowTemplate }}
+  namespace: {{ .Values.platform.snapshots.argoNamespace }}
+  labels:
+    {{- include "adomi-platform-controller.labels" . | nindent 4 }}
+spec:
+  entrypoint: main
+  arguments:
+    parameters:
+      - { name: dbHost }
+      - { name: dbPort, value: "5432" }
+      - { name: dbName, value: odoo }
+      - { name: dbUser, value: odoo }
+      - { name: dbSecret }
+      - { name: s3Endpoint }
+      - { name: s3Bucket }
+      - { name: s3Key }
+      - { name: s3Secret }
+      - { name: pgImage, value: postgres:16 }
+      - { name: awscliImage, value: amazon/aws-cli:2 }
+  volumeClaimTemplates:
+    - metadata:
+        name: work
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: {{ .Values.platform.snapshots.workspaceSize | quote }}
+  templates:
+    - name: main
+      steps:
+        - - name: dump
+            template: dump
+        - - name: upload
+            template: upload
+    - name: dump
+      container:
+        image: "{{`{{workflow.parameters.pgImage}}`}}"
+        command: [sh, -c]
+        args:
+          - |
+            set -eu
+            H="{{`{{workflow.parameters.dbHost}}`}}"; P="{{`{{workflow.parameters.dbPort}}`}}"
+            U="{{`{{workflow.parameters.dbUser}}`}}"; DB="{{`{{workflow.parameters.dbName}}`}}"
+            echo "waiting for $H:$P"; until pg_isready -h "$H" -p "$P" -U "$U"; do sleep 3; done
+            pg_dump -h "$H" -p "$P" -U "$U" -d "$DB" -Fc -f /work/dump.pgdump
+            echo "dump complete"
+        env:
+          - name: PGPASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: "{{`{{workflow.parameters.dbSecret}}`}}"
+                key: password
+        volumeMounts:
+          - name: work
+            mountPath: /work
+    - name: upload
+      container:
+        image: "{{`{{workflow.parameters.awscliImage}}`}}"
+        command: [sh, -c]
+        args:
+          - |
+            set -eu
+            aws --endpoint-url "{{`{{workflow.parameters.s3Endpoint}}`}}" \
+              s3 cp /work/dump.pgdump \
+              "s3://{{`{{workflow.parameters.s3Bucket}}`}}/{{`{{workflow.parameters.s3Key}}`}}"
+            echo "uploaded"
+        env:
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: "{{`{{workflow.parameters.s3Secret}}`}}"
+                key: access-key
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: "{{`{{workflow.parameters.s3Secret}}`}}"
+                key: secret-key
+          - name: AWS_DEFAULT_REGION
+            value: us-east-1
+          - name: AWS_EC2_METADATA_DISABLED
+            value: "true"
+        volumeMounts:
+          - name: work
+            mountPath: /work
+{{- end }}

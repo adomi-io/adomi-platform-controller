@@ -1,0 +1,352 @@
+"""Resolves the effective configuration for an Application.
+
+An Application's settings come from four layers, each overriding the one before:
+
+    controller Config defaults -> Organization -> ApplicationType -> Application
+
+This module fetches the referenced Organization / Client / Workspace / ApplicationType
+objects and folds them, with the controller Config, into a single ``Effective`` value
+the Application engine consumes. The folding logic (``compute``) is pure over plain
+dicts so it can be unit-tested without a cluster.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+
+from kubernetes import client
+from kubernetes.client.exceptions import ApiException
+
+from .config import Config
+
+GROUP = "platform.adomi.io"
+VERSION = "v1alpha1"
+
+PLURAL_ORGANIZATIONS = "organizations"
+PLURAL_CLIENTS = "clients"
+PLURAL_WORKSPACES = "workspaces"
+PLURAL_APPLICATIONS = "applications"
+PLURAL_APPLICATIONTYPES = "applicationtypes"
+PLURAL_GITREPOSITORIES = "gitrepositories"
+PLURAL_SNAPSHOTS = "snapshots"
+
+# Workspace classes.
+CLASS_PREVIEW = "preview"
+CLASS_DEVELOPMENT = "development"
+CLASS_PDI = "pdi"
+CLASS_PRODUCTION = "production"
+CLASS_TEST = "test"
+
+# Database modes.
+DB_MODE_NONE = "none"
+DB_MODE_CNPG = "cnpg"
+DB_MODE_EXTERNAL = "external"
+
+DEFAULT_INGRESS_CLASS = "traefik"
+DB_PORT = 5432
+CNPG_DB_NAME = "app"  # default bootstrap db/owner for in-cluster clusters
+CNPG_DB_USER = "app"
+
+
+class NotFound(Exception):
+    """A referenced platform object does not exist (yet)."""
+
+
+@dataclass
+class DbConnection:
+    """Resolved connection details for an application's database."""
+
+    host: str
+    port: int
+    name: str
+    user: str
+    password_secret_namespace: str
+    password_secret_name: str
+    password_secret_key: str
+
+
+@dataclass
+class Effective:
+    """The fully-resolved settings used to build an application's resources."""
+
+    client_slug: str
+    workspace_name: str
+    workspace_class: str
+    app_name: str
+    namespace: str
+    hostname: str
+    url: str
+
+    adapter: str
+    chart_repo_url: str
+    chart_name: str
+    chart_path: str
+    chart_target_revision: str
+
+    db_mode: str
+    ingress_class_name: str
+    longpolling: bool
+
+    sso_enabled: bool
+    sso_protocol: str
+    sso_redirect_paths: list[str]
+
+    type_defaults: dict
+    provides: list[str]
+    consumes: list[str]
+
+    # Odoo image resolution (used by the odoo adapter / build pipeline).
+    image_repository: str
+    image_tag: str
+
+    extra: dict = field(default_factory=dict)
+
+
+# --- pure helpers ----------------------------------------------------------------
+
+
+def _slug(spec: dict, name: str) -> str:
+    return (spec.get("slug") or name).strip()
+
+
+def _truncate_label(value: str) -> str:
+    return value[:63].rstrip("-")
+
+
+def namespace_name(client_slug: str, workspace_name: str) -> str:
+    """The per-workspace namespace (a single DNS-1123 label)."""
+    return _truncate_label(f"{client_slug}-{workspace_name}")
+
+
+def sanitize_default(workspace_class: str) -> bool:
+    """Whether to neutralize a restored DB by default (everything except production)."""
+    return workspace_class != CLASS_PRODUCTION
+
+
+def parse_owner_repo(url: str) -> tuple[str, str]:
+    """Parse "owner" and "repo" from a GitHub URL (https or ssh; .git optional)."""
+    s = (url or "").strip()
+    s = re.sub(r"^git@([^:]+):", r"https://\1/", s)
+    s = re.sub(r"^[a-z]+://", "", s)
+    s = re.sub(r"\.git$", "", s)
+    parts = [p for p in s.split("/") if p]
+    if len(parts) >= 3:
+        return parts[-2], parts[-1]
+    return "", ""
+
+
+def sanitize_tag(ref: str) -> str:
+    """Reduce a git ref to a valid Docker image tag."""
+    tag = re.sub(r"[^A-Za-z0-9_.-]", "-", (ref or "").strip())
+    tag = tag.strip(".-") or "latest"
+    return tag[:128]
+
+
+def built_image_ref(
+    harbor_host: str, project: str, client_slug: str, app_name: str, ref: str
+) -> str:
+    """The full image reference a build pushes to: host/project/<client>-<app>:<tag>."""
+    return f"{harbor_host}/{project}/{client_slug}-{app_name}:{sanitize_tag(ref)}"
+
+
+def snapshot_object_key(namespace: str, name: str) -> str:
+    """The deterministic object-store key for a Snapshot's dump."""
+    return f"snapshots/{namespace}/{name}.pgdump"
+
+
+def cnpg_cluster_name(app_name: str) -> str:
+    """The CloudNativePG Cluster name for an application's in-cluster database."""
+    return f"{app_name}-db"
+
+
+def deep_merge(*layers: dict) -> dict:
+    """Recursively merge dicts; later layers win. Lists/scalars are replaced."""
+    out: dict = {}
+    for layer in layers:
+        for k, v in (layer or {}).items():
+            if isinstance(v, dict) and isinstance(out.get(k), dict):
+                out[k] = deep_merge(out[k], v)
+            else:
+                out[k] = v
+    return out
+
+
+def resolve_db_mode(app_database: dict, type_database: dict) -> str:
+    """The database backend: explicit spec wins, else cnpg if the type needs one, else none."""
+    explicit = (app_database or {}).get("mode")
+    if explicit:
+        return explicit
+    return DB_MODE_CNPG if (type_database or {}).get("required") else DB_MODE_NONE
+
+
+def compute(
+    cfg: Config,
+    *,
+    org_spec: dict | None,
+    client_name: str,
+    client_spec: dict,
+    workspace_name: str,
+    workspace_spec: dict,
+    app_name: str,
+    app_spec: dict,
+    type_spec: dict,
+) -> Effective:
+    """Fold the layers into the effective settings for an application (pure)."""
+    org = org_spec or {}
+    org_domain = org.get("domain") or {}
+    org_images = org.get("images") or {}
+    org_ingress = org.get("ingress") or {}
+
+    app_ingress = app_spec.get("ingress") or {}
+    app_sso = app_spec.get("sso") or {}
+    odoo = app_spec.get("odoo") or {}
+
+    type_chart = type_spec.get("chart") or {}
+    type_sso = type_spec.get("sso") or {}
+    type_ingress = type_spec.get("ingress") or {}
+    type_db = type_spec.get("database") or {}
+
+    client_slug = _slug(client_spec, client_name)
+    workspace_class = workspace_spec.get("class") or CLASS_DEVELOPMENT
+    namespace = namespace_name(client_slug, workspace_name)
+
+    base_domain = (org_domain.get("base") or cfg.base_domain or "").strip()
+    host = (app_ingress.get("host") or "").strip()
+    if not host and base_domain:
+        host = f"{app_name}.{workspace_name}.{client_slug}.{base_domain}"
+
+    image_repository = org_images.get("odooRepository") or cfg.odoo_image_repository
+    image_tag = (odoo.get("version") or "").strip()
+
+    return Effective(
+        client_slug=client_slug,
+        workspace_name=workspace_name,
+        workspace_class=workspace_class,
+        app_name=app_name,
+        namespace=namespace,
+        hostname=host,
+        url=f"https://{host}" if host else "",
+        adapter=type_spec.get("adapter") or "generic",
+        chart_repo_url=type_chart.get("repoURL") or "",
+        chart_name=type_chart.get("chart") or "",
+        chart_path=type_chart.get("path") or "",
+        chart_target_revision=type_chart.get("targetRevision") or "",
+        db_mode=resolve_db_mode(app_spec.get("database") or {}, type_db),
+        ingress_class_name=(
+            app_ingress.get("className") or org_ingress.get("className") or DEFAULT_INGRESS_CLASS
+        ),
+        longpolling=bool(type_ingress.get("longpolling")),
+        sso_enabled=bool(app_sso.get("enabled", True)) and bool(type_sso.get("enabled")),
+        sso_protocol=type_sso.get("protocol") or "",
+        sso_redirect_paths=list(type_sso.get("redirectPaths") or []),
+        type_defaults=type_spec.get("defaultValues") or {},
+        provides=list(type_spec.get("provides") or []),
+        consumes=list(type_spec.get("consumes") or []),
+        image_repository=image_repository,
+        image_tag=image_tag,
+    )
+
+
+def app_db_connection(app_obj: dict) -> DbConnection:
+    """Resolve an Application's database connection (cnpg or external).
+
+    Uses ``status.databaseMode`` (set during reconcile) or ``spec.database.mode``.
+    Raises NotFound when the app has no database or hasn't been reconciled enough to
+    have a namespace.
+    """
+    spec = app_obj.get("spec") or {}
+    status = app_obj.get("status") or {}
+    db = spec.get("database") or {}
+    mode = status.get("databaseMode") or db.get("mode") or DB_MODE_NONE
+    app_name = (app_obj.get("metadata") or {}).get("name") or ""
+
+    if mode == DB_MODE_CNPG:
+        ns = status.get("namespace")
+        if not ns:
+            raise NotFound("application has no status.namespace yet (not reconciled)")
+        cluster = cnpg_cluster_name(app_name)
+        return DbConnection(
+            host=f"{cluster}-rw.{ns}.svc.cluster.local",
+            port=DB_PORT,
+            name=CNPG_DB_NAME,
+            user=CNPG_DB_USER,
+            password_secret_namespace=ns,
+            password_secret_name=f"{cluster}-app",
+            password_secret_key="password",
+        )
+    if mode == DB_MODE_EXTERNAL:
+        ext = db.get("external") or {}
+        pw = ext.get("passwordSecret") or {}
+        mgmt_ns = (app_obj.get("metadata") or {}).get("namespace") or ""
+        return DbConnection(
+            host=ext.get("host") or "",
+            port=int(ext.get("port") or DB_PORT),
+            name=ext.get("name") or CNPG_DB_NAME,
+            user=ext.get("user") or CNPG_DB_USER,
+            password_secret_namespace=mgmt_ns,
+            password_secret_name=pw.get("name") or "",
+            password_secret_key=pw.get("key") or "db-password",
+        )
+    raise NotFound(f"application {app_name!r} has no database (mode={mode})")
+
+
+# --- cluster fetching ------------------------------------------------------------
+
+
+def get_client(name: str, namespace: str) -> dict:
+    return _get_namespaced(PLURAL_CLIENTS, name, namespace)
+
+
+def get_workspace(name: str, namespace: str) -> dict:
+    return _get_namespaced(PLURAL_WORKSPACES, name, namespace)
+
+
+def get_application(name: str, namespace: str) -> dict:
+    return _get_namespaced(PLURAL_APPLICATIONS, name, namespace)
+
+
+def get_gitrepository(name: str, namespace: str) -> dict:
+    return _get_namespaced(PLURAL_GITREPOSITORIES, name, namespace)
+
+
+def get_snapshot(name: str, namespace: str) -> dict:
+    return _get_namespaced(PLURAL_SNAPSHOTS, name, namespace)
+
+
+def get_application_type(name: str) -> dict:
+    """Fetch a cluster-scoped ApplicationType by name, or raise NotFound."""
+    api = client.CustomObjectsApi()
+    try:
+        return api.get_cluster_custom_object(GROUP, VERSION, PLURAL_APPLICATIONTYPES, name)
+    except ApiException as exc:
+        if exc.status == 404:
+            raise NotFound(f"ApplicationType {name!r} not found") from exc
+        raise
+
+
+def get_organization(name: str | None) -> dict | None:
+    """Resolve the Organization to use (explicit name, else the single one, else None)."""
+    api = client.CustomObjectsApi()
+    if name:
+        try:
+            return api.get_cluster_custom_object(GROUP, VERSION, PLURAL_ORGANIZATIONS, name)
+        except ApiException as exc:
+            if exc.status == 404:
+                raise NotFound(f"Organization {name!r} not found") from exc
+            raise
+    listing = api.list_cluster_custom_object(GROUP, VERSION, PLURAL_ORGANIZATIONS)
+    items = listing.get("items") or []
+    if len(items) == 1:
+        return items[0]
+    return None
+
+
+def _get_namespaced(plural: str, name: str, namespace: str) -> dict:
+    api = client.CustomObjectsApi()
+    try:
+        return api.get_namespaced_custom_object(GROUP, VERSION, namespace, plural, name)
+    except ApiException as exc:
+        if exc.status == 404:
+            raise NotFound(f"{plural[:-1]} {namespace}/{name!r} not found") from exc
+        raise

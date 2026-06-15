@@ -74,6 +74,60 @@ spec:
             # External Secrets.
             - name: CLUSTER_SECRET_STORE
               value: {{ .Values.backend.externalSecrets.clusterSecretStore | quote }}
+            # Platform / Argo CD / Odoo chart wiring.
+            - name: ARGOCD_NAMESPACE
+              value: {{ .Values.platform.argocd.namespace | quote }}
+            - name: ARGOCD_PROJECT
+              value: {{ .Values.platform.argocd.project | quote }}
+            - name: ODOO_IMAGE_REPOSITORY
+              value: {{ .Values.platform.odoo.imageRepository | quote }}
+            - name: PLATFORM_BASE_DOMAIN
+              value: {{ .Values.platform.baseDomain | quote }}
+            - name: FORWARD_AUTH_MIDDLEWARE
+              value: {{ .Values.platform.forwardAuthMiddleware | quote }}
+            # Build pipeline (Argo Workflows + Harbor).
+            - name: ARGO_NAMESPACE
+              value: {{ .Values.platform.build.argoNamespace | quote }}
+            - name: BUILD_WORKFLOW_TEMPLATE
+              value: {{ .Values.platform.build.workflowTemplate | quote }}
+            - name: BUILD_SERVICE_ACCOUNT
+              value: {{ .Values.platform.build.serviceAccount | quote }}
+            - name: HARBOR_HOST
+              value: {{ .Values.platform.build.harbor.host | quote }}
+            - name: HARBOR_PROJECT
+              value: {{ .Values.platform.build.harbor.project | quote }}
+            - name: HARBOR_USERNAME
+              value: {{ .Values.platform.build.harbor.username | quote }}
+            - name: HARBOR_SECRET_PATH
+              value: {{ .Values.platform.build.harbor.secretPath | quote }}
+            - name: HARBOR_SECRET_KEY
+              value: {{ .Values.platform.build.harbor.secretKey | quote }}
+            # Preview environments (Argo Events + webhook ingress + PR feedback).
+            - name: WEBHOOK_HOST
+              value: {{ .Values.platform.preview.webhookHost | quote }}
+            - name: CLUSTER_ISSUER
+              value: {{ .Values.platform.preview.clusterIssuer | quote }}
+            - name: PREVIEW_INGRESS_CLASS
+              value: {{ .Values.platform.preview.ingressClassName | quote }}
+            - name: PREVIEW_SENSOR_SERVICE_ACCOUNT
+              value: {{ .Values.platform.preview.sensorServiceAccount | quote }}
+            - name: GITHUB_API_URL
+              value: {{ .Values.platform.preview.githubApiUrl | quote }}
+            # Database snapshots (object storage + workflow templates + images).
+            - name: S3_ENDPOINT
+              value: {{ .Values.platform.snapshots.s3.endpoint | quote }}
+            - name: S3_BUCKET
+              value: {{ .Values.platform.snapshots.s3.bucket | quote }}
+            - name: S3_SECRET_PATH
+              value: {{ .Values.platform.snapshots.s3.secretPath | quote }}
+            - name: SNAPSHOT_WORKFLOW_TEMPLATE
+              value: {{ .Values.platform.snapshots.snapshotWorkflowTemplate | quote }}
+            - name: RESTORE_WORKFLOW_TEMPLATE
+              value: {{ .Values.platform.snapshots.restoreWorkflowTemplate | quote }}
+            - name: SNAPSHOT_POSTGRES_IMAGE
+              value: {{ .Values.platform.snapshots.images.postgres | quote }}
+            - name: SNAPSHOT_AWSCLI_IMAGE
+              value: {{ .Values.platform.snapshots.images.awscli | quote }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

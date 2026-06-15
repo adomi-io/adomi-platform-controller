@@ -1,0 +1,14 @@
+# A Mailpit mail-trap Application (no database). Other apps in the workspace route
+# their outbound mail to it (see application-odoo with an odoo-mailpit-smtp
+# integration in a dev workspace).
+apiVersion: platform.adomi.io/v1alpha1
+kind: Application
+metadata:
+  name: mailpit
+  namespace: adomi-system
+spec:
+  workspaceRef:
+    name: production
+  type: mailpit
+  sso:
+    enabled: true

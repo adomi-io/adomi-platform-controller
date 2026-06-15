@@ -1,0 +1,14 @@
+# A Client is an end customer. It groups Workspaces and the Applications in them.
+# Client, Workspace and Application are namespaced and live together in a
+# management namespace (here, adomi-system).
+apiVersion: platform.adomi.io/v1alpha1
+kind: Client
+metadata:
+  name: acme
+  namespace: adomi-system
+spec:
+  displayName: Example Co
+  # slug defaults to the resource name; set it to override.
+  # slug: acme
+  organizationRef:
+    name: adomi

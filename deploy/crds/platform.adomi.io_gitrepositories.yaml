@@ -1,0 +1,174 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: gitrepositories.platform.adomi.io
+spec:
+  group: platform.adomi.io
+  names:
+    kind: GitRepository
+    listKind: GitRepositoryList
+    plural: gitrepositories
+    shortNames:
+    - gitrepo
+    singular: gitrepository
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.owner
+      name: Owner
+      type: string
+    - jsonPath: .status.repo
+      name: Repo
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: GitRepository represents an external source repository (GitHub).
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of GitRepository
+            properties:
+              url:
+                description: |-
+                  url is the repository URL (https or ssh form), e.g.
+                  https://github.com/acme/odoo-erp.
+                minLength: 1
+                type: string
+              defaultBranch:
+                default: main
+                description: defaultBranch is the branch built when a source omits a ref.
+                type: string
+              credentialsSecretRef:
+                description: |-
+                  credentialsSecretRef references a Secret holding a token for cloning
+                  private repositories. Optional for public repositories; required when
+                  previews are enabled (the token needs admin:repo_hook).
+                properties:
+                  name:
+                    minLength: 1
+                    type: string
+                  key:
+                    description: key is the Secret data key holding the token (default "token").
+                    type: string
+                required:
+                - name
+                type: object
+              preview:
+                description: |-
+                  preview enables automatic preview environments for pull requests. The
+                  controller generates an Argo Events github EventSource + Sensor + webhook
+                  Ingress; PR open/sync/close create/rebuild/delete a preview Workspace and
+                  Application.
+                properties:
+                  enabled:
+                    default: false
+                    type: boolean
+                  clientRef:
+                    description: clientRef names the Client preview workspaces belong to.
+                    properties:
+                      name:
+                        minLength: 1
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  applicationType:
+                    default: odoo
+                    description: applicationType is the ApplicationType built for each PR.
+                    type: string
+                  baseImage:
+                    description: baseImage overrides the ODOO_BASE_IMAGE build-arg for previews.
+                    type: string
+                type: object
+            required:
+            - url
+            type: object
+          status:
+            description: status defines the observed state of GitRepository
+            properties:
+              owner:
+                description: owner is the parsed repository owner/organisation.
+                type: string
+              repo:
+                description: repo is the parsed repository name.
+                type: string
+              url:
+                description: url is the reconciled repository URL.
+                type: string
+              previewEventSource:
+                description: previewEventSource is the generated Argo Events EventSource name.
+                type: string
+              previewSensor:
+                description: previewSensor is the generated Argo Events Sensor name.
+                type: string
+              webhookURL:
+                description: webhookURL is the public webhook endpoint registered with GitHub.
+                type: string
+              conditions:
+                description: |-
+                  conditions represent the current state of the resource.
+                  Known types: "Ready".
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

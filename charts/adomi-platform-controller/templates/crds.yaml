@@ -303,4 +303,1196 @@ spec:
     storage: true
     subresources:
       status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: organizations.platform.adomi.io
+spec:
+  group: platform.adomi.io
+  names:
+    kind: Organization
+    listKind: OrganizationList
+    plural: organizations
+    shortNames:
+    - org
+    singular: organization
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.baseDomain
+      name: Base Domain
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Organization holds platform-wide defaults inherited by environments.
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of Organization
+            properties:
+              domain:
+                description: domain configures the platform's DNS.
+                properties:
+                  base:
+                    description: |-
+                      base is the base domain for generated environment hostnames
+                      (<env>.<project>.<client>.<base>). When empty, environments must
+                      set spec.hostname explicitly.
+                    type: string
+                type: object
+              images:
+                description: images configures default container images.
+                properties:
+                  odooRepository:
+                    description: odooRepository is the default Odoo image repository.
+                    type: string
+                type: object
+              ingress:
+                description: ingress configures default ingress behaviour.
+                properties:
+                  className:
+                    description: className is the default IngressClass for environments.
+                    type: string
+                type: object
+            type: object
+          status:
+            description: status defines the observed state of Organization
+            properties:
+              baseDomain:
+                description: baseDomain is the resolved base domain.
+                type: string
+              odooImageRepository:
+                description: odooImageRepository is the resolved default Odoo image repository.
+                type: string
+              conditions:
+                description: |-
+                  conditions represent the current state of the resource.
+                  Known types: "Ready".
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: clients.platform.adomi.io
+spec:
+  group: platform.adomi.io
+  names:
+    kind: Client
+    listKind: ClientList
+    plural: clients
+    singular: client
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.slug
+      name: Slug
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Client is an end customer that owns Odoo projects and environments.
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of Client
+            properties:
+              slug:
+                description: |-
+                  slug is the stable identifier for the client, used in generated
+                  namespaces and hostnames. Defaults to the resource name.
+                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                type: string
+              displayName:
+                description: displayName is a human-readable name for the client.
+                type: string
+              organizationRef:
+                description: |-
+                  organizationRef names the Organization whose defaults this client
+                  inherits. Optional; when omitted the single Organization (if any) is
+                  used, otherwise controller defaults apply.
+                properties:
+                  name:
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                type: object
+            type: object
+          status:
+            description: status defines the observed state of Client
+            properties:
+              slug:
+                description: slug is the resolved client slug.
+                type: string
+              conditions:
+                description: |-
+                  conditions represent the current state of the resource.
+                  Known types: "Ready".
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: workspaces.platform.adomi.io
+spec:
+  group: platform.adomi.io
+  names:
+    kind: Workspace
+    listKind: WorkspaceList
+    plural: workspaces
+    shortNames:
+    - ws
+    singular: workspace
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.class
+      name: Class
+      type: string
+    - jsonPath: .status.namespace
+      name: Namespace
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Workspace is a named environment for a Client that groups Applications.
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of Workspace
+            properties:
+              clientRef:
+                description: clientRef names the owning Client (same namespace).
+                properties:
+                  name:
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                type: object
+              class:
+                default: development
+                description: |-
+                  class is the workspace class; it defaults policies such as the
+                  database mode and sanitize-on-restore for Applications within it.
+                enum:
+                - preview
+                - development
+                - pdi
+                - production
+                - test
+                type: string
+              displayName:
+                description: displayName is a human-readable name for the workspace.
+                type: string
+            required:
+            - clientRef
+            type: object
+          status:
+            description: status defines the observed state of Workspace
+            properties:
+              namespace:
+                description: namespace is the per-workspace namespace Applications run in.
+                type: string
+              conditions:
+                description: |-
+                  conditions represent the current state of the resource.
+                  Known types: "Ready".
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: applicationtypes.platform.adomi.io
+spec:
+  group: platform.adomi.io
+  names:
+    kind: ApplicationType
+    listKind: ApplicationTypeList
+    plural: applicationtypes
+    shortNames:
+    - apptype
+    singular: applicationtype
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.adapter
+      name: Adapter
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          ApplicationType is a catalog entry: the chart an Application of this type
+          deploys, the code adapter that maps platform inputs into that chart's values,
+          and its capabilities (database/SSO/ingress/integration).
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of ApplicationType
+            properties:
+              displayName:
+                type: string
+              adapter:
+                description: |-
+                  adapter selects the controller code that maps platform inputs into the
+                  chart's value shape (e.g. odoo, superset, mailpit, generic).
+                minLength: 1
+                type: string
+              chart:
+                description: chart is the Helm chart this type deploys via Argo CD.
+                properties:
+                  repoURL:
+                    description: repoURL is a Helm repo URL or a git repo URL.
+                    minLength: 1
+                    type: string
+                  chart:
+                    description: chart is the chart name (for a Helm repo source).
+                    type: string
+                  path:
+                    description: path is the chart subdirectory (for a git source).
+                    type: string
+                  targetRevision:
+                    description: targetRevision is the chart version, branch, or tag.
+                    type: string
+                required:
+                - repoURL
+                type: object
+              database:
+                description: database describes the type's database needs.
+                properties:
+                  required:
+                    default: false
+                    type: boolean
+                  engine:
+                    default: postgres
+                    type: string
+                type: object
+              sso:
+                description: sso describes how this type integrates with single sign-on.
+                properties:
+                  enabled:
+                    default: false
+                    type: boolean
+                  protocol:
+                    description: protocol is "oauth2" (native OIDC) or "proxy" (forward-auth).
+                    enum:
+                    - oauth2
+                    - proxy
+                    type: string
+                  redirectPaths:
+                    description: redirectPaths are OAuth2 callback paths appended to the host.
+                    items:
+                      type: string
+                    type: array
+                type: object
+              ingress:
+                description: ingress describes the type's ingress behaviour.
+                properties:
+                  longpolling:
+                    default: false
+                    type: boolean
+                type: object
+              defaultValues:
+                description: defaultValues are merged under an Application's computed Helm values.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              provides:
+                description: provides lists connection capabilities (url, db, smtp, oidc).
+                items:
+                  type: string
+                type: array
+              consumes:
+                description: consumes lists integration types this app can consume.
+                items:
+                  type: string
+                type: array
+            required:
+            - adapter
+            - chart
+            type: object
+          status:
+            description: status defines the observed state of ApplicationType
+            properties:
+              conditions:
+                description: |-
+                  conditions represent the current state of the resource.
+                  Known types: "Ready".
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: applications.platform.adomi.io
+spec:
+  group: platform.adomi.io
+  names:
+    kind: Application
+    listKind: ApplicationList
+    plural: applications
+    shortNames:
+    - app
+    singular: application
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.type
+      name: Type
+      type: string
+    - jsonPath: .status.url
+      name: URL
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Application runs a catalog app (by type) in a Workspace via Argo CD.
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of Application
+            properties:
+              workspaceRef:
+                description: workspaceRef names the owning Workspace (same namespace).
+                properties:
+                  name:
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                type: object
+              type:
+                description: type is the ApplicationType (catalog entry) to deploy.
+                minLength: 1
+                type: string
+              displayName:
+                type: string
+              replicas:
+                default: 1
+                format: int64
+                minimum: 0
+                type: integer
+              values:
+                description: values are free-form Helm value overrides (highest precedence).
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              database:
+                description: database configures the app's database backend.
+                properties:
+                  mode:
+                    description: |-
+                      mode selects the database backend. "none" for apps that need no
+                      database; "cnpg" provisions an in-cluster CloudNativePG cluster;
+                      "external" references a managed database. Defaults from the type
+                      (database.required) and workspace class when unset.
+                    enum:
+                    - none
+                    - cnpg
+                    - external
+                    type: string
+                  cnpg:
+                    properties:
+                      instances:
+                        default: 1
+                        format: int64
+                        minimum: 1
+                        type: integer
+                      storage:
+                        default: 10Gi
+                        type: string
+                      storageClass:
+                        type: string
+                    type: object
+                  external:
+                    properties:
+                      host:
+                        type: string
+                      port:
+                        default: 5432
+                        format: int64
+                        type: integer
+                      name:
+                        type: string
+                      user:
+                        type: string
+                      sslmode:
+                        type: string
+                      passwordSecret:
+                        properties:
+                          name:
+                            minLength: 1
+                            type: string
+                          key:
+                            type: string
+                        required:
+                        - name
+                        type: object
+                    type: object
+                type: object
+              ingress:
+                description: ingress overrides ingress settings for the app.
+                properties:
+                  host:
+                    description: host overrides the generated <app>.<workspace>.<client>.<baseDomain>.
+                    type: string
+                  className:
+                    type: string
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  tls:
+                    items:
+                      x-kubernetes-preserve-unknown-fields: true
+                    type: array
+                type: object
+              sso:
+                description: sso toggles single sign-on (protocol is driven by the type).
+                properties:
+                  enabled:
+                    default: true
+                    type: boolean
+                type: object
+              integrations:
+                description: |-
+                  integrations auto-wire this app to others. Each references a provider
+                  Application; a connector keyed by type injects values from the
+                  provider's published connection contract.
+                items:
+                  properties:
+                    type:
+                      description: type is the connector key (e.g. odoo-superset-datasource).
+                      minLength: 1
+                      type: string
+                    fromRef:
+                      description: fromRef names the provider Application (same namespace).
+                      properties:
+                        name:
+                          minLength: 1
+                          type: string
+                      required:
+                      - name
+                      type: object
+                  required:
+                  - type
+                  - fromRef
+                  type: object
+                type: array
+              odoo:
+                description: odoo carries Odoo-specific settings (type "odoo").
+                properties:
+                  version:
+                    type: string
+                  workers:
+                    format: int64
+                    minimum: 0
+                    type: integer
+                  addons:
+                    properties:
+                      initModules:
+                        type: string
+                      updateModules:
+                        type: string
+                    type: object
+                type: object
+              source:
+                description: |-
+                  source builds the app image from a GitRepository (type "odoo"); the
+                  controller runs an Argo Workflow and gates deploy on a successful build.
+                properties:
+                  repositoryRef:
+                    properties:
+                      name:
+                        minLength: 1
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  ref:
+                    type: string
+                  contextPath:
+                    type: string
+                  dockerfile:
+                    type: string
+                  baseImage:
+                    type: string
+                required:
+                - repositoryRef
+                type: object
+              restoreFrom:
+                description: |-
+                  restoreFrom clones a Snapshot's database into this app before deploying
+                  (cnpg only; type "odoo"). Gated and idempotent (status.restoredFrom).
+                properties:
+                  snapshotRef:
+                    properties:
+                      name:
+                        minLength: 1
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  sanitize:
+                    type: boolean
+                required:
+                - snapshotRef
+                type: object
+              adminPassword:
+                description: adminPassword sources the app's admin/master password (e.g. Odoo).
+                properties:
+                  value:
+                    type: string
+                  existingSecret:
+                    type: string
+                  existingSecretKey:
+                    type: string
+                type: object
+            required:
+            - workspaceRef
+            - type
+            type: object
+          status:
+            description: status defines the observed state of Application
+            properties:
+              namespace:
+                type: string
+              url:
+                type: string
+              phase:
+                description: phase is the lifecycle phase (Building, Restoring, Deployed, *Failed).
+                type: string
+              argoApplication:
+                type: string
+              builtImage:
+                type: string
+              buildWorkflow:
+                type: string
+              restoredFrom:
+                type: string
+              restoreWorkflow:
+                type: string
+              ssoSlug:
+                type: string
+              connection:
+                description: |-
+                  connection is the contract this app publishes for integrations
+                  (url / db / smtp / oidc, per the type's "provides").
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              conditions:
+                description: |-
+                  conditions represent the current state of the resource.
+                  Known types: "Ready".
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: gitrepositories.platform.adomi.io
+spec:
+  group: platform.adomi.io
+  names:
+    kind: GitRepository
+    listKind: GitRepositoryList
+    plural: gitrepositories
+    shortNames:
+    - gitrepo
+    singular: gitrepository
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.owner
+      name: Owner
+      type: string
+    - jsonPath: .status.repo
+      name: Repo
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: GitRepository represents an external source repository (GitHub).
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of GitRepository
+            properties:
+              url:
+                description: |-
+                  url is the repository URL (https or ssh form), e.g.
+                  https://github.com/acme/odoo-erp.
+                minLength: 1
+                type: string
+              defaultBranch:
+                default: main
+                description: defaultBranch is the branch built when a source omits a ref.
+                type: string
+              credentialsSecretRef:
+                description: |-
+                  credentialsSecretRef references a Secret holding a token for cloning
+                  private repositories. Optional for public repositories; required when
+                  previews are enabled (the token needs admin:repo_hook).
+                properties:
+                  name:
+                    minLength: 1
+                    type: string
+                  key:
+                    description: key is the Secret data key holding the token (default "token").
+                    type: string
+                required:
+                - name
+                type: object
+              preview:
+                description: |-
+                  preview enables automatic preview environments for pull requests. The
+                  controller generates an Argo Events github EventSource + Sensor + webhook
+                  Ingress; PR open/sync/close create/rebuild/delete a preview Workspace and
+                  Application.
+                properties:
+                  enabled:
+                    default: false
+                    type: boolean
+                  clientRef:
+                    description: clientRef names the Client preview workspaces belong to.
+                    properties:
+                      name:
+                        minLength: 1
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  applicationType:
+                    default: odoo
+                    description: applicationType is the ApplicationType built for each PR.
+                    type: string
+                  baseImage:
+                    description: baseImage overrides the ODOO_BASE_IMAGE build-arg for previews.
+                    type: string
+                type: object
+            required:
+            - url
+            type: object
+          status:
+            description: status defines the observed state of GitRepository
+            properties:
+              owner:
+                description: owner is the parsed repository owner/organisation.
+                type: string
+              repo:
+                description: repo is the parsed repository name.
+                type: string
+              url:
+                description: url is the reconciled repository URL.
+                type: string
+              previewEventSource:
+                description: previewEventSource is the generated Argo Events EventSource name.
+                type: string
+              previewSensor:
+                description: previewSensor is the generated Argo Events Sensor name.
+                type: string
+              webhookURL:
+                description: webhookURL is the public webhook endpoint registered with GitHub.
+                type: string
+              conditions:
+                description: |-
+                  conditions represent the current state of the resource.
+                  Known types: "Ready".
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: snapshots.platform.adomi.io
+spec:
+  group: platform.adomi.io
+  names:
+    kind: Snapshot
+    listKind: SnapshotList
+    plural: snapshots
+    shortNames:
+    - snap
+    singular: snapshot
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.sourceApplication
+      name: Source
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.location
+      name: Location
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Snapshot captures an Application's database to object storage.
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of Snapshot
+            properties:
+              applicationRef:
+                description: applicationRef names the Application to snapshot (same namespace).
+                properties:
+                  name:
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                type: object
+            required:
+            - applicationRef
+            type: object
+          status:
+            description: status defines the observed state of Snapshot
+            properties:
+              phase:
+                description: phase is the snapshot lifecycle phase (Running, Completed, Failed).
+                type: string
+              location:
+                description: location is the object-store URI of the stored dump.
+                type: string
+              sourceApplication:
+                description: sourceApplication is the application the snapshot was taken from.
+                type: string
+              workflow:
+                description: workflow is the name of the Argo Workflow that produced the dump.
+                type: string
+              conditions:
+                description: |-
+                  conditions represent the current state of the resource.
+                  Known types: "Ready".
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
 {{- end }}

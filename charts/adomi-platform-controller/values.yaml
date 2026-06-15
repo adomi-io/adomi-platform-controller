@@ -86,6 +86,86 @@ backend:
     # ClusterSecretStore used to deliver credentials into app namespaces.
     clusterSecretStore: openbao
 
+# Platform wiring for the Application engine. It provisions supporting
+# resources, then creates an Argo CD Application per app from the catalog chart.
+platform:
+  argocd:
+    # Namespace Argo CD runs in (where Application objects are created).
+    namespace: argocd
+    # AppProject the generated Applications are placed in.
+    project: default
+  odoo:
+    # Default Odoo container image (overridable per Application). Each app's chart
+    # comes from its ApplicationType (the catalog), not from here.
+    imageRepository: ghcr.io/adomi-io/odoo
+  # Base domain for generated hostnames (<app>.<workspace>.<client>.<baseDomain>).
+  # Leave empty to require an Organization with a base domain, or per-application
+  # spec.ingress.host.
+  baseDomain: ""
+  # Traefik forward-auth middleware (in "<namespace>-<name>@kubernetescrd" form)
+  # added to an app Ingress to gate it behind the Authentik outpost when SSO is
+  # enabled. Empty disables Ingress wiring (the SSOApplication is still created).
+  forwardAuthMiddleware: authentik-authentik@kubernetescrd
+
+  # Build pipeline: when an Application declares a source, the controller
+  # submits an Argo Workflow that builds the repo image (BuildKit) and pushes it to
+  # Harbor, then deploys it.
+  build:
+    # Install the build WorkflowTemplate + build ServiceAccount/RBAC into the argo
+    # namespace. Disable if you provide your own build infrastructure.
+    enabled: true
+    # Argo namespace the WorkflowTemplate, build ServiceAccount, and Workflows live in.
+    argoNamespace: argo
+    workflowTemplate: odoo-image-build
+    serviceAccount: odoo-build
+    # Rootless BuildKit image used by the build step.
+    buildkitImage: moby/buildkit:v0.17.2-rootless
+    harbor:
+      # Registry host built images are pushed to. Empty falls back to harbor.<baseDomain>.
+      host: ""
+      # Harbor project/repository prefix for built images (harbor/<project>/<repo>:<tag>).
+      project: previews
+      # Push credentials: username + the OpenBao KV path/key holding the password.
+      username: admin
+      secretPath: harbor-app
+      secretKey: admin-password
+
+  # Preview environments: when a GitRepository enables previews, the controller
+  # generates a github EventSource + Sensor + webhook Ingress so pull requests
+  # create/rebuild/destroy preview Workspaces + Applications automatically.
+  preview:
+    # Install the preview Sensor ServiceAccount + RBAC. Disable to turn the feature
+    # off cluster-wide (GitRepository preview.enabled is then inert).
+    enabled: true
+    # Public webhook host GitHub posts to. Empty falls back to hooks.<baseDomain>.
+    webhookHost: ""
+    # cert-manager ClusterIssuer + IngressClass for the webhook Ingress.
+    clusterIssuer: letsencrypt-prod
+    ingressClassName: traefik
+    # ServiceAccount the generated Sensors run as (in the argo namespace).
+    sensorServiceAccount: odoo-previews
+    # GitHub API base URL (override for GitHub Enterprise).
+    githubApiUrl: https://api.github.com
+
+  # Database snapshots: dump an Application's Postgres DB to object storage, and
+  # restore/clone (optionally sanitized via Odoo neutralize) into another env.
+  snapshots:
+    # Install the snapshot/restore WorkflowTemplates into the argo namespace.
+    enabled: true
+    argoNamespace: argo
+    snapshotWorkflowTemplate: odoo-db-snapshot
+    restoreWorkflowTemplate: odoo-db-restore
+    # Shared workspace PVC size for the dump/restore jobs.
+    workspaceSize: 5Gi
+    s3:
+      # Object store the dumps live in. Credentials come from OpenBao (secretPath).
+      endpoint: http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333
+      bucket: platform
+      secretPath: s3
+    images:
+      postgres: postgres:16
+      awscli: amazon/aws-cli:2
+
 # Install the CRDs with the chart. Helm only installs CRDs from crds/ on first
 # install (it never upgrades or deletes them); set to false to manage them out
 # of band.

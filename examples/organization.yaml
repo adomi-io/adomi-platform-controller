@@ -1,0 +1,14 @@
+# An Organization holds platform-wide defaults inherited by every Application.
+# It is cluster-scoped; typically there is exactly one.
+apiVersion: platform.adomi.io/v1alpha1
+kind: Organization
+metadata:
+  name: adomi
+spec:
+  domain:
+    # Generated hostnames look like <app>.<workspace>.<client>.adomi.io
+    base: adomi.io
+  images:
+    odooRepository: ghcr.io/adomi-io/odoo
+  ingress:
+    className: traefik

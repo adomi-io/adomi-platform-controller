@@ -1,0 +1,181 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: applicationtypes.platform.adomi.io
+spec:
+  group: platform.adomi.io
+  names:
+    kind: ApplicationType
+    listKind: ApplicationTypeList
+    plural: applicationtypes
+    shortNames:
+    - apptype
+    singular: applicationtype
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.adapter
+      name: Adapter
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          ApplicationType is a catalog entry: the chart an Application of this type
+          deploys, the code adapter that maps platform inputs into that chart's values,
+          and its capabilities (database/SSO/ingress/integration).
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of ApplicationType
+            properties:
+              displayName:
+                type: string
+              adapter:
+                description: |-
+                  adapter selects the controller code that maps platform inputs into the
+                  chart's value shape (e.g. odoo, superset, mailpit, generic).
+                minLength: 1
+                type: string
+              chart:
+                description: chart is the Helm chart this type deploys via Argo CD.
+                properties:
+                  repoURL:
+                    description: repoURL is a Helm repo URL or a git repo URL.
+                    minLength: 1
+                    type: string
+                  chart:
+                    description: chart is the chart name (for a Helm repo source).
+                    type: string
+                  path:
+                    description: path is the chart subdirectory (for a git source).
+                    type: string
+                  targetRevision:
+                    description: targetRevision is the chart version, branch, or tag.
+                    type: string
+                required:
+                - repoURL
+                type: object
+              database:
+                description: database describes the type's database needs.
+                properties:
+                  required:
+                    default: false
+                    type: boolean
+                  engine:
+                    default: postgres
+                    type: string
+                type: object
+              sso:
+                description: sso describes how this type integrates with single sign-on.
+                properties:
+                  enabled:
+                    default: false
+                    type: boolean
+                  protocol:
+                    description: protocol is "oauth2" (native OIDC) or "proxy" (forward-auth).
+                    enum:
+                    - oauth2
+                    - proxy
+                    type: string
+                  redirectPaths:
+                    description: redirectPaths are OAuth2 callback paths appended to the host.
+                    items:
+                      type: string
+                    type: array
+                type: object
+              ingress:
+                description: ingress describes the type's ingress behaviour.
+                properties:
+                  longpolling:
+                    default: false
+                    type: boolean
+                type: object
+              defaultValues:
+                description: defaultValues are merged under an Application's computed Helm values.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              provides:
+                description: provides lists connection capabilities (url, db, smtp, oidc).
+                items:
+                  type: string
+                type: array
+              consumes:
+                description: consumes lists integration types this app can consume.
+                items:
+                  type: string
+                type: array
+            required:
+            - adapter
+            - chart
+            type: object
+          status:
+            description: status defines the observed state of ApplicationType
+            properties:
+              conditions:
+                description: |-
+                  conditions represent the current state of the resource.
+                  Known types: "Ready".
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
