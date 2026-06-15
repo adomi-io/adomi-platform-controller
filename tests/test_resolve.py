@@ -39,8 +39,8 @@ def test_compute_defaults():
     assert eff.client_slug == "acme"
     assert eff.workspace_name == "production"
     assert eff.namespace == "acme-production"
-    assert eff.hostname == "odoo.production.acme.adomi.io"
-    assert eff.url == "https://odoo.production.acme.adomi.io"
+    assert eff.hostname == "odoo-production-acme.adomi.io"
+    assert eff.url == "https://odoo-production-acme.adomi.io"
     assert eff.adapter == "odoo"
     assert eff.chart_path == "charts/odoo"
     assert eff.db_mode == resolve.DB_MODE_CNPG

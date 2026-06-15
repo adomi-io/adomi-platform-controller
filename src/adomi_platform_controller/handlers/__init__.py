@@ -10,6 +10,7 @@ from . import (  # noqa: F401
     applicationtype,
     client,
     gitrepository,
+    odoo_sync,
     organization,
     snapshot,
     ssoapplication,

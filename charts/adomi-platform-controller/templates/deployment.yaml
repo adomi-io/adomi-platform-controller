@@ -85,6 +85,13 @@ spec:
               value: {{ .Values.platform.baseDomain | quote }}
             - name: FORWARD_AUTH_MIDDLEWARE
               value: {{ .Values.platform.forwardAuthMiddleware | quote }}
+            # Odoo management portal push (status changes -> portal ingest endpoint).
+            - name: ODOO_NOTIFY_URL
+              value: {{ .Values.platform.odooNotify.url | quote }}
+            - name: ODOO_NOTIFY_SECRET_PATH
+              value: {{ .Values.platform.odooNotify.secretPath | quote }}
+            - name: ODOO_NOTIFY_TOKEN_KEY
+              value: {{ .Values.platform.odooNotify.tokenKey | quote }}
             # Build pipeline (Argo Workflows + Harbor).
             - name: ARGO_NAMESPACE
               value: {{ .Values.platform.build.argoNamespace | quote }}

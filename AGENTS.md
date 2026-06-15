@@ -38,6 +38,7 @@ src/adomi_platform_controller/
   buildsecrets.py      ensure Harbor push / git-token / webhook / db / s3 Secrets; read_key
   namespaces.py        ensure()/delete() per-workspace namespaces
   ssoapps.py           build/apply SSOApplication CRs (apply proxy + apply_oauth2)
+  odoonotify.py        tiny urllib client: POST CR status to the Odoo portal ingest
   resolve.py           compute() effective config + getters + parse_owner_repo /
                        built_image_ref / app_db_connection / sanitize_default / deep_merge
   apptypes/            adapter interface (base.Ctx) + registry + odoo/superset/mailpit/generic
@@ -54,6 +55,7 @@ src/adomi_platform_controller/
     application.py     Application -> DB + [build] + [restore] + SSO + adapter + integrations + Argo CD
     gitrepository.py   GitRepository -> parsed owner/repo + preview EventSource/Sensor/Ingress
     snapshot.py        Snapshot -> pg_dump Workflow -> object storage; status.location
+    odoo_sync.py       on.field(status) per CRD -> push the changed CR to the Odoo portal
 deploy/crds/           CustomResourceDefinitions (plain manifests; source of truth)
 charts/                Helm chart (templates render the deployment, RBAC, CRDs)
 examples/              sample CRs

@@ -64,10 +64,10 @@ class Config:
     # appVersion.
     odoo_image_repository: str = "ghcr.io/adomi-io/odoo"
 
-    # Platform domain. Generated environment hostnames are
-    # "<env>.<project>.<client>.<baseDomain>" unless the environment sets its own
-    # hostname. Empty means an environment must declare spec.hostname or supply an
-    # Organization with a base domain.
+    # Platform domain. Generated application hostnames are a single DNS label
+    # "<app>-<workspace>-<client>.<baseDomain>" (so a *.<baseDomain> wildcard
+    # cert/record covers them) unless the application sets spec.ingress.host. Empty
+    # means an application must declare a host or supply an Organization base domain.
     base_domain: str = ""
 
     # Forward-auth. The Traefik middleware (in "<namespace>-<name>@kubernetescrd"
@@ -127,6 +127,19 @@ class Config:
     snapshot_postgres_image: str = "postgres:16"  # image with pg_dump/pg_restore
     snapshot_awscli_image: str = "amazon/aws-cli:2"  # image with the aws CLI
 
+    # Odoo management portal push. When a platform CR's status changes, the
+    # controller POSTs it to the Odoo portal's ingest endpoint so Odoo reflects
+    # live state immediately instead of polling. Empty URL disables the push (the
+    # portal's fallback cron still reconciles). A shared bearer token (read from
+    # OpenBao) authenticates the call and must match the portal's ADOMI_INGEST_TOKEN.
+    odoo_notify_url: str = ""  # e.g. http://adomi-platform-management-odoo.adomi-platform-management.svc.cluster.local:8069
+    odoo_notify_secret_path: str = "adomi-ingest"  # OpenBao KV path holding the token
+    odoo_notify_token_key: str = "token"  # key within that path
+
+    def odoo_notify_enabled(self) -> bool:
+        """True when status pushes to the Odoo portal are configured."""
+        return bool(self.odoo_notify_url)
+
     @classmethod
     def from_env(cls) -> "Config":
         """Build a Config from environment variables, falling back to defaults."""
@@ -184,4 +197,7 @@ class Config:
             ),
             snapshot_postgres_image=_env("SNAPSHOT_POSTGRES_IMAGE", d.snapshot_postgres_image),
             snapshot_awscli_image=_env("SNAPSHOT_AWSCLI_IMAGE", d.snapshot_awscli_image),
+            odoo_notify_url=_env("ODOO_NOTIFY_URL", d.odoo_notify_url),
+            odoo_notify_secret_path=_env("ODOO_NOTIFY_SECRET_PATH", d.odoo_notify_secret_path),
+            odoo_notify_token_key=_env("ODOO_NOTIFY_TOKEN_KEY", d.odoo_notify_token_key),
         )

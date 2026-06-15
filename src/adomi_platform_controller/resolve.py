@@ -214,7 +214,14 @@ def compute(
     base_domain = (org_domain.get("base") or cfg.base_domain or "").strip()
     host = (app_ingress.get("host") or "").strip()
     if not host and base_domain:
-        host = f"{app_name}.{workspace_name}.{client_slug}.{base_domain}"
+        # Single DNS label under the base domain so a one-level wildcard
+        # (*.base_domain) covers both DNS and the TLS cert. A dotted host like
+        # app.workspace.client.base_domain is several levels deep and a wildcard
+        # cert/record does not match it (Traefik then serves its default cert and
+        # the handshake fails with SSL_ERROR_NO_CYPHER_OVERLAP). Labels are capped
+        # at the DNS 63-char limit.
+        label = f"{app_name}-{workspace_name}-{client_slug}"[:63].strip("-")
+        host = f"{label}.{base_domain}"
 
     image_repository = org_images.get("odooRepository") or cfg.odoo_image_repository
     image_tag = (odoo.get("version") or "").strip()
