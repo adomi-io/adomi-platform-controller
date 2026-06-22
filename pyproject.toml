@@ -5,13 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "adomi-platform-controller"
 version = "0.1.0"
-description = "Kubernetes operator for SSOApplication resources on the Adomi platform, backed by Authentik, OpenBao, and External Secrets."
+description = "The Adomi platform control plane: the front-door API (adomi_platform_api) and the Kubernetes operator (adomi_platform_controller), sharing one resource schema."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "Adomi Software" }]
-keywords = ["kubernetes", "operator", "sso", "authentik", "openbao", "external-secrets"]
+keywords = ["kubernetes", "operator", "gitops", "fastapi", "authentik", "openbao"]
 
+# Base = the operator's runtime (built into the controller image via `pip install .`).
+# The front-door API's runtime is the `api` extra so the two images stay separable.
 dependencies = [
     "kopf>=1.37",
     "kubernetes>=29.0",
@@ -22,6 +24,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# The front-door API (adomi_platform_api); installed into the API image (Dockerfile.api).
+api = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "httpx>=0.27",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "pyyaml>=6.0",
+]
 dev = [
     "pytest>=8.0",
     "ruff>=0.5",
@@ -29,8 +40,11 @@ dev = [
 ]
 
 [project.scripts]
-# Convenience entry point; the container runs `kopf run` directly (see Dockerfile).
+# The controller container runs `kopf run` directly (see Dockerfile); the API
+# container runs uvicorn (see Dockerfile.api). These are dev conveniences.
 adomi-platform-controller = "adomi_platform_controller.__main__:main"
+adomi-platform-api = "adomi_platform_api.__main__:main"
+adomi-platform-api-openapi = "adomi_platform_api.openapi:main"
 
 [project.urls]
 Homepage = "https://github.com/adomi-io/adomi-platform-controller"

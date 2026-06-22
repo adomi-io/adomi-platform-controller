@@ -1,0 +1,37 @@
+{{- if .Values.rbac.create }}
+# The API reads live resource status from the cluster (GET endpoints), so its
+# ServiceAccount needs read access to the platform CRDs across tenant namespaces.
+# Writes never touch the cluster — they go to git.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "adomi-platform-api.fullname" . }}-reader
+  labels:
+    {{- include "adomi-platform-api.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["platform.adomi.io"]
+    resources:
+      - clients
+      - domains
+      - databases
+      - workspaces
+      - applications
+      - gitrepositories
+      - snapshots
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "adomi-platform-api.fullname" . }}-reader
+  labels:
+    {{- include "adomi-platform-api.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "adomi-platform-api.fullname" . }}-reader
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "adomi-platform-api.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

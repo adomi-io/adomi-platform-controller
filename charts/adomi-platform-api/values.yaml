@@ -1,0 +1,73 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/adomi-io/adomi-platform-api
+  tag: ""  # defaults to chart appVersion
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+
+# Cluster-read RBAC for the GET/status endpoints (read platform CRs across tenants).
+rbac:
+  create: true
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+service:
+  type: ClusterIP
+  port: 8080
+
+# Forgejo connection (in-cluster). The token + the API bearer token come from
+# Secrets (existingSecret below), never values.
+forgejo:
+  url: http://forgejo-http.forgejo.svc.cluster.local:3000
+  org: tenants
+  verifyTls: true
+  defaultBranch: main
+  gitMode: commit
+
+tenantNamespacePrefix: adomi-tenant-
+
+# Secret holding `api-token` (bearer producers present) and `forgejo-token`.
+auth:
+  existingSecret: adomi-platform-api
+  apiTokenKey: api-token
+  forgejoTokenKey: forgejo-token
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 256Mi
+
+# The service has no Ingress by default: producers reach it over the in-cluster
+# Service. Enable only if you must expose it (then put SSO in front).
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: ""
+  tls: []
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

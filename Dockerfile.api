@@ -1,0 +1,27 @@
+# syntax=docker/dockerfile:1
+# The front-door API image (adomi_platform_api). The operator image is the default
+# Dockerfile; both build from this one repo (the control plane). See pyproject's
+# `api` extra for the API's runtime deps.
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+COPY pyproject.toml README.md LICENSE ./
+COPY src ./src
+RUN pip install ".[api]"
+
+RUN echo 'nonroot:x:65532:65532:nonroot:/home/nonroot:/usr/sbin/nologin' >> /etc/passwd \
+    && mkdir -p /home/nonroot \
+    && chown 65532:65532 /home/nonroot
+ENV HOME=/home/nonroot
+
+USER 65532:65532
+
+EXPOSE 8080
+# Uvicorn serves the FastAPI app; the chart points probes at /healthz and /readyz.
+ENTRYPOINT ["uvicorn", "adomi_platform_api.app:app", "--host", "0.0.0.0", "--port", "8080"]

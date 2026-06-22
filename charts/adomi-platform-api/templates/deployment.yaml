@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "adomi-platform-api.fullname" . }}
+  labels:
+    {{- include "adomi-platform-api.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "adomi-platform-api.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "adomi-platform-api.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "adomi-platform-api.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: api
+          image: {{ include "adomi-platform-api.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: ADOMI_API_FORGEJO_URL
+              value: {{ .Values.forgejo.url | quote }}
+            - name: ADOMI_API_FORGEJO_ORG
+              value: {{ .Values.forgejo.org | quote }}
+            - name: ADOMI_API_FORGEJO_VERIFY_TLS
+              value: {{ .Values.forgejo.verifyTls | quote }}
+            - name: ADOMI_API_GIT_DEFAULT_BRANCH
+              value: {{ .Values.forgejo.defaultBranch | quote }}
+            - name: ADOMI_API_GIT_MODE
+              value: {{ .Values.forgejo.gitMode | quote }}
+            - name: ADOMI_API_TENANT_NAMESPACE_PREFIX
+              value: {{ .Values.tenantNamespacePrefix | quote }}
+            - name: ADOMI_API_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.existingSecret | quote }}
+                  key: {{ .Values.auth.apiTokenKey | quote }}
+            - name: ADOMI_API_FORGEJO_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.existingSecret | quote }}
+                  key: {{ .Values.auth.forgejoTokenKey | quote }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

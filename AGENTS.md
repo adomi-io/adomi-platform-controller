@@ -52,15 +52,24 @@ src/adomi_platform_controller/
     client.py          Client -> resolved slug in status (light)
     workspace.py       Workspace -> ensures the <client>-<workspace> namespace
     applicationtype.py ApplicationType -> validates the catalog entry (light)
+    database.py        Database -> CNPG Cluster; publishes status.connection
+    domain.py          Domain -> validates fqdn; publishes status.host (light)
     application.py     Application -> DB + [build] + [restore] + SSO + adapter + integrations + Argo CD
     gitrepository.py   GitRepository -> parsed owner/repo + preview EventSource/Sensor/Ingress
     snapshot.py        Snapshot -> pg_dump Workflow -> object storage; status.location
     odoo_sync.py       on.field(status) per CRD -> push the changed CR to the Odoo portal
+src/adomi_platform_api/      front-door API (FastAPI): routers/ -> service -> git/ writer
+src/adomi_platform_schema/   shared resource catalog (kinds/plurals, build_manifest, naming)
 deploy/crds/           CustomResourceDefinitions (plain manifests; source of truth)
-charts/                Helm chart (templates render the deployment, RBAC, CRDs)
+charts/                Helm charts: adomi-platform-controller (operator) + adomi-platform-api
 examples/              sample CRs
-tests/                 pytest unit tests (pure modules)
+tests/                 pytest unit tests (controller + API; pure modules)
 ```
+
+The repo is the platform **control plane**: the operator (`Dockerfile`, `kopf run`) and
+the front-door API (`Dockerfile.api`, `uvicorn`, `pip install .[api]`) ship as two images
+from one codebase, sharing `adomi_platform_schema`. The API commits non-ephemeral
+resource intent to customers' tenant git repos; the operator reconciles it.
 
 ## How it runs
 

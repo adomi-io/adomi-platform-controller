@@ -12,6 +12,29 @@ The goal of this repository is to let a downstream application declare that it n
 
 Each app is a resource you can create, update, and delete like any other Kubernetes object.
 
+## The control plane: two components, one repo
+
+This repo is the platform **control plane** and ships two images from one codebase that
+share a single resource schema (`src/adomi_platform_schema`):
+
+- **`adomi_platform_api`** — the **front door**. End users drive the platform through it
+  (directly, or via the Odoo portal, the CLI, or partner UIs). It speaks the **same
+  object language as the operator** — one API per controller object: `clients`,
+  `domains`, `databases`, `workspaces`, `applications`, `gitrepositories`, `snapshots`,
+  nested under the owning client (`/v1/clients/{client}/...`). Each `PUT`/`DELETE` turns
+  the request into that object's `platform.adomi.io` custom resource and **commits it to
+  the client's tenant git repo** (Forgejo), which Argo CD reconciles; each `GET` returns
+  the resource's live status read from the cluster. A FastAPI service: `routers/` →
+  `service` → `git/` writer (+ `cluster` reader). Built from `Dockerfile.api`; chart in
+  `charts/adomi-platform-api`.
+- **`adomi_platform_controller`** — the **operator** (Kopf). It reconciles the committed
+  CRs (and `SSOApplication`s) into running infrastructure: Authentik, OpenBao, CNPG,
+  Argo CD apps, ingress, builds. Built from `Dockerfile`; chart in
+  `charts/adomi-platform-controller`.
+
+Ephemeral resources (PR preview environments) are the deliberate exception — the
+controller creates them in-cluster directly, not through the API/git.
+
 > [!NOTE]
 > **Backing services**
 >
