@@ -57,12 +57,15 @@ def app_secret_name(cluster_name: str) -> str:
 def build(s: Spec) -> dict:
     """Build the CNPG Cluster object for the spec."""
     metadata: dict = {"name": s.name, "namespace": s.namespace}
+
     if s.labels:
         metadata["labels"] = s.labels
+
     if s.owner_references:
         metadata["ownerReferences"] = s.owner_references
 
     storage: dict = {"size": s.storage_size}
+
     if s.storage_class:
         storage["storageClass"] = s.storage_class
 
@@ -71,6 +74,7 @@ def build(s: Spec) -> dict:
         "storage": storage,
         "bootstrap": {"initdb": {"database": s.database, "owner": s.owner}},
     }
+
     if s.image_name:
         spec["imageName"] = s.image_name
 
@@ -92,7 +96,9 @@ def apply(s: Spec) -> None:
     except ApiException as exc:
         if exc.status != 404:
             raise
+
         api.create_namespaced_custom_object(GROUP, VERSION, s.namespace, PLURAL, desired)
+
         return
 
     api.patch_namespaced_custom_object(GROUP, VERSION, s.namespace, PLURAL, s.name, desired)
@@ -101,6 +107,7 @@ def apply(s: Spec) -> None:
 def delete(name: str, namespace: str) -> None:
     """Delete the Cluster (no-op if already gone)."""
     api = client.CustomObjectsApi()
+
     try:
         api.delete_namespaced_custom_object(GROUP, VERSION, namespace, PLURAL, name)
     except ApiException as exc:

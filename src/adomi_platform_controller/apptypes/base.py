@@ -59,20 +59,26 @@ def standard_ingress(ctx: Ctx, *, longpolling: bool = False) -> dict:
         "className": ctx.ingress_class_name,
         "hosts": [{"host": ctx.host, "paths": [{"path": "/", "pathType": "Prefix"}]}],
     }
+
     if ctx.ingress_tls:
         ingress["tls"] = ctx.ingress_tls
+
     if ctx.sso_protocol == "proxy" and ctx.forward_auth_middleware:
         ingress["annotations"] = {TRAEFIK_MIDDLEWARE_ANNOTATION: ctx.forward_auth_middleware}
+
     if longpolling:
         ingress["longpolling"] = {"enabled": True}
+
     return ingress
 
 
 def existing_secret_db(ctx: Ctx) -> dict:
     """The standard ``database`` block (existingSecret pattern) for our charts."""
     db = ctx.db
+
     if db is None:
         return {}
+
     return {
         "host": db.host,
         "port": db.port,
@@ -91,9 +97,12 @@ def image_block(ctx: Ctx) -> dict:
     (so a registry ``host:port/repo`` with no tag isn't mistaken for a tag).
     """
     ref = ctx.image
+
     if not ref:
         return {}
+
     colon = ref.rfind(":")
     if colon > ref.rfind("/"):
         return {"repository": ref[:colon], "tag": ref[colon + 1 :]}
+
     return {"repository": ref}

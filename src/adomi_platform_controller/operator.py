@@ -33,6 +33,7 @@ def configure(settings: kopf.OperatorSettings, logger, **_) -> None:
         k8s_config.load_kube_config()
 
     cfg = Config.from_env()
+
     state.set_provider(Provider(cfg))
 
     # Use a stable, descriptive finalizer name on resources we clean up.

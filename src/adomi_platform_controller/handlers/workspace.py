@@ -27,9 +27,14 @@ def reconcile(spec, meta, status, patch, name, namespace, **_) -> None:
     state.provider()
 
     client_ref = (spec.get("clientRef") or {}).get("name")
+
     if not client_ref:
         fail(
-            patch, status, conditions.REASON_INVALID_SPEC, "clientRef.name is required", generation
+            patch,
+            status,
+            conditions.REASON_INVALID_SPEC,
+            "clientRef.name is required",
+            generation,
         )
 
     try:
@@ -47,14 +52,20 @@ def reconcile(spec, meta, status, patch, name, namespace, **_) -> None:
         "platform.adomi.io/workspace": name,
         "platform.adomi.io/class": workspace_class,
     }
+
     try:
         namespaces.ensure(ws_namespace, labels)
     except Exception as exc:  # noqa: BLE001
         fail(
-            patch, status, conditions.REASON_BACKEND_ERROR, f"ensuring namespace: {exc}", generation
+            patch,
+            status,
+            conditions.REASON_BACKEND_ERROR,
+            f"ensuring namespace: {exc}",
+            generation,
         )
 
     patch.status["namespace"] = ws_namespace
+
     conditions.mark_ready(patch, status, f"Workspace {name!r} ready ({ws_namespace})", generation)
 
 
@@ -62,6 +73,7 @@ def reconcile(spec, meta, status, patch, name, namespace, **_) -> None:
 def finalize(status, name, logger, **_) -> None:
     """Delete the workspace namespace (cascades any remaining Application resources)."""
     ws_namespace = status.get("namespace")
+
     if ws_namespace:
         try:
             namespaces.delete(ws_namespace)

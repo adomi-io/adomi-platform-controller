@@ -40,10 +40,12 @@ def _upsert(
         if cond.get("type") == TYPE_READY:
             if cond.get("status") != status:
                 cond["lastTransitionTime"] = _now()
+
             cond["status"] = status
             cond["reason"] = reason
             cond["message"] = message
             cond["observedGeneration"] = observed_generation
+
             return conds
 
     conds.append(
@@ -72,6 +74,7 @@ def mark_ready(patch: Any, status: dict[str, Any] | None, message: str, generati
         message or "Resource reconciled successfully",
         generation,
     )
+
     patch.status["observedGeneration"] = generation
 
 
@@ -84,4 +87,5 @@ def mark_not_ready(
 ) -> None:
     """Set Ready=False with the given reason and message on the patch."""
     patch.status["conditions"] = _upsert(_conditions(status), "False", reason, message, generation)
+
     patch.status["observedGeneration"] = generation

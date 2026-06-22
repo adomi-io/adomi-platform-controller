@@ -30,8 +30,10 @@ def ensure_secrets(cfg: Config, conn: DbConnection) -> tuple[str, str]:
     s3 = bao.read(cfg.s3_secret_path) or {}
     access_key = (s3.get(cfg.s3_access_key_key) or "").strip()
     secret_key = (s3.get(cfg.s3_secret_key_key) or "").strip()
+
     if not access_key or not secret_key:
         raise RuntimeError(f"S3 credentials missing at OpenBao {cfg.s3_secret_path!r}")
+
     buildsecrets.ensure_opaque_secret(
         ARGO_S3_SECRET,
         cfg.argo_namespace,
@@ -39,10 +41,18 @@ def ensure_secrets(cfg: Config, conn: DbConnection) -> tuple[str, str]:
     )
 
     password = buildsecrets.read_key(
-        conn.password_secret_name, conn.password_secret_namespace, conn.password_secret_key
+        conn.password_secret_name,
+        conn.password_secret_namespace,
+        conn.password_secret_key,
     )
     db_secret = _db_secret_name(conn.password_secret_namespace)
-    buildsecrets.ensure_opaque_secret(db_secret, cfg.argo_namespace, {"password": password})
+
+    buildsecrets.ensure_opaque_secret(
+        db_secret,
+        cfg.argo_namespace,
+        {"password": password},
+    )
+
     return db_secret, ARGO_S3_SECRET
 
 

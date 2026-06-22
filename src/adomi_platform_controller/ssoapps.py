@@ -57,10 +57,13 @@ class OAuth2Spec:
 
 def _metadata(s) -> dict:
     metadata: dict = {"name": s.name, "namespace": s.namespace}
+
     if s.labels:
         metadata["labels"] = s.labels
+
     if s.owner_references:
         metadata["ownerReferences"] = s.owner_references
+
     return metadata
 
 
@@ -71,10 +74,13 @@ def build(s: ProxySpec) -> dict:
         "displayName": s.display_name,
         "proxy": {"mode": s.mode, "externalHost": s.external_host},
     }
+
     if s.slug:
         spec["slug"] = s.slug
+
     if s.group:
         spec["group"] = s.group
+
     return {
         "apiVersion": f"{GROUP}/{VERSION}",
         "kind": "SSOApplication",
@@ -91,12 +97,16 @@ def build_oauth2(s: OAuth2Spec) -> dict:
         "redirectUris": list(s.redirect_uris),
         "credentials": {"targetSecret": {"name": s.target_secret}},
     }
+
     if s.slug:
         spec["slug"] = s.slug
+
     if s.group:
         spec["group"] = s.group
+
     if s.scopes:
         spec["scopes"] = list(s.scopes)
+
     return {
         "apiVersion": f"{GROUP}/{VERSION}",
         "kind": "SSOApplication",
@@ -107,13 +117,17 @@ def build_oauth2(s: OAuth2Spec) -> dict:
 
 def _apply(namespace: str, name: str, desired: dict) -> None:
     api = client.CustomObjectsApi()
+
     try:
         api.get_namespaced_custom_object(GROUP, VERSION, namespace, PLURAL, name)
     except ApiException as exc:
         if exc.status != 404:
             raise
+
         api.create_namespaced_custom_object(GROUP, VERSION, namespace, PLURAL, desired)
+
         return
+
     api.patch_namespaced_custom_object(GROUP, VERSION, namespace, PLURAL, name, desired)
 
 
@@ -134,6 +148,7 @@ def delete(name: str, namespace: str) -> None:
     application/provider before the object is removed.
     """
     api = client.CustomObjectsApi()
+
     try:
         api.delete_namespaced_custom_object(GROUP, VERSION, namespace, PLURAL, name)
     except ApiException as exc:

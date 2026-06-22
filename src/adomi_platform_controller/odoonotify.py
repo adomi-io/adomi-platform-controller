@@ -41,6 +41,7 @@ MODEL_BY_PLURAL: dict[str, str] = {
 def _token(cfg) -> str:
     bao = state.provider().openbao()
     data = bao.read(cfg.odoo_notify_secret_path) or {}
+
     return (data.get(cfg.odoo_notify_token_key) or "").strip()
 
 
@@ -51,20 +52,33 @@ def push_status(model: str, name: str, obj: dict) -> None:
     needs (Ready condition, phase, URL). Never raises.
     """
     cfg = state.provider().config
+
     if not cfg.odoo_notify_enabled():
         return
+
     try:
         token = _token(cfg)
+
         if not token:
             _logger.warning(
                 "Odoo status push skipped: no token at OpenBao %r", cfg.odoo_notify_secret_path
             )
+
             return
-        payload = json.dumps({"model": model, "name": name, "object": obj}).encode()
+
+        payload = json.dumps(
+            {
+                "model": model,
+                "name": name,
+                "object": obj,
+            }
+        ).encode()
         url = cfg.odoo_notify_url.rstrip("/") + INGEST_PATH
+
         req = urllib.request.Request(url, data=payload, method="POST")
         req.add_header("Content-Type", "application/json")
         req.add_header("Authorization", f"Bearer {token}")
+
         with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310 - in-cluster service URL
             resp.read()
     except (urllib.error.URLError, OSError, ValueError) as exc:

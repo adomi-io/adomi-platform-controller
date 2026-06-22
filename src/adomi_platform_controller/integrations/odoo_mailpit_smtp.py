@@ -17,11 +17,13 @@ class OdooMailpitSmtp:
         smtp = (provider_connection or {}).get("smtp") or {}
         host = smtp.get("host")
         port = smtp.get("port")
+
         if not host or not port:
             return {}
+
         return {
             "extraEnv": [
                 {"name": "ODOO_SMTP_SERVER", "value": str(host)},
                 {"name": "ODOO_SMTP_PORT", "value": str(port)},
-            ]
+            ],
         }

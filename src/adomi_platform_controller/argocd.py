@@ -58,6 +58,7 @@ def build(s: Spec) -> dict:
         # The finalizer makes deletion prune the managed workload.
         "finalizers": [RESOURCES_FINALIZER],
     }
+
     if s.labels:
         metadata["labels"] = s.labels
 
@@ -66,6 +67,7 @@ def build(s: Spec) -> dict:
         "targetRevision": s.target_revision,
         "helm": {"valuesObject": s.values},
     }
+
     if s.chart:
         source["chart"] = s.chart
     else:
@@ -100,14 +102,18 @@ def apply(s: Spec) -> None:
     except ApiException as exc:
         if exc.status != 404:
             raise
+
         api.create_namespaced_custom_object(GROUP, VERSION, s.namespace, PLURAL, desired)
+
         return
 
     # Preserve Argo CD's own finalizer if something else added more.
     finalizers = set(existing.get("metadata", {}).get("finalizers") or [])
     finalizers.add(RESOURCES_FINALIZER)
+
     desired["metadata"]["finalizers"] = sorted(finalizers)
     desired["metadata"]["resourceVersion"] = existing["metadata"]["resourceVersion"]
+
     api.replace_namespaced_custom_object(GROUP, VERSION, s.namespace, PLURAL, s.name, desired)
 
 
@@ -118,6 +124,7 @@ def delete(name: str, namespace: str) -> None:
     is removed.
     """
     api = client.CustomObjectsApi()
+
     try:
         api.delete_namespaced_custom_object(GROUP, VERSION, namespace, PLURAL, name)
     except ApiException as exc:

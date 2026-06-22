@@ -23,14 +23,18 @@ class SupersetAdapter:
             "hosts": [ctx.host],
             "path": "/",
         }
+
         if ctx.ingress_tls:
             ingress["tls"] = ctx.ingress_tls
 
-        values: dict = {"ingress": ingress}
+        values: dict = {
+            "ingress": ingress,
+        }
 
         # Use the controller-managed metadata database (disable the bundled one).
         if ctx.db is not None:
             values["postgresql"] = {"enabled": False}
+
             values["supersetNode"] = {
                 "connections": {
                     "db_host": ctx.db.host,
@@ -39,6 +43,7 @@ class SupersetAdapter:
                     "db_user": ctx.db.user,
                 }
             }
+
             # The DB password is provided to Superset via an env var sourced from the
             # CNPG/external Secret (the chart's configOverrides build the URI from it).
             values["extraEnvRaw"] = [
@@ -66,7 +71,10 @@ class SupersetAdapter:
                     "valueFrom": {"secretKeyRef": {"name": ctx.sso_secret, "key": "client-secret"}},
                 },
             ]
+
         return values
 
     def connection(self, ctx: base.Ctx) -> dict:
-        return {"url": ctx.url}
+        return {
+            "url": ctx.url,
+        }

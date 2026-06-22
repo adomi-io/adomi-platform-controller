@@ -118,3 +118,50 @@ def test_app_db_connection_external():
     assert conn.port == 25060
     assert conn.password_secret_namespace == "adomi-system"
     assert conn.password_secret_name == "managed"
+
+
+def test_compute_domain_fqdn_overrides_base_domain():
+    """A referenced Domain's fqdn overrides the org/cfg base domain for the host."""
+    eff = resolve.compute(
+        Config(base_domain="fallback.io"),
+        org_spec={"domain": {"base": "org.example.com"}},
+        client_name="acme",
+        client_spec={},
+        workspace_name="prod",
+        workspace_spec={"class": "production"},
+        app_name="erp",
+        app_spec={},
+        type_spec=_TYPE,
+        domain_fqdn="acme.example.com",
+    )
+    assert eff.hostname == "erp-prod-acme.acme.example.com"
+    assert eff.url == "https://erp-prod-acme.acme.example.com"
+
+
+def test_db_connection_from_database():
+    db = {
+        "metadata": {"name": "erp-db"},
+        "status": {
+            "namespace": "acme-prod",
+            "connection": {
+                "host": "erp-db-rw.acme-prod.svc.cluster.local",
+                "port": 5432,
+                "name": "app",
+                "user": "app",
+                "secretName": "erp-db-app",
+                "secretKey": "password",
+            },
+        },
+    }
+    conn = resolve.db_connection_from_database(db)
+    assert conn.host == "erp-db-rw.acme-prod.svc.cluster.local"
+    assert conn.password_secret_namespace == "acme-prod"
+    assert conn.password_secret_name == "erp-db-app"
+    assert conn.user == "app"
+
+
+def test_db_connection_from_database_not_ready():
+    import pytest
+
+    with pytest.raises(resolve.NotFound):
+        resolve.db_connection_from_database({"metadata": {"name": "x"}, "status": {}})

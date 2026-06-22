@@ -28,6 +28,7 @@ def reconcile(spec, meta, status, patch, name, **_) -> None:
     slug = (spec.get("slug") or name).strip()
 
     org_ref = (spec.get("organizationRef") or {}).get("name")
+
     if org_ref:
         try:
             resolve.get_organization(org_ref)
@@ -35,4 +36,5 @@ def reconcile(spec, meta, status, patch, name, **_) -> None:
             fail(patch, status, conditions.REASON_DEPENDENCY_NOT_MET, str(exc), generation)
 
     patch.status["slug"] = slug
+
     conditions.mark_ready(patch, status, f"Client {slug!r} reconciled", generation)

@@ -19,9 +19,11 @@ class MailpitAdapter:
             "replicaCount": ctx.replicas,
             "ingress": base.standard_ingress(ctx),
         }
+
         image = base.image_block(ctx)
         if image:
             values["image"] = image
+
         return values
 
     def connection(self, ctx: base.Ctx) -> dict:

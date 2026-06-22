@@ -42,8 +42,10 @@ def build(s: Spec) -> dict:
     """
     secret_name = s.secret_name or s.name
     metadata: dict = {"name": s.name, "namespace": s.namespace}
+
     if s.labels:
         metadata["labels"] = s.labels
+
     if s.owner_references:
         metadata["ownerReferences"] = s.owner_references
 
@@ -79,7 +81,9 @@ def apply(s: Spec) -> None:
     except ApiException as exc:
         if exc.status != 404:
             raise
+
         api.create_namespaced_custom_object(GROUP, VERSION, s.namespace, PLURAL, desired)
+
         return
 
     # Exists: merge-patch the spec, labels, and owner references to match desired.

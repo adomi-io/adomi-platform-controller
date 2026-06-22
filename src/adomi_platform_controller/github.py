@@ -42,14 +42,18 @@ class GitHubClient:
 
     def _request(self, method: str, path: str, body: dict | None = None):
         data = json.dumps(body).encode() if body is not None else None
+
         req = urllib.request.Request(f"{self._api}{path}", data=data, method=method)
         req.add_header("Authorization", f"Bearer {self._token}")
         req.add_header("Accept", "application/vnd.github+json")
         req.add_header("X-GitHub-Api-Version", "2022-11-28")
+
         if data is not None:
             req.add_header("Content-Type", "application/json")
+
         with urllib.request.urlopen(req) as resp:  # noqa: S310 - fixed https API base
             raw = resp.read()
+
             return json.loads(raw) if raw else None
 
     def set_commit_status(
@@ -65,10 +69,15 @@ class GitHubClient:
     def upsert_pr_comment(self, owner: str, repo: str, number: int, body: str) -> None:
         """Create the preview comment, or update the existing marked one in place."""
         existing = self._request("GET", f"/repos/{owner}/{repo}/issues/{number}/comments") or []
+
         for c in existing:
             if PREVIEW_COMMENT_MARKER in (c.get("body") or ""):
                 self._request(
-                    "PATCH", f"/repos/{owner}/{repo}/issues/comments/{c['id']}", {"body": body}
+                    "PATCH",
+                    f"/repos/{owner}/{repo}/issues/comments/{c['id']}",
+                    {"body": body},
                 )
+
                 return
+
         self._request("POST", f"/repos/{owner}/{repo}/issues/{number}/comments", {"body": body})

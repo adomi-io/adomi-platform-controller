@@ -44,6 +44,7 @@ class Spec:
 def build(s: Spec) -> dict:
     """Build the Workflow object for the spec."""
     metadata: dict = {"name": s.name, "namespace": s.namespace}
+
     if s.labels:
         metadata["labels"] = s.labels
 
@@ -53,6 +54,7 @@ def build(s: Spec) -> dict:
             "parameters": [{"name": k, "value": v} for k, v in sorted(s.parameters.items())],
         },
     }
+
     if s.service_account:
         spec["serviceAccountName"] = s.service_account
 
@@ -67,23 +69,27 @@ def build(s: Spec) -> dict:
 def apply(s: Spec) -> None:
     """Create the Workflow if it does not exist (submitted Workflows are immutable)."""
     api = client.CustomObjectsApi()
+
     try:
         api.get_namespaced_custom_object(GROUP, VERSION, s.namespace, PLURAL, s.name)
         return  # already submitted; do not patch a running build
     except ApiException as exc:
         if exc.status != 404:
             raise
+
     api.create_namespaced_custom_object(GROUP, VERSION, s.namespace, PLURAL, build(s))
 
 
 def get(name: str, namespace: str) -> dict | None:
     """Return the Workflow object, or None if it does not exist."""
     api = client.CustomObjectsApi()
+
     try:
         return api.get_namespaced_custom_object(GROUP, VERSION, namespace, PLURAL, name)
     except ApiException as exc:
         if exc.status == 404:
             return None
+
         raise
 
 
@@ -91,12 +97,14 @@ def phase(obj: dict | None) -> str:
     """The Workflow's phase, or "" when unknown / not yet reported."""
     if not obj:
         return ""
+
     return (obj.get("status") or {}).get("phase") or ""
 
 
 def delete(name: str, namespace: str) -> None:
     """Delete the Workflow (no-op if already gone)."""
     api = client.CustomObjectsApi()
+
     try:
         api.delete_namespaced_custom_object(GROUP, VERSION, namespace, PLURAL, name)
     except ApiException as exc:

@@ -36,6 +36,7 @@ def reconcile(spec, meta, status, patch, name, namespace, logger, **_) -> None:
     cfg = state.provider().config
 
     app_ref = (spec.get("applicationRef") or {}).get("name")
+
     if not app_ref:
         fail(
             patch,
@@ -83,12 +84,17 @@ def reconcile(spec, meta, status, patch, name, namespace, logger, **_) -> None:
     patch.status["location"] = location
 
     ph = workflows.phase(workflows.get(wf_name, cfg.argo_namespace))
+
     if ph == workflows.PHASE_SUCCEEDED:
         patch.status["phase"] = "Completed"
+
         conditions.mark_ready(patch, status, f"Snapshot stored at {location}", generation)
+
         return
+
     if ph in (workflows.PHASE_FAILED, workflows.PHASE_ERROR):
         patch.status["phase"] = "Failed"
+
         fail(
             patch,
             status,
@@ -99,6 +105,7 @@ def reconcile(spec, meta, status, patch, name, namespace, logger, **_) -> None:
         )
 
     patch.status["phase"] = "Running"
+
     fail(
         patch,
         status,
@@ -114,9 +121,11 @@ def finalize(status, name, namespace, logger, **_) -> None:
     """Delete the snapshot Workflow. The S3 object is retained (GC deferred)."""
     cfg = state.provider().config
     wf = status.get("workflow") or _workflow_name(namespace, name)
+
     try:
         workflows.delete(wf, cfg.argo_namespace)
     except Exception as exc:  # noqa: BLE001
         logger.error(f"Failed deleting snapshot Workflow {wf!r} during finalize: {exc}")
+
     if status.get("location"):
         logger.info(f"Snapshot object {status['location']} retained (object GC not implemented)")

@@ -25,7 +25,10 @@ def ensure(name: str, labels: dict[str, str] | None = None) -> None:
         return
 
     if labels:
-        api.patch_namespace(name, {"metadata": {"labels": labels}})
+        api.patch_namespace(
+            name,
+            {"metadata": {"labels": labels}},
+        )
 
 
 def delete(name: str) -> None:

@@ -66,18 +66,35 @@ class EventSourceSpec:
 
 
 def build_eventsource(s: EventSourceSpec) -> dict:
-    metadata: dict = {"name": s.name, "namespace": s.namespace}
+    metadata: dict = {
+        "name": s.name,
+        "namespace": s.namespace,
+    }
+
     if s.labels:
         metadata["labels"] = s.labels
+
     return {
         "apiVersion": f"{GROUP}/{VERSION}",
         "kind": "EventSource",
         "metadata": metadata,
         "spec": {
-            "service": {"ports": [{"port": WEBHOOK_PORT, "targetPort": WEBHOOK_PORT}]},
+            "service": {
+                "ports": [
+                    {
+                        "port": WEBHOOK_PORT,
+                        "targetPort": WEBHOOK_PORT,
+                    },
+                ],
+            },
             "github": {
                 EVENT_KEY: {
-                    "repositories": [{"owner": s.owner, "names": [s.repo]}],
+                    "repositories": [
+                        {
+                            "owner": s.owner,
+                            "names": [s.repo],
+                        },
+                    ],
                     "webhook": {
                         "endpoint": s.webhook_path,
                         "port": str(WEBHOOK_PORT),
@@ -85,8 +102,14 @@ def build_eventsource(s: EventSourceSpec) -> dict:
                         "url": s.webhook_url,
                     },
                     "events": ["pull_request"],
-                    "apiToken": {"name": s.token_secret, "key": "token"},
-                    "webhookSecret": {"name": s.webhook_secret, "key": "secret"},
+                    "apiToken": {
+                        "name": s.token_secret,
+                        "key": "token",
+                    },
+                    "webhookSecret": {
+                        "name": s.webhook_secret,
+                        "key": "secret",
+                    },
                     "active": True,
                     "insecure": False,
                 }
@@ -122,16 +145,30 @@ def _workspace_resource(s: SensorSpec) -> dict:
         "metadata": {
             "name": "pr-0",  # overwritten -> pr-<number>
             "namespace": s.mgmt_namespace,
-            "labels": {"app.kubernetes.io/managed-by": "adomi-platform-controller"},
+            "labels": {
+                "app.kubernetes.io/managed-by": "adomi-platform-controller",
+            },
         },
-        "spec": {"clientRef": {"name": s.client_ref}, "class": "preview"},
+        "spec": {
+            "clientRef": {
+                "name": s.client_ref,
+            },
+            "class": "preview",
+        },
     }
 
 
 def _app_resource(s: SensorSpec) -> dict:
-    source: dict = {"repositoryRef": {"name": s.repository_ref}, "ref": ""}
+    source: dict = {
+        "repositoryRef": {
+            "name": s.repository_ref,
+        },
+        "ref": "",
+    }
+
     if s.base_image:
         source["baseImage"] = s.base_image
+
     return {
         "apiVersion": PLATFORM_API,
         "kind": "Application",
@@ -149,7 +186,9 @@ def _app_resource(s: SensorSpec) -> dict:
             },
         },
         "spec": {
-            "workspaceRef": {"name": "pr-0"},  # overwritten
+            "workspaceRef": {
+                "name": "pr-0",
+            },  # overwritten
             "type": s.application_type,
             "source": source,
         },
@@ -162,14 +201,24 @@ def _dep(name: str, es: str, actions: list[str]) -> dict:
         "eventSourceName": es,
         "eventName": EVENT_KEY,
         "filters": {
-            "data": [{"path": "body.action", "type": "string", "comparator": "=", "value": actions}]
+            "data": [
+                {
+                    "path": "body.action",
+                    "type": "string",
+                    "comparator": "=",
+                    "value": actions,
+                },
+            ],
         },
     }
 
 
 def _tpl_ws_name(dep: str) -> dict:
     return {
-        "src": {"dependencyName": dep, "dataTemplate": "pr-{{ .Input.body.pull_request.number }}"},
+        "src": {
+            "dependencyName": dep,
+            "dataTemplate": "pr-{{ .Input.body.pull_request.number }}",
+        },
         "dest": "metadata.name",
     }
 
@@ -185,7 +234,11 @@ def _tpl_app_name(dep: str, app_type: str) -> dict:
 
 
 def build_sensor(s: SensorSpec) -> dict:
-    metadata: dict = {"name": s.name, "namespace": s.namespace}
+    metadata: dict = {
+        "name": s.name,
+        "namespace": s.namespace,
+    }
+
     if s.labels:
         metadata["labels"] = s.labels
 
@@ -199,7 +252,10 @@ def build_sensor(s: SensorSpec) -> dict:
             "dest": "spec.workspaceRef.name",
         },
         {
-            "src": {"dependencyName": "pr-open", "dataKey": "body.pull_request.head.sha"},
+            "src": {
+                "dependencyName": "pr-open",
+                "dataKey": "body.pull_request.head.sha",
+            },
             "dest": "spec.source.ref",
         },
         {
@@ -210,26 +266,43 @@ def build_sensor(s: SensorSpec) -> dict:
             "dest": f"metadata.annotations.{_esc(ANN_PR_NUMBER)}",
         },
         {
-            "src": {"dependencyName": "pr-open", "dataKey": "body.pull_request.head.sha"},
+            "src": {
+                "dependencyName": "pr-open",
+                "dataKey": "body.pull_request.head.sha",
+            },
             "dest": f"metadata.annotations.{_esc(ANN_COMMIT_SHA)}",
         },
     ]
     app_sync_params = [
         _tpl_app_name("pr-sync", s.application_type),
         {
-            "src": {"dependencyName": "pr-sync", "dataKey": "body.pull_request.head.sha"},
+            "src": {
+                "dependencyName": "pr-sync",
+                "dataKey": "body.pull_request.head.sha",
+            },
             "dest": "spec.source.ref",
         },
         {
-            "src": {"dependencyName": "pr-sync", "dataKey": "body.pull_request.head.sha"},
+            "src": {
+                "dependencyName": "pr-sync",
+                "dataKey": "body.pull_request.head.sha",
+            },
             "dest": f"metadata.annotations.{_esc(ANN_COMMIT_SHA)}",
         },
     ]
 
     def k8s(operation, resource, parameters, *, patch=False):
-        block = {"operation": operation, "source": {"resource": resource}, "parameters": parameters}
+        block = {
+            "operation": operation,
+            "source": {
+                "resource": resource,
+            },
+            "parameters": parameters,
+        }
+
         if patch:
             block["patchStrategy"] = "application/merge-patch+json"
+
         return block
 
     triggers = [
@@ -259,7 +332,9 @@ def build_sensor(s: SensorSpec) -> dict:
                 "name": "delete-app",
                 "conditions": "pr-close",
                 "k8s": k8s(
-                    "delete", _app_resource(s), [_tpl_app_name("pr-close", s.application_type)]
+                    "delete",
+                    _app_resource(s),
+                    [_tpl_app_name("pr-close", s.application_type)],
                 ),
             }
         },
@@ -277,7 +352,9 @@ def build_sensor(s: SensorSpec) -> dict:
         "kind": "Sensor",
         "metadata": metadata,
         "spec": {
-            "template": {"serviceAccountName": s.service_account},
+            "template": {
+                "serviceAccountName": s.service_account,
+            },
             "dependencies": [
                 _dep("pr-open", s.eventsource_name, ["opened", "reopened"]),
                 _dep("pr-sync", s.eventsource_name, ["synchronize"]),
@@ -296,13 +373,17 @@ def _apply(plural: str, namespace: str, name: str, desired: dict) -> None:
     from kubernetes.client.exceptions import ApiException
 
     api = client.CustomObjectsApi()
+
     try:
         api.get_namespaced_custom_object(GROUP, VERSION, namespace, plural, name)
     except ApiException as exc:
         if exc.status != 404:
             raise
+
         api.create_namespaced_custom_object(GROUP, VERSION, namespace, plural, desired)
+
         return
+
     api.patch_namespaced_custom_object(GROUP, VERSION, namespace, plural, name, desired)
 
 
@@ -311,6 +392,7 @@ def _delete(plural: str, namespace: str, name: str) -> None:
     from kubernetes.client.exceptions import ApiException
 
     api = client.CustomObjectsApi()
+
     try:
         api.delete_namespaced_custom_object(GROUP, VERSION, namespace, plural, name)
     except ApiException as exc:

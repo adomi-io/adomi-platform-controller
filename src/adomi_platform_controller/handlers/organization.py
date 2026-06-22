@@ -31,6 +31,8 @@ def reconcile(spec, meta, status, patch, name, **_) -> None:
     patch.status["odooImageRepository"] = image_repo
 
     msg = f"Organization {name!r} reconciled"
+
     if not base_domain:
         msg += " (no base domain set; applications must declare spec.ingress.host)"
+
     conditions.mark_ready(patch, status, msg, generation)

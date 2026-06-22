@@ -1197,6 +1197,257 @@ spec:
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  name: databases.platform.adomi.io
+spec:
+  group: platform.adomi.io
+  names:
+    kind: Database
+    listKind: DatabaseList
+    plural: databases
+    singular: database
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.engine
+      name: Engine
+      type: string
+    - jsonPath: .status.connection.host
+      name: Host
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Database is a managed database (CloudNativePG) a customer can attach apps to.
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of Database
+            properties:
+              engine:
+                description: Database engine. Only "postgres" (CloudNativePG) is supported.
+                enum:
+                - postgres
+                default: postgres
+                type: string
+              storage:
+                description: Persistent volume size for the database.
+                default: 10Gi
+                type: string
+              storageClass:
+                description: StorageClass for the volume (empty = cluster default).
+                type: string
+              instances:
+                description: Number of CloudNativePG instances (primary + replicas).
+                default: 1
+                minimum: 1
+                type: integer
+              environmentRef:
+                description: |-
+                  environmentRef names the Workspace whose namespace hosts the database.
+                  When omitted the database lives in the customer's shared data namespace.
+                properties:
+                  name:
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                type: object
+            type: object
+          status:
+            description: status defines the observed state of Database
+            properties:
+              namespace:
+                description: Namespace the CloudNativePG cluster runs in.
+                type: string
+              connection:
+                description: Connection coordinates apps use to reach the database.
+                properties:
+                  host:
+                    type: string
+                  port:
+                    type: integer
+                  name:
+                    type: string
+                  user:
+                    type: string
+                  secretName:
+                    type: string
+                  secretKey:
+                    type: string
+                type: object
+              conditions:
+                items:
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: domains.platform.adomi.io
+spec:
+  group: platform.adomi.io
+  names:
+    kind: Domain
+    listKind: DomainList
+    plural: domains
+    singular: domain
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.fqdn
+      name: FQDN
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Domain is a DNS domain a customer's apps are published under.
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of Domain
+            properties:
+              fqdn:
+                description: The fully-qualified domain, e.g. acme.example.com.
+                pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?\.)+[a-z]{2,}$
+                type: string
+              wildcard:
+                description: Whether apps get hostnames as <label>.<fqdn> (a wildcard cert covers them).
+                default: true
+                type: boolean
+              issuer:
+                description: cert-manager ClusterIssuer override (defaults to the platform issuer).
+                type: string
+            required:
+            - fqdn
+            type: object
+          status:
+            description: status defines the observed state of Domain
+            properties:
+              host:
+                description: The resolved base host apps are published under.
+                type: string
+              conditions:
+                items:
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
   name: gitrepositories.platform.adomi.io
 spec:
   group: platform.adomi.io

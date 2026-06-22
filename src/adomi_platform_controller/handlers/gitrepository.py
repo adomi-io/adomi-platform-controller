@@ -34,10 +34,12 @@ def reconcile(spec, meta, status, patch, name, namespace, **_) -> None:
     cfg = state.provider().config
 
     url = (spec.get("url") or "").strip()
+
     if not url:
         fail(patch, status, conditions.REASON_INVALID_SPEC, "spec.url is required", generation)
 
     owner, repo = resolve.parse_owner_repo(url)
+
     if not owner or not repo:
         fail(
             patch,
@@ -48,6 +50,7 @@ def reconcile(spec, meta, status, patch, name, namespace, **_) -> None:
         )
 
     cred_ref = spec.get("credentialsSecretRef") or {}
+
     if cred_ref.get("name"):
         try:
             client.CoreV1Api().read_namespaced_secret(cred_ref["name"], namespace)
@@ -60,6 +63,7 @@ def reconcile(spec, meta, status, patch, name, namespace, **_) -> None:
                     f"credentials secret {namespace}/{cred_ref['name']!r} not found",
                     generation,
                 )
+
             raise
 
     patch.status["owner"] = owner
@@ -67,20 +71,34 @@ def reconcile(spec, meta, status, patch, name, namespace, **_) -> None:
     patch.status["url"] = url
 
     preview = spec.get("preview") or {}
+
     if preview.get("enabled"):
         webhook_url = _reconcile_preview(
-            cfg, spec, preview, owner, repo, name, namespace, patch, status, generation
+            cfg,
+            spec,
+            preview,
+            owner,
+            repo,
+            name,
+            namespace,
+            patch,
+            status,
+            generation,
         )
+
         patch.status["previewEventSource"] = argoevents.eventsource_name(owner, repo)
         patch.status["previewSensor"] = argoevents.sensor_name(owner, repo)
         patch.status["webhookURL"] = webhook_url
+
         msg = f"GitRepository {owner}/{repo} reconciled; previews enabled"
     else:
         # Previews off: tear down any previously-generated preview resources.
         _delete_preview(cfg, owner, repo)
+
         patch.status["previewEventSource"] = ""
         patch.status["previewSensor"] = ""
         patch.status["webhookURL"] = ""
+
         msg = f"GitRepository {owner}/{repo} reconciled"
 
     conditions.mark_ready(patch, status, msg, generation)
@@ -91,6 +109,7 @@ def _reconcile_preview(
 ) -> str:
     """Provision the preview EventSource/Sensor/Ingress; return the webhook URL."""
     client_ref = (preview.get("clientRef") or {}).get("name")
+
     if not client_ref:
         fail(
             patch,
@@ -99,9 +118,11 @@ def _reconcile_preview(
             "spec.preview.clientRef.name is required when previews are enabled",
             generation,
         )
+
     application_type = preview.get("applicationType") or "odoo"
 
     cred_ref = spec.get("credentialsSecretRef") or {}
+
     if not cred_ref.get("name"):
         fail(
             patch,
@@ -113,6 +134,7 @@ def _reconcile_preview(
         )
 
     webhook_host = cfg.resolved_webhook_host()
+
     if not webhook_host:
         fail(
             patch,
@@ -201,8 +223,10 @@ def finalize(spec, status, logger, **_) -> None:
     cfg = state.provider().config
     owner = status.get("owner")
     repo = status.get("repo")
+
     if not owner or not repo:
         owner, repo = resolve.parse_owner_repo(spec.get("url") or "")
+
     if owner and repo:
         try:
             _delete_preview(cfg, owner, repo)
@@ -213,6 +237,7 @@ def finalize(spec, status, logger, **_) -> None:
 def _delete_preview(cfg, owner: str, repo: str) -> None:
     """Delete the generated preview resources for a repo (idempotent)."""
     es_name = argoevents.eventsource_name(owner, repo)
+
     argoevents.delete_sensor(argoevents.sensor_name(owner, repo), cfg.argo_namespace)
     argoevents.delete_eventsource(es_name, cfg.argo_namespace)
     ingress.delete(es_name, cfg.argo_namespace)

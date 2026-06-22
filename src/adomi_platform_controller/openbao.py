@@ -32,7 +32,10 @@ class OpenBaoClient:
     def __init__(self, addr: str, mount: str, token: TokenFunc) -> None:
         self._mount = mount.strip("/")
         self._token = token
-        self._client = hvac.Client(url=addr.rstrip("/"), timeout=_TIMEOUT)
+        self._client = hvac.Client(
+            url=addr.rstrip("/"),
+            timeout=_TIMEOUT,
+        )
 
     @classmethod
     def static(cls, addr: str, mount: str, token: str) -> "OpenBaoClient":
@@ -43,19 +46,23 @@ class OpenBaoClient:
         """Return the key/value map stored at the path, or None when absent."""
         for attempt in range(2):
             self._client.token = self._token(attempt > 0)
+
             try:
                 resp = self._client.secrets.kv.v2.read_secret_version(
                     path=path.strip("/"),
                     mount_point=self._mount,
                     raise_on_deleted_version=True,
                 )
+
                 return resp["data"]["data"] or {}
             except InvalidPath:
                 return None
             except (Forbidden, Unauthorized):
                 if attempt == 0:
                     continue
+
                 raise OpenBaoError(f"openbao read {path}: access denied")
+
         raise OpenBaoError(f"openbao read {path}: failed after token refresh")
 
     def write(self, path: str, data: dict[str, str]) -> None:
@@ -66,15 +73,21 @@ class OpenBaoClient:
         """
         for attempt in range(2):
             self._client.token = self._token(attempt > 0)
+
             try:
                 self._client.secrets.kv.v2.create_or_update_secret(
-                    path=path.strip("/"), secret=data, mount_point=self._mount
+                    path=path.strip("/"),
+                    secret=data,
+                    mount_point=self._mount,
                 )
+
                 return
             except (Forbidden, Unauthorized):
                 if attempt == 0:
                     continue
+
                 raise OpenBaoError(f"openbao write {path}: access denied")
+
         raise OpenBaoError(f"openbao write {path}: failed after token refresh")
 
     def ensure_keys(
@@ -94,6 +107,7 @@ class OpenBaoClient:
         for key in want:
             if current.get(key):
                 continue
+
             current[key] = gen(key)
             changed = True
 
@@ -110,14 +124,23 @@ def kubernetes_login(addr: str, auth_mount: str, role: str, jwt: str) -> tuple[s
     path External Secrets uses. Returns the client token and its lease duration
     in seconds (0 means non-expiring).
     """
-    client = hvac.Client(url=addr.rstrip("/"), timeout=_TIMEOUT)
+    client = hvac.Client(
+        url=addr.rstrip("/"),
+        timeout=_TIMEOUT,
+    )
+
     try:
-        resp = client.auth.kubernetes.login(role=role, jwt=jwt, mount_point=auth_mount.strip("/"))
+        resp = client.auth.kubernetes.login(
+            role=role,
+            jwt=jwt,
+            mount_point=auth_mount.strip("/"),
+        )
     except Exception as exc:  # noqa: BLE001 - surface any login failure uniformly
         raise OpenBaoError(f"openbao kubernetes login: {exc}") from exc
 
     auth = (resp or {}).get("auth") or {}
     token = auth.get("client_token") or ""
+
     if not token:
         raise OpenBaoError("openbao kubernetes login returned no client token")
 

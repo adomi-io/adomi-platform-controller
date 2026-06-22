@@ -23,12 +23,22 @@ GIT_TOKEN_KEY = "token"  # key used in the git-token Secret
 def dockerconfigjson(host: str, username: str, password: str) -> dict:
     """Build a Docker config dict authenticating to one registry host (pure)."""
     auth = base64.b64encode(f"{username}:{password}".encode()).decode()
-    return {"auths": {host: {"username": username, "password": password, "auth": auth}}}
+
+    return {
+        "auths": {
+            host: {
+                "username": username,
+                "password": password,
+                "auth": auth,
+            },
+        },
+    }
 
 
 def _apply_secret(name: str, namespace: str, secret_type: str, string_data: dict) -> None:
     """Create or update an Opaque/dockerconfigjson Secret (idempotent)."""
     api = client.CoreV1Api()
+
     body = client.V1Secret(
         metadata=client.V1ObjectMeta(
             name=name,
@@ -38,13 +48,17 @@ def _apply_secret(name: str, namespace: str, secret_type: str, string_data: dict
         type=secret_type,
         string_data=string_data,
     )
+
     try:
         api.read_namespaced_secret(name, namespace)
     except ApiException as exc:
         if exc.status != 404:
             raise
+
         api.create_namespaced_secret(namespace, body)
+
         return
+
     api.patch_namespaced_secret(name, namespace, body)
 
 
@@ -53,6 +67,7 @@ def ensure_dockerconfig_secret(
 ) -> None:
     """Ensure a kubernetes.io/dockerconfigjson Secret for pushing to ``host``."""
     payload = json.dumps(dockerconfigjson(host, username, password))
+
     _apply_secret(
         name,
         namespace,
@@ -75,16 +90,19 @@ def ensure_opaque_secret(
     untouched (used for generate-once values like a webhook HMAC secret).
     """
     api = client.CoreV1Api()
+
     try:
         api.read_namespaced_secret(name, namespace)
         exists = True
     except ApiException as exc:
         if exc.status != 404:
             raise
+
         exists = False
 
     if exists and create_only:
         return
+
     _apply_secret(name, namespace, "Opaque", string_data)
 
 
@@ -92,14 +110,17 @@ def read_key(name: str, namespace: str, key: str) -> str:
     """Read and base64-decode a single key from a Secret."""
     secret = client.CoreV1Api().read_namespaced_secret(name, namespace)
     raw = (secret.data or {}).get(key)
+
     if not raw:
         raise RuntimeError(f"secret {namespace}/{name!r} has no key {key!r}")
+
     return base64.b64decode(raw).decode().strip()
 
 
 def delete(name: str, namespace: str) -> None:
     """Delete a managed build Secret (no-op if already gone)."""
     api = client.CoreV1Api()
+
     try:
         api.delete_namespaced_secret(name, namespace)
     except ApiException as exc:

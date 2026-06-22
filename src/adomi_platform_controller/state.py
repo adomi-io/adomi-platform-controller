@@ -19,4 +19,5 @@ def set_provider(provider: Provider) -> None:
 def provider() -> Provider:
     if _provider is None:
         raise RuntimeError("backend Provider not initialised; operator startup did not run")
+
     return _provider

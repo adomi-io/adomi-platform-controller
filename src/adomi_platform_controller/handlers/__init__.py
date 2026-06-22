@@ -9,6 +9,8 @@ from . import (  # noqa: F401
     application,
     applicationtype,
     client,
+    database,
+    domain,
     gitrepository,
     odoo_sync,
     organization,

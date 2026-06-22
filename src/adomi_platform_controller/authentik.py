@@ -75,9 +75,13 @@ class AuthentikClient:
     """Talks to a single Authentik server with a bearer API token."""
 
     def __init__(self, addr: str, token: str) -> None:
-        config = authentik_client.Configuration(host=f"{addr.rstrip('/')}/api/v3")
+        config = authentik_client.Configuration(
+            host=f"{addr.rstrip('/')}/api/v3",
+        )
         config.access_token = token
+
         api = authentik_client.ApiClient(config)
+
         self._core = authentik_client.CoreApi(api)
         self._flows = authentik_client.FlowsApi(api)
         self._crypto = authentik_client.CryptoApi(api)
@@ -90,6 +94,7 @@ class AuthentikClient:
         """Return the string pk of the first result, or '' when there are none."""
         if not results:
             return ""
+
         return str(results[0].pk or "")
 
     def verify(self) -> None:
@@ -99,11 +104,13 @@ class AuthentikClient:
     def flow_pk(self, slug: str) -> str:
         """Resolve a flow slug to its pk. Returns '' when not found."""
         page = self._flows.flows_instances_list(slug=slug)
+
         return self._first_pk(page.results)
 
     def signing_key_pk(self, name: str) -> str:
         """Resolve a certificate-keypair by name to its pk. Returns '' when absent."""
         page = self._crypto.crypto_certificatekeypairs_list(name=name)
+
         return self._first_pk(page.results)
 
     def ensure_scope_mapping(self, scope_name: str) -> str | None:
@@ -114,6 +121,7 @@ class AuthentikClient:
         """
         page = self._mappings.propertymappings_provider_scope_list(scope_name=scope_name)
         pk = self._first_pk(page.results)
+
         if pk:
             return pk
 
@@ -125,8 +133,9 @@ class AuthentikClient:
                 name="Groups (adomi-platform-controller)",
                 scope_name="groups",
                 expression='return {"groups": [group.name for group in user.ak_groups.all()]}',
-            )
+            ),
         )
+
         return str(created.pk) or None
 
     def ensure_group(self, name: str) -> str:
@@ -136,12 +145,15 @@ class AuthentikClient:
         group is present so apps can reference it by name in their SSO RBAC rules.
         """
         page = self._core.core_groups_list(name=name, include_users=False)
+
         for group in page.results:
             if group.name == name:
                 return str(group.pk)
+
         created = self._core.core_groups_create(
-            group_request=authentik_client.GroupRequest(name=name)
+            group_request=authentik_client.GroupRequest(name=name),
         )
+
         return str(created.pk)
 
     def ensure_oauth2_provider(self, spec: OAuth2ProviderSpec) -> int:
@@ -171,10 +183,12 @@ class AuthentikClient:
                 for u in spec.redirect_uris
             ],
         }
+
         if spec.signing_key_pk:
             fields["signing_key"] = spec.signing_key_pk
 
         page = self._providers.providers_oauth2_list(search=spec.name)
+
         for provider in page.results:
             if provider.name == spec.name:
                 self._providers.providers_oauth2_partial_update(
@@ -183,11 +197,13 @@ class AuthentikClient:
                         **fields
                     ),
                 )
+
                 return provider.pk
 
         created = self._providers.providers_oauth2_create(
-            o_auth2_provider_request=authentik_client.OAuth2ProviderRequest(**fields)
+            o_auth2_provider_request=authentik_client.OAuth2ProviderRequest(**fields),
         )
+
         return created.pk
 
     def ensure_proxy_provider(self, spec: ProxyProviderSpec) -> int:
@@ -200,16 +216,21 @@ class AuthentikClient:
             "mode": authentik_client.ProxyMode(spec.mode),
             "property_mappings": spec.property_mapping_pks,
         }
+
         if spec.authentication_flow_pk:
             fields["authentication_flow"] = spec.authentication_flow_pk
+
         if spec.cookie_domain:
             fields["cookie_domain"] = spec.cookie_domain
+
         if spec.internal_host:
             fields["internal_host"] = spec.internal_host
+
         if spec.skip_path_regex:
             fields["skip_path_regex"] = spec.skip_path_regex
 
         page = self._providers.providers_proxy_list(search=spec.name)
+
         for provider in page.results:
             if provider.name == spec.name:
                 self._providers.providers_proxy_partial_update(
@@ -218,19 +239,23 @@ class AuthentikClient:
                         **fields
                     ),
                 )
+
                 return provider.pk
 
         created = self._providers.providers_proxy_create(
-            proxy_provider_request=authentik_client.ProxyProviderRequest(**fields)
+            proxy_provider_request=authentik_client.ProxyProviderRequest(**fields),
         )
+
         return created.pk
 
     def _find_outpost(self, name: str):
         """Return the outpost matched by exact name, or None."""
         page = self._outposts.outposts_instances_list(search=name)
+
         for outpost in page.results:
             if outpost.name == name:
                 return outpost
+
         return None
 
     def ensure_outpost_provider(
@@ -247,6 +272,7 @@ class AuthentikClient:
         authentik_host_browser), so set both to the public URL.
         """
         outpost = self._find_outpost(outpost_name)
+
         if outpost is None:
             raise RuntimeError(f"outpost {outpost_name!r} not found in Authentik")
 
@@ -256,6 +282,7 @@ class AuthentikClient:
             config.get("authentik_host") != browser_host
             or config.get("authentik_host_browser") != browser_host
         )
+
         if browser_host:
             config["authentik_host"] = browser_host
             config["authentik_host_browser"] = browser_host
@@ -263,9 +290,13 @@ class AuthentikClient:
         if providers == sorted(outpost.providers or []) and not config_changed:
             return
 
-        fields: dict = {"providers": providers}
+        fields: dict = {
+            "providers": providers,
+        }
+
         if config_changed:
             fields["config"] = config
+
         self._outposts.outposts_instances_partial_update(
             uuid=outpost.pk,
             patched_outpost_request=authentik_client.PatchedOutpostRequest(**fields),
@@ -274,9 +305,12 @@ class AuthentikClient:
     def remove_outpost_provider(self, outpost_name: str, provider_pk: int) -> None:
         """Remove a provider from an outpost's provider list. Missing is not an error."""
         outpost = self._find_outpost(outpost_name)
+
         if outpost is None or provider_pk not in (outpost.providers or []):
             return
+
         providers = [p for p in outpost.providers if p != provider_pk]
+
         self._outposts.outposts_instances_partial_update(
             uuid=outpost.pk,
             patched_outpost_request=authentik_client.PatchedOutpostRequest(providers=providers),
@@ -291,6 +325,7 @@ class AuthentikClient:
             for provider in lister(search=name).results:
                 if provider.name == name:
                     return provider.pk
+
         return None
 
     def ensure_application(self, spec: ApplicationSpec) -> str:
@@ -299,19 +334,28 @@ class AuthentikClient:
         Metadata fields are only sent when set, so empty values keep Authentik's
         defaults rather than clearing existing data.
         """
-        fields: dict = {"name": spec.name}
+        fields: dict = {
+            "name": spec.name,
+        }
+
         if spec.provider_pk is not None:
             fields["provider"] = spec.provider_pk
+
         if spec.group:
             fields["group"] = spec.group
+
         if spec.icon:
             fields["meta_icon"] = spec.icon
+
         if spec.description:
             fields["meta_description"] = spec.description
+
         if spec.publisher:
             fields["meta_publisher"] = spec.publisher
+
         if spec.launch_url:
             fields["meta_launch_url"] = spec.launch_url
+
         if spec.backchannel_provider_pks:
             fields["backchannel_providers"] = spec.backchannel_provider_pks
 
@@ -319,14 +363,16 @@ class AuthentikClient:
             existing = self._core.core_applications_retrieve(slug=spec.slug)
         except NotFoundException:
             created = self._core.core_applications_create(
-                application_request=authentik_client.ApplicationRequest(slug=spec.slug, **fields)
+                application_request=authentik_client.ApplicationRequest(slug=spec.slug, **fields),
             )
+
             return str(created.pk)
 
         self._core.core_applications_partial_update(
             slug=spec.slug,
             patched_application_request=authentik_client.PatchedApplicationRequest(**fields),
         )
+
         return str(existing.pk)
 
     def delete_application(self, slug: str) -> None:

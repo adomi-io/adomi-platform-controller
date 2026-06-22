@@ -144,6 +144,7 @@ class Config:
     def from_env(cls) -> "Config":
         """Build a Config from environment variables, falling back to defaults."""
         d = cls()  # defaults
+
         return cls(
             openbao_addr=_env("OPENBAO_ADDR", d.openbao_addr),
             kv_mount=_env("OPENBAO_KV_MOUNT", d.kv_mount),

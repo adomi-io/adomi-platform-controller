@@ -81,8 +81,10 @@ def reconcile(spec, meta, status, patch, name, namespace, logger, **_) -> None:
     # protocols forward these claims.
     try:
         mapping_pks = []
+
         for scope in scopes:
             pk = ak.ensure_scope_mapping(scope)
+
             if pk:
                 mapping_pks.append(pk)
             else:
@@ -92,13 +94,32 @@ def reconcile(spec, meta, status, patch, name, namespace, logger, **_) -> None:
 
     if protocol == PROTOCOL_PROXY:
         provider_pk = _reconcile_proxy(
-            ak, cfg, spec, slug, authz_pk, inval_pk, mapping_pks, patch, status, generation
+            ak,
+            cfg,
+            spec,
+            slug,
+            authz_pk,
+            inval_pk,
+            mapping_pks,
+            patch,
+            status,
+            generation,
         )
         client_id = None
         openbao_path = None
     else:
         provider_pk, client_id, openbao_path = _reconcile_oauth2(
-            ak, cfg, bao, spec, slug, authz_pk, inval_pk, mapping_pks, patch, status, generation
+            ak,
+            cfg,
+            bao,
+            spec,
+            slug,
+            authz_pk,
+            inval_pk,
+            mapping_pks,
+            patch,
+            status,
+            generation,
         )
 
     # Application (with metadata) + any declared Authentik groups (shared).
@@ -106,8 +127,10 @@ def reconcile(spec, meta, status, patch, name, namespace, logger, **_) -> None:
     # in their SSO RBAC rules (e.g. an Argo Workflows group-to-ServiceAccount mapping).
     try:
         backchannel_pks = []
+
         for bp in spec.get("backchannelProviders") or []:
             pk = ak.find_provider_pk(bp)
+
             if pk:
                 backchannel_pks.append(pk)
             else:
@@ -126,6 +149,7 @@ def reconcile(spec, meta, status, patch, name, namespace, logger, **_) -> None:
                 backchannel_provider_pks=backchannel_pks,
             )
         )
+
         for group_name in spec.get("groups") or []:
             ak.ensure_group(group_name)
     except Exception as exc:  # noqa: BLE001
@@ -135,10 +159,15 @@ def reconcile(spec, meta, status, patch, name, namespace, logger, **_) -> None:
     # a proxy provider's credentials are generated and owned by Authentik).
     if protocol != PROTOCOL_PROXY:
         target = (spec.get("credentials") or {}).get("targetSecret")
+
         if target:
             try:
                 _publish_credentials(
-                    target, meta, namespace, openbao_path, cfg.cluster_secret_store
+                    target,
+                    meta,
+                    namespace,
+                    openbao_path,
+                    cfg.cluster_secret_store,
                 )
             except Exception as exc:  # noqa: BLE001
                 fail(
@@ -152,10 +181,13 @@ def reconcile(spec, meta, status, patch, name, namespace, logger, **_) -> None:
     patch.status["slug"] = slug
     patch.status["protocol"] = protocol
     patch.status["providerID"] = str(provider_pk)
+
     if openbao_path:
         patch.status["openbaoPath"] = openbao_path
+
     if client_id:
         patch.status["clientID"] = client_id
+
     conditions.mark_ready(patch, status, f"SSO application {slug!r} reconciled", generation)
 
 
@@ -195,6 +227,7 @@ def _reconcile_oauth2(
 
     try:
         signing_pk = ak.signing_key_pk(cfg.signing_key_name)
+
         provider_pk = ak.ensure_oauth2_provider(
             OAuth2ProviderSpec(
                 name=slug,
@@ -219,6 +252,7 @@ def _reconcile_proxy(
     """Reconcile a proxy provider and attach it to an outpost; return provider_pk."""
     proxy = spec.get("proxy") or {}
     external_host = proxy.get("externalHost")
+
     if not external_host:
         fail(
             patch,
@@ -230,6 +264,7 @@ def _reconcile_proxy(
 
     mode_key = proxy.get("mode") or "forwardSingle"
     mode = PROXY_MODES.get(mode_key)
+
     if not mode:
         fail(
             patch,
@@ -241,6 +276,7 @@ def _reconcile_proxy(
 
     try:
         authn_pk = ak.flow_pk(cfg.authentication_flow_slug)
+
         provider_pk = ak.ensure_proxy_provider(
             ProxyProviderSpec(
                 name=slug,
@@ -258,8 +294,11 @@ def _reconcile_proxy(
         # For domain-level forward auth, externalHost is the public Authentik URL, so
         # point the outpost's browser URL at it (otherwise it redirects to localhost).
         browser_host = external_host if mode == "forward_domain" else ""
+
         ak.ensure_outpost_provider(
-            proxy.get("outpost") or DEFAULT_OUTPOST, provider_pk, browser_host
+            proxy.get("outpost") or DEFAULT_OUTPOST,
+            provider_pk,
+            browser_host,
         )
     except Exception as exc:  # noqa: BLE001
         fail(patch, status, conditions.REASON_BACKEND_ERROR, str(exc), generation)
@@ -294,8 +333,10 @@ def finalize(spec, status, name, logger, **_) -> None:
 
     if provider_id:
         pk = int(str(provider_id).strip())
+
         if protocol == PROTOCOL_PROXY:
             outpost = (spec.get("proxy") or {}).get("outpost") or DEFAULT_OUTPOST
+
             try:
                 ak.remove_outpost_provider(outpost, pk)
             except Exception as exc:  # noqa: BLE001
@@ -320,6 +361,7 @@ def _publish_credentials(target, meta, namespace, openbao_path, store) -> None:
     # Own the ExternalSecret only when it lives in the SSOApplication's namespace,
     # so it is garbage-collected with the CR (cross-namespace ownership is invalid).
     owner_refs: list[dict] = []
+
     if ns == namespace:
         owner_refs = [
             {

@@ -27,11 +27,14 @@ def reconcile(spec, meta, status, patch, name, **_) -> None:
     state.provider()
 
     chart = spec.get("chart") or {}
+
     if not chart.get("repoURL"):
         fail(patch, status, conditions.REASON_INVALID_SPEC, "chart.repoURL is required", generation)
 
     adapter = spec.get("adapter") or registry.GENERIC
     msg = f"ApplicationType {name!r} ready (adapter={adapter})"
+
     if adapter not in (registry.GENERIC, "odoo", "superset", "mailpit"):
         msg += " — no built-in adapter, using generic"
+
     conditions.mark_ready(patch, status, msg, generation)

@@ -30,6 +30,8 @@ PLURAL_APPLICATIONS = "applications"
 PLURAL_APPLICATIONTYPES = "applicationtypes"
 PLURAL_GITREPOSITORIES = "gitrepositories"
 PLURAL_SNAPSHOTS = "snapshots"
+PLURAL_DATABASES = "databases"
+PLURAL_DOMAINS = "domains"
 
 # Workspace classes.
 CLASS_PREVIEW = "preview"
@@ -131,8 +133,10 @@ def parse_owner_repo(url: str) -> tuple[str, str]:
     s = re.sub(r"^[a-z]+://", "", s)
     s = re.sub(r"\.git$", "", s)
     parts = [p for p in s.split("/") if p]
+
     if len(parts) >= 3:
         return parts[-2], parts[-1]
+
     return "", ""
 
 
@@ -140,6 +144,7 @@ def sanitize_tag(ref: str) -> str:
     """Reduce a git ref to a valid Docker image tag."""
     tag = re.sub(r"[^A-Za-z0-9_.-]", "-", (ref or "").strip())
     tag = tag.strip(".-") or "latest"
+
     return tag[:128]
 
 
@@ -163,20 +168,24 @@ def cnpg_cluster_name(app_name: str) -> str:
 def deep_merge(*layers: dict) -> dict:
     """Recursively merge dicts; later layers win. Lists/scalars are replaced."""
     out: dict = {}
+
     for layer in layers:
         for k, v in (layer or {}).items():
             if isinstance(v, dict) and isinstance(out.get(k), dict):
                 out[k] = deep_merge(out[k], v)
             else:
                 out[k] = v
+
     return out
 
 
 def resolve_db_mode(app_database: dict, type_database: dict) -> str:
     """The database backend: explicit spec wins, else cnpg if the type needs one, else none."""
     explicit = (app_database or {}).get("mode")
+
     if explicit:
         return explicit
+
     return DB_MODE_CNPG if (type_database or {}).get("required") else DB_MODE_NONE
 
 
@@ -191,8 +200,13 @@ def compute(
     app_name: str,
     app_spec: dict,
     type_spec: dict,
+    domain_fqdn: str = "",
 ) -> Effective:
-    """Fold the layers into the effective settings for an application (pure)."""
+    """Fold the layers into the effective settings for an application (pure).
+
+    ``domain_fqdn`` (from a resolved Domain referenced by the app) overrides the
+    Organization base domain for hostname generation.
+    """
     org = org_spec or {}
     org_domain = org.get("domain") or {}
     org_images = org.get("images") or {}
@@ -211,8 +225,9 @@ def compute(
     workspace_class = workspace_spec.get("class") or CLASS_DEVELOPMENT
     namespace = namespace_name(client_slug, workspace_name)
 
-    base_domain = (org_domain.get("base") or cfg.base_domain or "").strip()
+    base_domain = (domain_fqdn or org_domain.get("base") or cfg.base_domain or "").strip()
     host = (app_ingress.get("host") or "").strip()
+
     if not host and base_domain:
         # Single DNS label under the base domain so a one-level wildcard
         # (*.base_domain) covers both DNS and the TLS cert. A dotted host like
@@ -270,9 +285,12 @@ def app_db_connection(app_obj: dict) -> DbConnection:
 
     if mode == DB_MODE_CNPG:
         ns = status.get("namespace")
+
         if not ns:
             raise NotFound("application has no status.namespace yet (not reconciled)")
+
         cluster = cnpg_cluster_name(app_name)
+
         return DbConnection(
             host=f"{cluster}-rw.{ns}.svc.cluster.local",
             port=DB_PORT,
@@ -282,10 +300,12 @@ def app_db_connection(app_obj: dict) -> DbConnection:
             password_secret_name=f"{cluster}-app",
             password_secret_key="password",
         )
+
     if mode == DB_MODE_EXTERNAL:
         ext = db.get("external") or {}
         pw = ext.get("passwordSecret") or {}
         mgmt_ns = (app_obj.get("metadata") or {}).get("namespace") or ""
+
         return DbConnection(
             host=ext.get("host") or "",
             port=int(ext.get("port") or DB_PORT),
@@ -295,6 +315,7 @@ def app_db_connection(app_obj: dict) -> DbConnection:
             password_secret_name=pw.get("name") or "",
             password_secret_key=pw.get("key") or "db-password",
         )
+
     raise NotFound(f"application {app_name!r} has no database (mode={mode})")
 
 
@@ -321,39 +342,81 @@ def get_snapshot(name: str, namespace: str) -> dict:
     return _get_namespaced(PLURAL_SNAPSHOTS, name, namespace)
 
 
+def get_database(name: str, namespace: str) -> dict:
+    return _get_namespaced(PLURAL_DATABASES, name, namespace)
+
+
+def get_domain(name: str, namespace: str) -> dict:
+    return _get_namespaced(PLURAL_DOMAINS, name, namespace)
+
+
+def db_connection_from_database(db_obj: dict) -> DbConnection:
+    """Resolve a DbConnection from a managed Database's published status.connection.
+
+    Raises NotFound until the Database reconciler has provisioned the cluster and
+    published its connection (so the consuming Application requeues).
+    """
+    name = (db_obj.get("metadata") or {}).get("name") or ""
+    status = db_obj.get("status") or {}
+    conn = status.get("connection") or {}
+    ns = status.get("namespace")
+
+    if not conn.get("host") or not ns:
+        raise NotFound(f"Database {name!r} not ready (no status.connection yet)")
+
+    return DbConnection(
+        host=conn["host"],
+        port=int(conn.get("port") or DB_PORT),
+        name=conn.get("name") or CNPG_DB_NAME,
+        user=conn.get("user") or CNPG_DB_USER,
+        password_secret_namespace=ns,
+        password_secret_name=conn.get("secretName") or "",
+        password_secret_key=conn.get("secretKey") or "password",
+    )
+
+
 def get_application_type(name: str) -> dict:
     """Fetch a cluster-scoped ApplicationType by name, or raise NotFound."""
     api = client.CustomObjectsApi()
+
     try:
         return api.get_cluster_custom_object(GROUP, VERSION, PLURAL_APPLICATIONTYPES, name)
     except ApiException as exc:
         if exc.status == 404:
             raise NotFound(f"ApplicationType {name!r} not found") from exc
+
         raise
 
 
 def get_organization(name: str | None) -> dict | None:
     """Resolve the Organization to use (explicit name, else the single one, else None)."""
     api = client.CustomObjectsApi()
+
     if name:
         try:
             return api.get_cluster_custom_object(GROUP, VERSION, PLURAL_ORGANIZATIONS, name)
         except ApiException as exc:
             if exc.status == 404:
                 raise NotFound(f"Organization {name!r} not found") from exc
+
             raise
+
     listing = api.list_cluster_custom_object(GROUP, VERSION, PLURAL_ORGANIZATIONS)
     items = listing.get("items") or []
+
     if len(items) == 1:
         return items[0]
+
     return None
 
 
 def _get_namespaced(plural: str, name: str, namespace: str) -> dict:
     api = client.CustomObjectsApi()
+
     try:
         return api.get_namespaced_custom_object(GROUP, VERSION, namespace, plural, name)
     except ApiException as exc:
         if exc.status == 404:
             raise NotFound(f"{plural[:-1]} {namespace}/{name!r} not found") from exc
+
         raise

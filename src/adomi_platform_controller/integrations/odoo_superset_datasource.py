@@ -17,15 +17,21 @@ class OdooSupersetDatasource:
 
     def values(self, provider_connection: dict, ctx: base.Ctx) -> dict:
         db = (provider_connection or {}).get("db") or {}
+
         if not db.get("host"):
             return {}
+
         env = {
             "ODOO_DB_HOST": str(db["host"]),
             "ODOO_DB_PORT": str(db.get("port", 5432)),
             "ODOO_DB_NAME": str(db.get("name", "odoo")),
             "ODOO_DB_USER": str(db.get("user", "odoo")),
         }
-        values: dict = {"extraEnv": env}
+
+        values: dict = {
+            "extraEnv": env,
+        }
+
         if db.get("passwordSecret"):
             values["extraEnvRaw"] = [
                 {
@@ -38,4 +44,5 @@ class OdooSupersetDatasource:
                     },
                 }
             ]
+
         return values
