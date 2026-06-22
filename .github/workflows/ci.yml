@@ -28,6 +28,19 @@ jobs:
     permissions:
       contents: read
       packages: write
+    # Both images build from this one repo (the control plane): the operator
+    # (default Dockerfile) and the front-door API (Dockerfile.api). Each is tagged
+    # from its OWN chart's appVersion, since the two charts version independently.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: adomi-platform-controller
+            dockerfile: Dockerfile
+            chart: charts/adomi-platform-controller/Chart.yaml
+          - image: adomi-platform-api
+            dockerfile: Dockerfile.api
+            chart: charts/adomi-platform-api/Chart.yaml
     steps:
       - uses: actions/checkout@v4
 
@@ -37,7 +50,7 @@ jobs:
       - name: Read chart appVersion
         id: chart
         run: |
-          v=$(grep '^appVersion:' charts/adomi-platform-controller/Chart.yaml \
+          v=$(grep '^appVersion:' ${{ matrix.chart }} \
             | sed -E 's/.*appVersion:[[:space:]]*"?([^"]+)"?.*/\1/')
           echo "appVersion=$v" >> "$GITHUB_OUTPUT"
 
@@ -58,7 +71,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
           tags: |
             type=raw,value=${{ steps.chart.outputs.appVersion }}
             type=raw,value=latest,enable={{is_default_branch}}
@@ -68,9 +81,11 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Scope the cache per image so the two matrix builds don't clobber each other.
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
