@@ -1,14 +1,14 @@
-"""Tests for build Secret construction."""
+"""Tests for managed Secret construction."""
 
 from __future__ import annotations
 
 import base64
 
-from adomi_platform_controller import buildsecrets
+from adomi_platform_controller.buildsecrets import ManagedSecret
 
 
 def test_dockerconfigjson():
-    cfg = buildsecrets.dockerconfigjson("harbor.example.com", "admin", "s3cret")
+    cfg = ManagedSecret.dockerconfigjson("harbor.example.com", "admin", "s3cret")
     entry = cfg["auths"]["harbor.example.com"]
     assert entry["username"] == "admin"
     assert entry["password"] == "s3cret"
@@ -17,5 +17,5 @@ def test_dockerconfigjson():
 
 
 def test_dockerconfigjson_single_host():
-    cfg = buildsecrets.dockerconfigjson("h", "u", "p")
+    cfg = ManagedSecret.dockerconfigjson("h", "u", "p")
     assert list(cfg["auths"].keys()) == ["h"]

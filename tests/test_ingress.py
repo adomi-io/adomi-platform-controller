@@ -1,11 +1,11 @@
-"""Tests for the Ingress builder."""
+"""Tests for the Ingress resource."""
 
 from __future__ import annotations
 
-from adomi_platform_controller import ingress
+from adomi_platform_controller.ingress import IngressRoute
 
 
-def _build(**overrides) -> dict:
+def _manifest(**overrides) -> dict:
     base = dict(
         name="gh-acme-erp",
         namespace="argo",
@@ -17,11 +17,12 @@ def _build(**overrides) -> dict:
         cluster_issuer="letsencrypt-prod",
     )
     base.update(overrides)
-    return ingress.build(ingress.Spec(**base))
+
+    return IngressRoute(**base).manifest()
 
 
-def test_build_shape():
-    obj = _build()
+def test_manifest_shape():
+    obj = _manifest()
     assert obj["apiVersion"] == "networking.k8s.io/v1"
     assert obj["kind"] == "Ingress"
     assert obj["spec"]["ingressClassName"] == "traefik"
@@ -33,13 +34,13 @@ def test_build_shape():
     assert p["backend"]["service"]["port"]["number"] == 12000
 
 
-def test_build_tls_and_issuer():
-    obj = _build()
+def test_manifest_tls_and_issuer():
+    obj = _manifest()
     assert obj["spec"]["tls"] == [{"hosts": ["hooks.example.com"], "secretName": "gh-acme-erp-tls"}]
     assert obj["metadata"]["annotations"]["cert-manager.io/cluster-issuer"] == "letsencrypt-prod"
 
 
-def test_build_without_tls():
-    obj = _build(tls_secret_name="", cluster_issuer="")
+def test_manifest_without_tls():
+    obj = _manifest(tls_secret_name="", cluster_issuer="")
     assert "tls" not in obj["spec"]
     assert "annotations" not in obj["metadata"]

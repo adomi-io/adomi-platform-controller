@@ -9,7 +9,8 @@ builds the (pure) Workflow parameter maps.
 
 from __future__ import annotations
 
-from . import buildsecrets, state
+from . import state
+from .buildsecrets import ManagedSecret
 from .config import Config
 from .resolve import DbConnection
 
@@ -34,24 +35,24 @@ def ensure_secrets(cfg: Config, conn: DbConnection) -> tuple[str, str]:
     if not access_key or not secret_key:
         raise RuntimeError(f"S3 credentials missing at OpenBao {cfg.s3_secret_path!r}")
 
-    buildsecrets.ensure_opaque_secret(
+    ManagedSecret.opaque(
         ARGO_S3_SECRET,
         cfg.argo_namespace,
         {"access-key": access_key, "secret-key": secret_key},
-    )
+    ).apply()
 
-    password = buildsecrets.read_key(
+    password = ManagedSecret.read_key(
         conn.password_secret_name,
         conn.password_secret_namespace,
         conn.password_secret_key,
     )
     db_secret = _db_secret_name(conn.password_secret_namespace)
 
-    buildsecrets.ensure_opaque_secret(
+    ManagedSecret.opaque(
         db_secret,
         cfg.argo_namespace,
         {"password": password},
-    )
+    ).apply()
 
     return db_secret, ARGO_S3_SECRET
 

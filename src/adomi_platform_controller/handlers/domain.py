@@ -13,23 +13,31 @@ from __future__ import annotations
 import kopf
 
 from .. import conditions, state
-from ._common import fail
-
-GROUP = "platform.adomi.io"
-VERSION = "v1alpha1"
-PLURAL = "domains"
+from ._common import Reconciler, fail
 
 
-@kopf.on.create(GROUP, VERSION, PLURAL)
-@kopf.on.update(GROUP, VERSION, PLURAL)
-@kopf.on.resume(GROUP, VERSION, PLURAL)
-def reconcile(spec, meta, status, patch, name, **_) -> None:
-    generation = meta.get("generation", 0)
-    state.provider()
+class DomainReconciler(Reconciler):
+    plural = "domains"
 
-    fqdn = (spec.get("fqdn") or "").strip().lower()
-    if not fqdn:
-        fail(patch, status, conditions.REASON_INVALID_SPEC, "fqdn is required", generation)
+    def reconcile(self, spec, meta, status, patch, name, **_) -> None:
+        generation = meta.get("generation", 0)
+        state.provider()
 
-    patch.status["host"] = fqdn
-    conditions.mark_ready(patch, status, f"Domain {fqdn!r} ready", generation)
+        fqdn = (spec.get("fqdn") or "").strip().lower()
+
+        if not fqdn:
+            fail(patch, status, conditions.REASON_INVALID_SPEC, "fqdn is required", generation)
+
+        patch.status["host"] = fqdn
+
+        conditions.mark_ready(patch, status, f"Domain {fqdn!r} ready", generation)
+
+
+_reconciler = DomainReconciler()
+
+
+@kopf.on.create(DomainReconciler.GROUP, DomainReconciler.VERSION, DomainReconciler.plural)
+@kopf.on.update(DomainReconciler.GROUP, DomainReconciler.VERSION, DomainReconciler.plural)
+@kopf.on.resume(DomainReconciler.GROUP, DomainReconciler.VERSION, DomainReconciler.plural)
+def reconcile(**kwargs) -> None:
+    return _reconciler.reconcile(**kwargs)

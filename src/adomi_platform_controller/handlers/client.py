@@ -11,30 +11,36 @@ from __future__ import annotations
 import kopf
 
 from .. import conditions, resolve, state
-from ._common import fail
-
-GROUP = "platform.adomi.io"
-VERSION = "v1alpha1"
-PLURAL = "clients"
+from ._common import Reconciler, fail
 
 
-@kopf.on.create(GROUP, VERSION, PLURAL)
-@kopf.on.update(GROUP, VERSION, PLURAL)
-@kopf.on.resume(GROUP, VERSION, PLURAL)
-def reconcile(spec, meta, status, patch, name, **_) -> None:
-    generation = meta.get("generation", 0)
-    state.provider()  # ensure the backend/config singleton is initialised
+class ClientReconciler(Reconciler):
+    plural = "clients"
 
-    slug = (spec.get("slug") or name).strip()
+    def reconcile(self, spec, meta, status, patch, name, **_) -> None:
+        generation = meta.get("generation", 0)
+        state.provider()  # ensure the backend/config singleton is initialised
 
-    org_ref = (spec.get("organizationRef") or {}).get("name")
+        slug = (spec.get("slug") or name).strip()
 
-    if org_ref:
-        try:
-            resolve.get_organization(org_ref)
-        except resolve.NotFound as exc:
-            fail(patch, status, conditions.REASON_DEPENDENCY_NOT_MET, str(exc), generation)
+        org_ref = (spec.get("organizationRef") or {}).get("name")
 
-    patch.status["slug"] = slug
+        if org_ref:
+            try:
+                resolve.get_organization(org_ref)
+            except resolve.NotFound as exc:
+                fail(patch, status, conditions.REASON_DEPENDENCY_NOT_MET, str(exc), generation)
 
-    conditions.mark_ready(patch, status, f"Client {slug!r} reconciled", generation)
+        patch.status["slug"] = slug
+
+        conditions.mark_ready(patch, status, f"Client {slug!r} reconciled", generation)
+
+
+_reconciler = ClientReconciler()
+
+
+@kopf.on.create(ClientReconciler.GROUP, ClientReconciler.VERSION, ClientReconciler.plural)
+@kopf.on.update(ClientReconciler.GROUP, ClientReconciler.VERSION, ClientReconciler.plural)
+@kopf.on.resume(ClientReconciler.GROUP, ClientReconciler.VERSION, ClientReconciler.plural)
+def reconcile(**kwargs) -> None:
+    return _reconciler.reconcile(**kwargs)

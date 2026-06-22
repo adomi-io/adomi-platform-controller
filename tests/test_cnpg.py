@@ -1,20 +1,23 @@
-"""Tests for the CloudNativePG Cluster builder and naming conventions."""
+"""Tests for the CloudNativePG Cluster resource and naming conventions."""
 
 from __future__ import annotations
 
-from adomi_platform_controller import cnpg
+from adomi_platform_controller.cnpg import CnpgCluster
 
 
 def test_derived_names():
-    assert cnpg.rw_host("odoo-db") == "odoo-db-rw"
-    assert cnpg.app_secret_name("odoo-db") == "odoo-db-app"
-    assert cnpg.APP_SECRET_PASSWORD_KEY == "password"
+    assert CnpgCluster.rw_host("odoo-db") == "odoo-db-rw"
+    assert CnpgCluster.app_secret_name("odoo-db") == "odoo-db-app"
+    assert CnpgCluster.APP_SECRET_PASSWORD_KEY == "password"
 
 
-def test_build_shape():
-    obj = cnpg.build(
-        cnpg.Spec(name="odoo-db", namespace="acme-erp-dev", instances=2, storage_size="20Gi")
-    )
+def test_manifest_shape():
+    obj = CnpgCluster(
+        name="odoo-db",
+        namespace="acme-erp-dev",
+        instances=2,
+        storage_size="20Gi",
+    ).manifest()
 
     assert obj["apiVersion"] == "postgresql.cnpg.io/v1"
     assert obj["kind"] == "Cluster"
@@ -27,16 +30,20 @@ def test_build_shape():
     assert spec["bootstrap"]["initdb"] == {"database": "odoo", "owner": "odoo"}
 
 
-def test_build_optional_fields_omitted():
-    obj = cnpg.build(cnpg.Spec(name="odoo-db", namespace="ns"))
+def test_manifest_optional_fields_omitted():
+    obj = CnpgCluster(name="odoo-db", namespace="ns").manifest()
     # No storageClass / imageName unless set.
     assert "storageClass" not in obj["spec"]["storage"]
     assert "imageName" not in obj["spec"]
 
 
-def test_build_optional_fields_included():
-    obj = cnpg.build(
-        cnpg.Spec(name="odoo-db", namespace="ns", storage_class="fast", image_name="ghcr.io/x:16")
-    )
+def test_manifest_optional_fields_included():
+    obj = CnpgCluster(
+        name="odoo-db",
+        namespace="ns",
+        storage_class="fast",
+        image_name="ghcr.io/x:16",
+    ).manifest()
+
     assert obj["spec"]["storage"]["storageClass"] == "fast"
     assert obj["spec"]["imageName"] == "ghcr.io/x:16"

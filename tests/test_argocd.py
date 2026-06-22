@@ -1,11 +1,12 @@
-"""Tests for the Argo CD Application builder."""
+"""Tests for the Argo CD Application resource."""
 
 from __future__ import annotations
 
 from adomi_platform_controller import argocd
+from adomi_platform_controller.argocd import ArgoApplication
 
 
-def _spec(**overrides) -> argocd.Spec:
+def _app(**overrides) -> ArgoApplication:
     base = dict(
         name="acme-erp-dev",
         namespace="argocd",
@@ -16,23 +17,23 @@ def _spec(**overrides) -> argocd.Spec:
         values={"replicaCount": 1},
     )
     base.update(overrides)
-    return argocd.Spec(**base)
+
+    return ArgoApplication(**base)
 
 
-def test_build_shape():
-    app = argocd.build(_spec())
+def test_manifest_shape():
+    app = _app().manifest()
 
     assert app["apiVersion"] == "argoproj.io/v1alpha1"
     assert app["kind"] == "Application"
     assert app["metadata"]["name"] == "acme-erp-dev"
     assert app["metadata"]["namespace"] == "argocd"
     # Deletion must prune the managed workload.
-    assert argocd.RESOURCES_FINALIZER in app["metadata"]["finalizers"]
+    assert ArgoApplication.RESOURCES_FINALIZER in app["metadata"]["finalizers"]
 
 
-def test_build_source_and_destination():
-    app = argocd.build(_spec())
-    spec = app["spec"]
+def test_manifest_source_and_destination():
+    spec = _app().manifest()["spec"]
 
     assert spec["project"] == "default"
     assert spec["source"]["repoURL"] == "https://github.com/adomi-io/adomi-helm.git"
@@ -44,14 +45,13 @@ def test_build_source_and_destination():
     assert spec["destination"]["namespace"] == "acme-erp-dev"
 
 
-def test_build_sync_policy():
-    app = argocd.build(_spec())
-    sync = app["spec"]["syncPolicy"]
+def test_manifest_sync_policy():
+    sync = _app().manifest()["spec"]["syncPolicy"]
 
     assert sync["automated"] == {"prune": True, "selfHeal": True}
     assert "CreateNamespace=true" in sync["syncOptions"]
 
 
 def test_project_override():
-    app = argocd.build(_spec(project="platform"))
+    app = _app(project="platform").manifest()
     assert app["spec"]["project"] == "platform"

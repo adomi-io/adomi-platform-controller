@@ -11,28 +11,35 @@ from __future__ import annotations
 import kopf
 
 from .. import conditions, state
-
-GROUP = "platform.adomi.io"
-VERSION = "v1alpha1"
-PLURAL = "organizations"
+from ._common import Reconciler
 
 
-@kopf.on.create(GROUP, VERSION, PLURAL)
-@kopf.on.update(GROUP, VERSION, PLURAL)
-@kopf.on.resume(GROUP, VERSION, PLURAL)
-def reconcile(spec, meta, status, patch, name, **_) -> None:
-    generation = meta.get("generation", 0)
-    cfg = state.provider().config
+class OrganizationReconciler(Reconciler):
+    plural = "organizations"
 
-    base_domain = (spec.get("domain") or {}).get("base") or cfg.base_domain or ""
-    image_repo = (spec.get("images") or {}).get("odooRepository") or cfg.odoo_image_repository
+    def reconcile(self, spec, meta, status, patch, name, **_) -> None:
+        generation = meta.get("generation", 0)
+        cfg = state.provider().config
 
-    patch.status["baseDomain"] = base_domain
-    patch.status["odooImageRepository"] = image_repo
+        base_domain = (spec.get("domain") or {}).get("base") or cfg.base_domain or ""
+        image_repo = (spec.get("images") or {}).get("odooRepository") or cfg.odoo_image_repository
 
-    msg = f"Organization {name!r} reconciled"
+        patch.status["baseDomain"] = base_domain
+        patch.status["odooImageRepository"] = image_repo
 
-    if not base_domain:
-        msg += " (no base domain set; applications must declare spec.ingress.host)"
+        msg = f"Organization {name!r} reconciled"
 
-    conditions.mark_ready(patch, status, msg, generation)
+        if not base_domain:
+            msg += " (no base domain set; applications must declare spec.ingress.host)"
+
+        conditions.mark_ready(patch, status, msg, generation)
+
+
+_reconciler = OrganizationReconciler()
+
+
+@kopf.on.create(OrganizationReconciler.GROUP, OrganizationReconciler.VERSION, OrganizationReconciler.plural)
+@kopf.on.update(OrganizationReconciler.GROUP, OrganizationReconciler.VERSION, OrganizationReconciler.plural)
+@kopf.on.resume(OrganizationReconciler.GROUP, OrganizationReconciler.VERSION, OrganizationReconciler.plural)
+def reconcile(**kwargs) -> None:
+    return _reconciler.reconcile(**kwargs)

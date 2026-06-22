@@ -1,20 +1,19 @@
-"""Tests for the Argo Workflow builder and phase helper."""
+"""Tests for the Argo Workflow resource and phase helper."""
 
 from __future__ import annotations
 
 from adomi_platform_controller import workflows
+from adomi_platform_controller.workflows import Workflow
 
 
-def test_build_shape():
-    obj = workflows.build(
-        workflows.Spec(
-            name="build-acme-erp-dev-main",
-            namespace="argo",
-            workflow_template_ref="odoo-image-build",
-            service_account="odoo-build",
-            parameters={"repoURL": "https://github.com/acme/erp", "ref": "main"},
-        )
-    )
+def test_manifest_shape():
+    obj = Workflow(
+        name="build-acme-erp-dev-main",
+        namespace="argo",
+        workflow_template_ref="odoo-image-build",
+        service_account="odoo-build",
+        parameters={"repoURL": "https://github.com/acme/erp", "ref": "main"},
+    ).manifest()
 
     assert obj["apiVersion"] == "argoproj.io/v1alpha1"
     assert obj["kind"] == "Workflow"
@@ -28,8 +27,8 @@ def test_build_shape():
     assert params == {"repoURL": "https://github.com/acme/erp", "ref": "main"}
 
 
-def test_build_omits_service_account_when_unset():
-    obj = workflows.build(workflows.Spec(name="w", namespace="argo", workflow_template_ref="t"))
+def test_manifest_omits_service_account_when_unset():
+    obj = Workflow(name="w", namespace="argo", workflow_template_ref="t").manifest()
     assert "serviceAccountName" not in obj["spec"]
 
 

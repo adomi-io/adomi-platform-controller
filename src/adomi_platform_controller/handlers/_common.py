@@ -30,3 +30,18 @@ def fail(
     """
     conditions.mark_not_ready(patch, status, reason, message, generation)
     raise kopf.TemporaryError(message, delay=delay)
+
+
+class Reconciler:
+    """Base for a CRD's reconciler.
+
+    Subclasses set ``plural`` (and override ``GROUP`` for non-platform groups) and
+    implement ``reconcile`` / ``finalize``. Thin ``@kopf.on.*`` functions in the
+    module instantiate the reconciler once and delegate to it, so the Kopf
+    registration stays explicit while the logic lives on the class.
+    """
+
+    GROUP = "platform.adomi.io"
+    VERSION = "v1alpha1"
+    MANAGED_BY = "adomi-platform-controller"
+    plural: str = ""

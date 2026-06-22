@@ -1,128 +1,129 @@
-"""Ensures the Secrets a build Workflow needs in the Argo namespace.
+"""Managed Secrets the controller writes (build credentials, db passwords, ...).
 
-A BuildKit build runs in the ``argo`` namespace and needs:
-  - a dockerconfigjson Secret to push the built image to Harbor, and
-  - optionally a Secret carrying a git token to clone a private source repository.
-
-Both are placed in ``argo`` (the source/credential Secrets the user references live in
-their own namespaces, which the build pod cannot read). The push password is read from
-OpenBao by the caller and passed in here.
+A BuildKit build runs in the ``argo`` namespace and needs a dockerconfigjson Secret
+to push to Harbor and optionally a git-token Secret to clone a private repo; the
+snapshot/restore jobs need object-store + db-password Secrets. :class:`ManagedSecret`
+models all of these — the classmethod constructors cover the common shapes.
 """
 
 from __future__ import annotations
 
 import base64
 import json
+from dataclasses import dataclass, field
 
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
 
-GIT_TOKEN_KEY = "token"  # key used in the git-token Secret
+from .kube import TypedResource
 
 
-def dockerconfigjson(host: str, username: str, password: str) -> dict:
-    """Build a Docker config dict authenticating to one registry host (pure)."""
-    auth = base64.b64encode(f"{username}:{password}".encode()).decode()
+@dataclass
+class ManagedSecret(TypedResource):
+    """A Secret the controller owns (``apply`` creates or updates it)."""
 
-    return {
-        "auths": {
-            host: {
-                "username": username,
-                "password": password,
-                "auth": auth,
+    GIT_TOKEN_KEY = "token"  # key used in the git-token Secret
+    MANAGED_BY = "adomi-platform-controller"
+
+    name: str
+    namespace: str
+    secret_type: str = "Opaque"
+    string_data: dict = field(default_factory=dict)
+    # When true, the Secret is created if absent and otherwise left untouched (used
+    # for generate-once values like a webhook HMAC secret).
+    create_only: bool = False
+
+    @staticmethod
+    def _api() -> client.CoreV1Api:
+        return client.CoreV1Api()
+
+    def _body(self) -> client.V1Secret:
+        return client.V1Secret(
+            metadata=client.V1ObjectMeta(
+                name=self.name,
+                namespace=self.namespace,
+                labels={"app.kubernetes.io/managed-by": self.MANAGED_BY},
+            ),
+            type=self.secret_type,
+            string_data=self.string_data,
+        )
+
+    def _read(self):
+        return self._api().read_namespaced_secret(self.name, self.namespace)
+
+    def _create(self):
+        return self._api().create_namespaced_secret(self.namespace, self._body())
+
+    def _patch(self):
+        if self.create_only:
+            return
+
+        self._api().patch_namespaced_secret(self.name, self.namespace, self._body())
+
+    # --- convenience constructors ---------------------------------------------------
+    @staticmethod
+    def dockerconfigjson(host: str, username: str, password: str) -> dict:
+        """Build a Docker config dict authenticating to one registry host (pure)."""
+        auth = base64.b64encode(f"{username}:{password}".encode()).decode()
+
+        return {
+            "auths": {
+                host: {
+                    "username": username,
+                    "password": password,
+                    "auth": auth,
+                },
             },
-        },
-    }
+        }
 
+    @classmethod
+    def dockerconfig(cls, name, namespace, host, username, password) -> ManagedSecret:
+        """A kubernetes.io/dockerconfigjson Secret for pushing to ``host``."""
+        payload = json.dumps(cls.dockerconfigjson(host, username, password))
 
-def _apply_secret(name: str, namespace: str, secret_type: str, string_data: dict) -> None:
-    """Create or update an Opaque/dockerconfigjson Secret (idempotent)."""
-    api = client.CoreV1Api()
-
-    body = client.V1Secret(
-        metadata=client.V1ObjectMeta(
+        return cls(
             name=name,
             namespace=namespace,
-            labels={"app.kubernetes.io/managed-by": "adomi-platform-controller"},
-        ),
-        type=secret_type,
-        string_data=string_data,
-    )
+            secret_type="kubernetes.io/dockerconfigjson",
+            string_data={".dockerconfigjson": payload},
+        )
 
-    try:
-        api.read_namespaced_secret(name, namespace)
-    except ApiException as exc:
-        if exc.status != 404:
-            raise
+    @classmethod
+    def token(cls, name, namespace, token) -> ManagedSecret:
+        """An Opaque Secret holding a git token (key ``token``)."""
+        return cls(
+            name=name,
+            namespace=namespace,
+            string_data={cls.GIT_TOKEN_KEY: token},
+        )
 
-        api.create_namespaced_secret(namespace, body)
+    @classmethod
+    def opaque(cls, name, namespace, string_data, create_only=False) -> ManagedSecret:
+        """An Opaque Secret with arbitrary data."""
+        return cls(
+            name=name,
+            namespace=namespace,
+            string_data=dict(string_data),
+            create_only=create_only,
+        )
 
-        return
+    # --- reads / deletes ------------------------------------------------------------
+    @staticmethod
+    def read_key(name: str, namespace: str, key: str) -> str:
+        """Read and base64-decode a single key from a Secret."""
+        secret = client.CoreV1Api().read_namespaced_secret(name, namespace)
+        raw = (secret.data or {}).get(key)
 
-    api.patch_namespaced_secret(name, namespace, body)
+        if not raw:
+            raise RuntimeError(f"secret {namespace}/{name!r} has no key {key!r}")
 
+        return base64.b64decode(raw).decode().strip()
 
-def ensure_dockerconfig_secret(
-    name: str, namespace: str, host: str, username: str, password: str
-) -> None:
-    """Ensure a kubernetes.io/dockerconfigjson Secret for pushing to ``host``."""
-    payload = json.dumps(dockerconfigjson(host, username, password))
-
-    _apply_secret(
-        name,
-        namespace,
-        "kubernetes.io/dockerconfigjson",
-        {".dockerconfigjson": payload},
-    )
-
-
-def ensure_token_secret(name: str, namespace: str, token: str) -> None:
-    """Ensure an Opaque Secret holding a git token (key ``token``)."""
-    _apply_secret(name, namespace, "Opaque", {GIT_TOKEN_KEY: token})
-
-
-def ensure_opaque_secret(
-    name: str, namespace: str, string_data: dict, create_only: bool = False
-) -> None:
-    """Ensure an Opaque Secret with the given data.
-
-    With ``create_only`` the Secret is created if absent and otherwise left
-    untouched (used for generate-once values like a webhook HMAC secret).
-    """
-    api = client.CoreV1Api()
-
-    try:
-        api.read_namespaced_secret(name, namespace)
-        exists = True
-    except ApiException as exc:
-        if exc.status != 404:
-            raise
-
-        exists = False
-
-    if exists and create_only:
-        return
-
-    _apply_secret(name, namespace, "Opaque", string_data)
-
-
-def read_key(name: str, namespace: str, key: str) -> str:
-    """Read and base64-decode a single key from a Secret."""
-    secret = client.CoreV1Api().read_namespaced_secret(name, namespace)
-    raw = (secret.data or {}).get(key)
-
-    if not raw:
-        raise RuntimeError(f"secret {namespace}/{name!r} has no key {key!r}")
-
-    return base64.b64decode(raw).decode().strip()
-
-
-def delete(name: str, namespace: str) -> None:
-    """Delete a managed build Secret (no-op if already gone)."""
-    api = client.CoreV1Api()
-
-    try:
-        api.delete_namespaced_secret(name, namespace)
-    except ApiException as exc:
-        if exc.status != 404:
-            raise
+    @classmethod
+    def delete(cls, name: str, namespace: str) -> None:
+        """Delete a managed Secret by name (no-op if already gone)."""
+        try:
+            cls._api().delete_namespaced_secret(name, namespace)
+        except ApiException as exc:
+            if exc.status != 404:
+                raise
