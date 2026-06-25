@@ -1,0 +1,21 @@
+# An "external" DatabaseServer points at a managed Postgres (RDS, DigitalOcean, ...).
+# The controller does not provision it; it materialises the admin credentials from
+# OpenBao into the server namespace (via an ExternalSecret) so it can create databases
+# and roles on the server. Store the admin username/password in OpenBao first, e.g.:
+#   bao kv put secret/databases/acme-rds-admin username=postgres password=...
+apiVersion: platform.adomi.io/v1alpha1
+kind: DatabaseServer
+metadata:
+  name: acme-rds
+  namespace: adomi-system
+  labels:
+    platform.adomi.io/client: acme
+spec:
+  mode: external
+  external:
+    host: acme.abc123.us-east-1.rds.amazonaws.com
+    port: 5432
+    # sslMode: require
+  admin:
+    user: postgres
+    openbaoPath: databases/acme-rds-admin   # KV path with keys username/password

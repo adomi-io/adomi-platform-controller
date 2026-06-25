@@ -1,0 +1,18 @@
+# A Database is a logical database (plus a login role) created inside a DatabaseServer.
+# It belongs to an application: an Application attaches one via spec.databaseRef, and
+# the controller delivers the role password (generated once in OpenBao) into the app's
+# namespace. The role name is explicit; two Databases naming the same user share it.
+apiVersion: platform.adomi.io/v1alpha1
+kind: Database
+metadata:
+  name: acme-odoo-production
+  namespace: adomi-system
+  labels:
+    platform.adomi.io/client: acme
+spec:
+  serverRef:
+    name: acme-prod-server                  # the DatabaseServer to create it in
+  databaseName: acme_app_odoo_production     # client_appname_environment
+  user: acme_app_odoo_production_user        # login role that owns the database
+  # environmentRef:                          # informational (where it is consumed)
+  #   name: production

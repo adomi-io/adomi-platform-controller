@@ -53,6 +53,13 @@ class Config:
     # External Secrets.
     cluster_secret_store: str = "openbao"
 
+    # Databases. A Database's login-role password is generated once into OpenBao under
+    # "<prefix>/<server>/<user>" (so apps sharing a role share its password) and the
+    # provisioning Job runs this image (it must ship psql).
+    database_credentials_path: str = "databases"  # OpenBao KV prefix for role passwords
+    database_password_length: int = 32
+    db_provision_image: str = "postgres:16"  # image with psql for the provisioning Job
+
     # Argo CD. The Application engine creates an Argo CD Application per app; the
     # chart source comes from each ApplicationType, so only the install location is
     # configured here.
@@ -165,6 +172,10 @@ class Config:
             ),
             signing_key_name=_env("AUTHENTIK_SIGNING_KEY_NAME", d.signing_key_name),
             cluster_secret_store=_env("CLUSTER_SECRET_STORE", d.cluster_secret_store),
+            database_credentials_path=_env(
+                "DATABASE_CREDENTIALS_PATH", d.database_credentials_path
+            ),
+            db_provision_image=_env("DB_PROVISION_IMAGE", d.db_provision_image),
             argocd_namespace=_env("ARGOCD_NAMESPACE", d.argocd_namespace),
             argocd_project=_env("ARGOCD_PROJECT", d.argocd_project),
             odoo_image_repository=_env("ODOO_IMAGE_REPOSITORY", d.odoo_image_repository),

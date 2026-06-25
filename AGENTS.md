@@ -52,7 +52,8 @@ src/adomi_platform_controller/
     client.py          Client -> resolved slug in status (light)
     workspace.py       Workspace -> ensures the <client>-<workspace> namespace
     applicationtype.py ApplicationType -> validates the catalog entry (light)
-    database.py        Database -> CNPG Cluster; publishes status.connection
+    databaseserver.py  DatabaseServer -> CNPG Cluster (cnpg) or admin ExternalSecret (external)
+    database.py        Database -> creates the db + role on a DatabaseServer via a psql Job
     domain.py          Domain -> validates fqdn; publishes status.host (light)
     application.py     Application -> DB + [build] + [restore] + SSO + adapter + integrations + Argo CD
     gitrepository.py   GitRepository -> parsed owner/repo + preview EventSource/Sensor/Ingress
@@ -130,6 +131,9 @@ pytest                      # unit tests
   cat deploy/crds/identity.adomi.io_ssoapplications.yaml \
       deploy/crds/platform.adomi.io_organizations.yaml \
       deploy/crds/platform.adomi.io_clients.yaml \
+      deploy/crds/platform.adomi.io_domains.yaml \
+      deploy/crds/platform.adomi.io_databaseservers.yaml \
+      deploy/crds/platform.adomi.io_databases.yaml \
       deploy/crds/platform.adomi.io_workspaces.yaml \
       deploy/crds/platform.adomi.io_applicationtypes.yaml \
       deploy/crds/platform.adomi.io_applications.yaml \

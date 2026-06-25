@@ -30,6 +30,7 @@ PLURAL_APPLICATIONS = "applications"
 PLURAL_APPLICATIONTYPES = "applicationtypes"
 PLURAL_GITREPOSITORIES = "gitrepositories"
 PLURAL_SNAPSHOTS = "snapshots"
+PLURAL_DATABASESERVERS = "databaseservers"
 PLURAL_DATABASES = "databases"
 PLURAL_DOMAINS = "domains"
 
@@ -66,6 +67,23 @@ class DbConnection:
     password_secret_namespace: str
     password_secret_name: str
     password_secret_key: str
+
+
+@dataclass
+class DatabaseEndpoint:
+    """A managed Database's published coordinates (server + OpenBao credential path).
+
+    The role's password is not a Secret reference yet: the consuming Application
+    delivers it into its own namespace from ``openbao_path`` via an ExternalSecret,
+    then wires a :class:`DbConnection` pointing at that Secret.
+    """
+
+    host: str
+    port: int
+    name: str
+    user: str
+    openbao_path: str
+    password_key: str
 
 
 @dataclass
@@ -163,6 +181,14 @@ def snapshot_object_key(namespace: str, name: str) -> str:
 def cnpg_cluster_name(app_name: str) -> str:
     """The CloudNativePG Cluster name for an application's in-cluster database."""
     return f"{app_name}-db"
+
+
+def db_credentials_path(prefix: str, server: str, user: str) -> str:
+    """The OpenBao KV path holding a Database role's password (pure).
+
+    Keyed by (server, user) so two Databases sharing a user share its password.
+    """
+    return f"{prefix.strip('/')}/{server}/{user}"
 
 
 def deep_merge(*layers: dict) -> dict:
@@ -346,32 +372,34 @@ def get_database(name: str, namespace: str) -> dict:
     return _get_namespaced(PLURAL_DATABASES, name, namespace)
 
 
+def get_database_server(name: str, namespace: str) -> dict:
+    return _get_namespaced(PLURAL_DATABASESERVERS, name, namespace)
+
+
 def get_domain(name: str, namespace: str) -> dict:
     return _get_namespaced(PLURAL_DOMAINS, name, namespace)
 
 
-def db_connection_from_database(db_obj: dict) -> DbConnection:
-    """Resolve a DbConnection from a managed Database's published status.connection.
+def database_endpoint(db_obj: dict) -> DatabaseEndpoint:
+    """Resolve a managed Database's published coordinates from status.connection.
 
-    Raises NotFound until the Database reconciler has provisioned the cluster and
-    published its connection (so the consuming Application requeues).
+    Raises NotFound until the Database reconciler has provisioned the database and
+    role on its server (so the consuming Application requeues).
     """
     name = (db_obj.get("metadata") or {}).get("name") or ""
     status = db_obj.get("status") or {}
     conn = status.get("connection") or {}
-    ns = status.get("namespace")
 
-    if not conn.get("host") or not ns:
+    if not conn.get("host") or not conn.get("openbaoPath"):
         raise NotFound(f"Database {name!r} not ready (no status.connection yet)")
 
-    return DbConnection(
+    return DatabaseEndpoint(
         host=conn["host"],
         port=int(conn.get("port") or DB_PORT),
-        name=conn.get("name") or CNPG_DB_NAME,
+        name=conn.get("name") or name,
         user=conn.get("user") or CNPG_DB_USER,
-        password_secret_namespace=ns,
-        password_secret_name=conn.get("secretName") or "",
-        password_secret_key=conn.get("secretKey") or "password",
+        openbao_path=conn["openbaoPath"],
+        password_key=conn.get("passwordKey") or "password",
     )
 
 

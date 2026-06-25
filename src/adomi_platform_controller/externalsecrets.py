@@ -31,9 +31,32 @@ class ExternalSecret(CustomResource):
     secret_name: str = ""  # target Secret name (defaults to name)
     client_id_key: str = "client-id"
     client_secret_key: str = "client-secret"
+    # When set, deliver these keys instead of the OAuth client-id/client-secret pair.
+    # Maps each target Secret data key to the OpenBao property to read for it (e.g.
+    # {"password": "password"} for a database role credential).
+    data_map: dict[str, str] = field(default_factory=dict)
     refresh_interval: str = "1h"
     labels: dict[str, str] = field(default_factory=dict)
     owner_references: list[dict] = field(default_factory=list)
+
+    def _data(self) -> list[dict]:
+        """The ExternalSecret ``data`` entries (custom data_map, else OAuth pair)."""
+        if self.data_map:
+            return [
+                {"secretKey": key, "remoteRef": {"key": self.remote_path, "property": prop}}
+                for key, prop in self.data_map.items()
+            ]
+
+        return [
+            {
+                "secretKey": self.client_id_key,
+                "remoteRef": {"key": self.remote_path, "property": "client-id"},
+            },
+            {
+                "secretKey": self.client_secret_key,
+                "remoteRef": {"key": self.remote_path, "property": "client-secret"},
+            },
+        ]
 
     def manifest(self) -> dict:
         secret_name = self.secret_name or self.name
@@ -54,15 +77,6 @@ class ExternalSecret(CustomResource):
                 "refreshInterval": self.refresh_interval,
                 "secretStoreRef": {"kind": "ClusterSecretStore", "name": self.store_name},
                 "target": {"name": secret_name, "creationPolicy": "Owner"},
-                "data": [
-                    {
-                        "secretKey": self.client_id_key,
-                        "remoteRef": {"key": self.remote_path, "property": "client-id"},
-                    },
-                    {
-                        "secretKey": self.client_secret_key,
-                        "remoteRef": {"key": self.remote_path, "property": "client-secret"},
-                    },
-                ],
+                "data": self._data(),
             },
         }

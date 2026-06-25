@@ -138,30 +138,29 @@ def test_compute_domain_fqdn_overrides_base_domain():
     assert eff.url == "https://erp-prod-acme.acme.example.com"
 
 
-def test_db_connection_from_database():
+def test_database_endpoint():
     db = {
         "metadata": {"name": "erp-db"},
         "status": {
-            "namespace": "acme-prod",
             "connection": {
-                "host": "erp-db-rw.acme-prod.svc.cluster.local",
+                "host": "acme-prod-server-rw.acme-prod.svc.cluster.local",
                 "port": 5432,
-                "name": "app",
-                "user": "app",
-                "secretName": "erp-db-app",
-                "secretKey": "password",
+                "name": "acme_app_odoo_production",
+                "user": "acme_app_odoo_production_user",
+                "openbaoPath": "databases/acme-prod-server/acme_app_odoo_production_user",
+                "passwordKey": "password",
             },
         },
     }
-    conn = resolve.db_connection_from_database(db)
-    assert conn.host == "erp-db-rw.acme-prod.svc.cluster.local"
-    assert conn.password_secret_namespace == "acme-prod"
-    assert conn.password_secret_name == "erp-db-app"
-    assert conn.user == "app"
+    endpoint = resolve.database_endpoint(db)
+    assert endpoint.host == "acme-prod-server-rw.acme-prod.svc.cluster.local"
+    assert endpoint.name == "acme_app_odoo_production"
+    assert endpoint.user == "acme_app_odoo_production_user"
+    assert endpoint.openbao_path.endswith("acme_app_odoo_production_user")
 
 
-def test_db_connection_from_database_not_ready():
+def test_database_endpoint_not_ready():
     import pytest
 
     with pytest.raises(resolve.NotFound):
-        resolve.db_connection_from_database({"metadata": {"name": "x"}, "status": {}})
+        resolve.database_endpoint({"metadata": {"name": "x"}, "status": {}})

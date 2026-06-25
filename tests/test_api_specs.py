@@ -48,15 +48,47 @@ def test_domain_database_gitrepository_snapshot_specs():
         "fqdn": "acme.example.com",
         "wildcard": True,
     }
-    assert specs.database_spec(storage="20Gi", environment="prod") == {
-        "engine": "postgres",
-        "storage": "20Gi",
-        "instances": 1,
-        "environmentRef": {"name": "prod"},
-    }
     assert specs.gitrepository_spec(url="https://x/erp", credentials_secret="erp-token") == {
         "url": "https://x/erp",
         "defaultBranch": "main",
         "credentialsSecretRef": {"name": "erp-token"},
     }
     assert specs.snapshot_spec(application="erp") == {"applicationRef": {"name": "erp"}}
+
+
+def test_databaseserver_spec_cnpg():
+    assert specs.databaseserver_spec(storage="20Gi", environment="prod") == {
+        "engine": "postgres",
+        "mode": "cnpg",
+        "cnpg": {"storage": "20Gi", "instances": 1},
+        "environmentRef": {"name": "prod"},
+    }
+
+
+def test_databaseserver_spec_external():
+    assert specs.databaseserver_spec(
+        mode="external",
+        host="db.example.com",
+        port=5433,
+        admin_user="postgres",
+        admin_openbao_path="databases/acme-rds-admin",
+    ) == {
+        "engine": "postgres",
+        "mode": "external",
+        "external": {"host": "db.example.com", "port": 5433},
+        "admin": {"user": "postgres", "openbaoPath": "databases/acme-rds-admin"},
+    }
+
+
+def test_database_spec():
+    assert specs.database_spec(
+        server="acme-prod-server",
+        database_name="acme_app_odoo_production",
+        user="acme_app_odoo_production_user",
+        environment="production",
+    ) == {
+        "serverRef": {"name": "acme-prod-server"},
+        "databaseName": "acme_app_odoo_production",
+        "user": "acme_app_odoo_production_user",
+        "environmentRef": {"name": "production"},
+    }

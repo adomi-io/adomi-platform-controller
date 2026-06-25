@@ -1,0 +1,188 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: databaseservers.platform.adomi.io
+spec:
+  group: platform.adomi.io
+  names:
+    kind: DatabaseServer
+    listKind: DatabaseServerList
+    plural: databaseservers
+    singular: databaseserver
+    shortNames:
+    - dbserver
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.mode
+      name: Mode
+      type: string
+    - jsonPath: .status.host
+      name: Host
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          DatabaseServer is a Postgres server owned by a client. It is either an
+          in-cluster CloudNativePG cluster the controller provisions (mode "cnpg") or an
+          external server such as RDS or DigitalOcean the controller only connects to
+          (mode "external"). Databases reference a DatabaseServer to be created inside it.
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of DatabaseServer
+            properties:
+              engine:
+                description: Database engine. Only "postgres" is supported.
+                enum:
+                - postgres
+                default: postgres
+                type: string
+              mode:
+                description: |-
+                  "cnpg" provisions an in-cluster CloudNativePG cluster; "external"
+                  connects to an existing server (RDS / DigitalOcean / ...).
+                enum:
+                - cnpg
+                - external
+                default: cnpg
+                type: string
+              cnpg:
+                description: CloudNativePG settings (mode "cnpg").
+                properties:
+                  storage:
+                    description: Persistent volume size for the cluster.
+                    default: 10Gi
+                    type: string
+                  storageClass:
+                    description: StorageClass for the volume (empty = cluster default).
+                    type: string
+                  instances:
+                    description: Number of instances (primary + replicas).
+                    default: 1
+                    minimum: 1
+                    type: integer
+                type: object
+              external:
+                description: Connection coordinates for an external server (mode "external").
+                properties:
+                  host:
+                    minLength: 1
+                    type: string
+                  port:
+                    default: 5432
+                    type: integer
+                  sslMode:
+                    description: libpq sslmode (e.g. require, verify-full).
+                    type: string
+                type: object
+              admin:
+                description: |-
+                  Admin/superuser the controller uses to create databases and roles.
+                  For mode "cnpg" this defaults to the CNPG-generated superuser, so only
+                  external servers must supply it. The password is read from OpenBao.
+                properties:
+                  user:
+                    description: Admin role name (defaults to "postgres" for cnpg).
+                    type: string
+                  openbaoPath:
+                    description: |-
+                      OpenBao KV path holding the admin credentials (keys "username" and
+                      "password"). Required for mode "external".
+                    type: string
+                type: object
+              environmentRef:
+                description: |-
+                  environmentRef names the Workspace whose namespace hosts a cnpg server.
+                  When omitted a cnpg server lives in the client's shared data namespace.
+                properties:
+                  name:
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                type: object
+            type: object
+          status:
+            description: status defines the observed state of DatabaseServer
+            properties:
+              namespace:
+                description: Namespace the server (and provisioning Jobs) run in.
+                type: string
+              mode:
+                type: string
+              host:
+                description: Host apps and the provisioner connect to.
+                type: string
+              port:
+                type: integer
+              adminSecretName:
+                description: |-
+                  Secret (in status.namespace) holding the admin credentials the
+                  provisioner uses (keys "username" / "password").
+                type: string
+              adminUser:
+                type: string
+              conditions:
+                items:
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

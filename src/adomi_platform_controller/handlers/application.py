@@ -24,6 +24,7 @@ from .. import (
     cnpg,
     conditions,
     dbjobs,
+    externalsecrets,
     github,
     namespaces,
     resolve,
@@ -287,8 +288,10 @@ class ApplicationReconciler(Reconciler):
         )
 
     def _reconcile_database(self, cfg, eff, spec, labels, patch, status, generation, cr_namespace):
-        # Attach an existing managed Database (databaseRef) — the Database reconciler owns
-        # the CNPG cluster; we just consume its published connection.
+        # Attach an existing managed Database (databaseRef) — the Database reconciler
+        # created the database + role on its DatabaseServer and published the OpenBao
+        # path of the role password; we deliver that into the app namespace and consume
+        # the published connection.
         db_ref = (spec.get("databaseRef") or {}).get("name")
 
         if db_ref:
@@ -298,7 +301,7 @@ class ApplicationReconciler(Reconciler):
                 fail(patch, status, conditions.REASON_DEPENDENCY_NOT_MET, str(exc), generation)
 
             try:
-                conn = resolve.db_connection_from_database(db_obj)
+                endpoint = resolve.database_endpoint(db_obj)
             except resolve.NotFound as exc:
                 fail(
                     patch,
@@ -309,9 +312,38 @@ class ApplicationReconciler(Reconciler):
                     delay=INTEGRATION_DELAY,
                 )
 
-            patch.status["databaseMode"] = resolve.DB_MODE_CNPG
+            secret_name = f"{db_ref}-db"
 
-            return conn
+            try:
+                externalsecrets.ExternalSecret(
+                    name=secret_name,
+                    namespace=eff.namespace,
+                    secret_name=secret_name,
+                    store_name=cfg.cluster_secret_store,
+                    remote_path=endpoint.openbao_path,
+                    data_map={endpoint.password_key: endpoint.password_key},
+                    labels={"app.kubernetes.io/managed-by": self.MANAGED_BY},
+                ).apply()
+            except Exception as exc:  # noqa: BLE001
+                fail(
+                    patch,
+                    status,
+                    conditions.REASON_BACKEND_ERROR,
+                    f"delivering database credentials: {exc}",
+                    generation,
+                )
+
+            patch.status["databaseMode"] = resolve.DB_MODE_EXTERNAL
+
+            return resolve.DbConnection(
+                host=endpoint.host,
+                port=endpoint.port,
+                name=endpoint.name,
+                user=endpoint.user,
+                password_secret_namespace=eff.namespace,
+                password_secret_name=secret_name,
+                password_secret_key=endpoint.password_key,
+            )
 
         if eff.db_mode == resolve.DB_MODE_NONE:
             return None

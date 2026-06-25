@@ -13,6 +13,7 @@ rules:
     resources:
       - clients
       - domains
+      - databaseservers
       - databases
       - workspaces
       - applications

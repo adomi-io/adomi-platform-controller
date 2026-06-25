@@ -40,6 +40,7 @@ class ResourceType:
 RESOURCE_TYPES: tuple[ResourceType, ...] = (
     ResourceType(plural="clients", kind="Client"),
     ResourceType(plural="domains", kind="Domain"),
+    ResourceType(plural="databaseservers", kind="DatabaseServer"),
     ResourceType(plural="databases", kind="Database"),
     ResourceType(plural="workspaces", kind="Workspace"),
     ResourceType(plural="applications", kind="Application", parent="workspaces"),

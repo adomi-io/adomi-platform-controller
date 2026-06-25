@@ -14,6 +14,7 @@ from . import (
     applications,
     clients,
     databases,
+    databaseservers,
     domains,
     gitrepositories,
     snapshots,
@@ -22,5 +23,14 @@ from . import (
 
 api_router = APIRouter(prefix="/v1", dependencies=[Depends(require_token)])
 
-for _module in (clients, domains, databases, workspaces, applications, gitrepositories, snapshots):
+for _module in (
+    clients,
+    domains,
+    databaseservers,
+    databases,
+    workspaces,
+    applications,
+    gitrepositories,
+    snapshots,
+):
     api_router.include_router(_module.router)

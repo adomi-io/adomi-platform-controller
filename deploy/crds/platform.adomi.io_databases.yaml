@@ -13,11 +13,14 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.engine
-      name: Engine
+    - jsonPath: .spec.serverRef.name
+      name: Server
       type: string
-    - jsonPath: .status.connection.host
-      name: Host
+    - jsonPath: .spec.databaseName
+      name: Database
+      type: string
+    - jsonPath: .spec.user
+      name: User
       type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
@@ -28,7 +31,12 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Database is a managed database (CloudNativePG) a customer can attach apps to.
+        description: |-
+          Database is a logical database (plus a login role) inside a DatabaseServer.
+          It belongs to an application: an Application attaches one via spec.databaseRef.
+          The controller creates the database and role on the referenced server by
+          running SQL as the server's admin, and generates the role's password once in
+          OpenBao.
         properties:
           apiVersion:
             type: string
@@ -39,28 +47,8 @@ spec:
           spec:
             description: spec defines the desired state of Database
             properties:
-              engine:
-                description: Database engine. Only "postgres" (CloudNativePG) is supported.
-                enum:
-                - postgres
-                default: postgres
-                type: string
-              storage:
-                description: Persistent volume size for the database.
-                default: 10Gi
-                type: string
-              storageClass:
-                description: StorageClass for the volume (empty = cluster default).
-                type: string
-              instances:
-                description: Number of CloudNativePG instances (primary + replicas).
-                default: 1
-                minimum: 1
-                type: integer
-              environmentRef:
-                description: |-
-                  environmentRef names the Workspace whose namespace hosts the database.
-                  When omitted the database lives in the customer's shared data namespace.
+              serverRef:
+                description: serverRef names the DatabaseServer that hosts this database.
                 properties:
                   name:
                     minLength: 1
@@ -68,12 +56,45 @@ spec:
                 required:
                 - name
                 type: object
+              databaseName:
+                description: |-
+                  The Postgres database name, by convention client_appname_environment.
+                  Must be a valid lowercase SQL identifier.
+                minLength: 1
+                maxLength: 63
+                pattern: ^[a-z_][a-z0-9_]*$
+                type: string
+              user:
+                description: |-
+                  The login role that owns this database. Two Databases naming the same
+                  user share a single role (a generated password is created once and
+                  reused). Must be a valid lowercase SQL identifier.
+                minLength: 1
+                maxLength: 63
+                pattern: ^[a-z_][a-z0-9_]*$
+                type: string
+              environmentRef:
+                description: |-
+                  environmentRef optionally names the Workspace whose namespace consumes
+                  this database (where the connection Secret is delivered). Informational;
+                  the database itself lives on the server.
+                properties:
+                  name:
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                type: object
+            required:
+            - serverRef
+            - databaseName
+            - user
             type: object
           status:
             description: status defines the observed state of Database
             properties:
-              namespace:
-                description: Namespace the CloudNativePG cluster runs in.
+              serverNamespace:
+                description: Namespace the provisioning Job ran in (the server's namespace).
                 type: string
               connection:
                 description: Connection coordinates apps use to reach the database.
@@ -86,9 +107,11 @@ spec:
                     type: string
                   user:
                     type: string
-                  secretName:
+                  openbaoPath:
+                    description: OpenBao KV path holding the role's password.
                     type: string
-                  secretKey:
+                  passwordKey:
+                    description: Key within the OpenBao path / delivered Secret.
                     type: string
                 type: object
               conditions:

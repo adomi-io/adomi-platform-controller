@@ -42,13 +42,13 @@ rules:
     verbs: [update]
   # Platform CRDs reconciled by this controller.
   - apiGroups: [platform.adomi.io]
-    resources: [organizations, clients, workspaces, applications, applicationtypes, gitrepositories, snapshots, databases, domains]
+    resources: [organizations, clients, workspaces, applications, applicationtypes, gitrepositories, snapshots, databaseservers, databases, domains]
     verbs: [create, delete, get, list, patch, update, watch]
   - apiGroups: [platform.adomi.io]
-    resources: [organizations/status, clients/status, workspaces/status, applications/status, applicationtypes/status, gitrepositories/status, snapshots/status, databases/status, domains/status]
+    resources: [organizations/status, clients/status, workspaces/status, applications/status, applicationtypes/status, gitrepositories/status, snapshots/status, databaseservers/status, databases/status, domains/status]
     verbs: [get, patch, update]
   - apiGroups: [platform.adomi.io]
-    resources: [organizations/finalizers, clients/finalizers, workspaces/finalizers, applications/finalizers, applicationtypes/finalizers, gitrepositories/finalizers, snapshots/finalizers, databases/finalizers, domains/finalizers]
+    resources: [organizations/finalizers, clients/finalizers, workspaces/finalizers, applications/finalizers, applicationtypes/finalizers, gitrepositories/finalizers, snapshots/finalizers, databaseservers/finalizers, databases/finalizers, domains/finalizers]
     verbs: [update]
   # Argo CD Applications: the controller creates one per Application to deploy its
   # chart, and deletes it on teardown.
@@ -72,9 +72,14 @@ rules:
   - apiGroups: [networking.k8s.io]
     resources: [ingresses]
     verbs: [create, delete, get, list, patch, update, watch]
-  # CloudNativePG Clusters: provisioned for in-cluster (cnpg-mode) environments.
+  # CloudNativePG Clusters: provisioned for in-cluster (cnpg-mode) DatabaseServers.
   - apiGroups: [postgresql.cnpg.io]
     resources: [clusters]
+    verbs: [create, delete, get, list, patch, update, watch]
+  # Jobs: the database provisioner runs a one-shot Job (psql) per Database to create
+  # the database + role on its server.
+  - apiGroups: [batch]
+    resources: [jobs]
     verbs: [create, delete, get, list, patch, update, watch]
   # Secrets: read referenced git credentials, and create the Harbor push /
   # git-token Secrets the build Workflow consumes in the argo namespace.

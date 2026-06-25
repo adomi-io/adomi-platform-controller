@@ -1,0 +1,19 @@
+# A DatabaseServer is a Postgres server owned by a client. In "cnpg" mode the
+# controller provisions a CloudNativePG cluster (with superuser access enabled so the
+# database provisioner can create databases and roles on it) in the client's shared
+# data namespace, or in a workspace namespace when environmentRef is set.
+apiVersion: platform.adomi.io/v1alpha1
+kind: DatabaseServer
+metadata:
+  name: acme-prod-server
+  namespace: adomi-system
+  labels:
+    platform.adomi.io/client: acme   # which client owns this server
+spec:
+  mode: cnpg
+  cnpg:
+    storage: 20Gi
+    instances: 1
+    # storageClass: fast              # empty = cluster default
+  # environmentRef:                   # omit to use the <client>-data namespace
+  #   name: production

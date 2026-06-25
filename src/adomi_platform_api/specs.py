@@ -39,14 +39,48 @@ def domain_spec(*, fqdn: str, wildcard: bool = True, issuer: str | None = None) 
     return spec
 
 
-def database_spec(
+def databaseserver_spec(
     *,
     engine: str = "postgres",
+    mode: str = "cnpg",
     storage: str = "10Gi",
+    storage_class: str | None = None,
     instances: int = 1,
     environment: str | None = None,
+    host: str | None = None,
+    port: int = 5432,
+    admin_user: str | None = None,
+    admin_openbao_path: str | None = None,
 ) -> dict:
-    spec = {"engine": engine, "storage": storage, "instances": int(instances)}
+    spec: dict = {"engine": engine, "mode": mode}
+
+    if mode == "external":
+        external = {"host": host, "port": int(port)}
+        spec["external"] = _drop_none(external)
+    else:  # cnpg
+        cnpg: dict = {"storage": storage, "instances": int(instances)}
+        if storage_class:
+            cnpg["storageClass"] = storage_class
+        spec["cnpg"] = cnpg
+
+    admin = _drop_none({"user": admin_user, "openbaoPath": admin_openbao_path})
+    if admin:
+        spec["admin"] = admin
+
+    if environment:
+        spec["environmentRef"] = _ref(environment)
+
+    return spec
+
+
+def database_spec(
+    *,
+    server: str,
+    database_name: str,
+    user: str,
+    environment: str | None = None,
+) -> dict:
+    spec = {"serverRef": _ref(server), "databaseName": database_name, "user": user}
 
     if environment:
         spec["environmentRef"] = _ref(environment)

@@ -26,7 +26,9 @@ class CnpgCluster(CustomResource):
     # CNPG's conventional generated names, derived from the Cluster name.
     RW_SERVICE_SUFFIX = "-rw"  # read-write Service (the primary)
     APP_SECRET_SUFFIX = "-app"  # Secret with the application role credentials
+    SUPERUSER_SECRET_SUFFIX = "-superuser"  # Secret with the superuser credentials
     APP_SECRET_PASSWORD_KEY = "password"  # key within the -app secret
+    SUPERUSER = "postgres"  # the superuser role enableSuperuserAccess exposes
 
     name: str
     namespace: str
@@ -36,6 +38,10 @@ class CnpgCluster(CustomResource):
     database: str = "odoo"  # bootstrapped application database
     owner: str = "odoo"  # bootstrapped application role
     image_name: str = ""  # empty = CNPG operator default
+    # Expose the superuser via a generated -superuser Secret. Needed when something
+    # other than the owner role (e.g. the database provisioner) must create databases
+    # and roles on the cluster.
+    enable_superuser_access: bool = False
     labels: dict[str, str] = field(default_factory=dict)
     owner_references: list[dict] = field(default_factory=list)
 
@@ -48,6 +54,11 @@ class CnpgCluster(CustomResource):
     def app_secret_name(cls, cluster_name: str) -> str:
         """The Secret CNPG generates holding the application role's credentials."""
         return f"{cluster_name}{cls.APP_SECRET_SUFFIX}"
+
+    @classmethod
+    def superuser_secret_name(cls, cluster_name: str) -> str:
+        """The Secret CNPG generates for the superuser when superuser access is on."""
+        return f"{cluster_name}{cls.SUPERUSER_SECRET_SUFFIX}"
 
     def manifest(self) -> dict:
         metadata: dict = {"name": self.name, "namespace": self.namespace}
@@ -68,6 +79,9 @@ class CnpgCluster(CustomResource):
             "storage": storage,
             "bootstrap": {"initdb": {"database": self.database, "owner": self.owner}},
         }
+
+        if self.enable_superuser_access:
+            spec["enableSuperuserAccess"] = True
 
         if self.image_name:
             spec["imageName"] = self.image_name

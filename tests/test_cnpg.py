@@ -8,7 +8,16 @@ from adomi_platform_controller.cnpg import CnpgCluster
 def test_derived_names():
     assert CnpgCluster.rw_host("odoo-db") == "odoo-db-rw"
     assert CnpgCluster.app_secret_name("odoo-db") == "odoo-db-app"
+    assert CnpgCluster.superuser_secret_name("odoo-db") == "odoo-db-superuser"
     assert CnpgCluster.APP_SECRET_PASSWORD_KEY == "password"
+
+
+def test_superuser_access_flag():
+    # Off by default; opt-in adds enableSuperuserAccess so a provisioner can connect.
+    assert "enableSuperuserAccess" not in CnpgCluster(name="db", namespace="ns").manifest()["spec"]
+
+    obj = CnpgCluster(name="db", namespace="ns", enable_superuser_access=True).manifest()
+    assert obj["spec"]["enableSuperuserAccess"] is True
 
 
 def test_manifest_shape():

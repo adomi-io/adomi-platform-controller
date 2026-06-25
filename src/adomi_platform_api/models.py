@@ -23,12 +23,35 @@ class DomainSpec(BaseModel):
     issuer: str | None = Field(default=None, description="cert-manager ClusterIssuer override.")
 
 
-class DatabaseSpec(BaseModel):
+class DatabaseServerSpec(BaseModel):
+    """A Postgres server owned by a client (in-cluster CNPG, or external RDS/DO)."""
+
     engine: str = Field(default="postgres", description="Database engine.")
-    storage: str = Field(default="10Gi", description="Persistent volume size.")
-    instances: int = Field(default=1, ge=1, description="Replica count (CNPG).")
+    mode: str = Field(default="cnpg", description="cnpg (provisioned) | external (RDS/DO).")
+    storage: str = Field(default="10Gi", description="Persistent volume size (cnpg).")
+    storage_class: str | None = Field(default=None, description="StorageClass (cnpg).")
+    instances: int = Field(default=1, ge=1, description="Replica count (cnpg).")
     environment: str | None = Field(
-        default=None, description="Workspace whose namespace hosts the database (environmentRef)."
+        default=None, description="Workspace whose namespace hosts a cnpg server (environmentRef)."
+    )
+    host: str | None = Field(default=None, description="Server host (external).")
+    port: int = Field(default=5432, description="Server port (external).")
+    admin_user: str | None = Field(default=None, description="Admin role name (external).")
+    admin_openbao_path: str | None = Field(
+        default=None, description="OpenBao KV path holding the admin credentials (external)."
+    )
+
+
+class DatabaseSpec(BaseModel):
+    """A logical database (plus a login role) created inside a DatabaseServer."""
+
+    server: str = Field(description="DatabaseServer resource name that hosts this database.")
+    database_name: str = Field(
+        description="Postgres database name, by convention client_appname_environment."
+    )
+    user: str = Field(description="Login role that owns the database.")
+    environment: str | None = Field(
+        default=None, description="Workspace whose namespace consumes the database (informational)."
     )
 
 
