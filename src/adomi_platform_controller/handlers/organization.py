@@ -38,8 +38,14 @@ class OrganizationReconciler(Reconciler):
 _reconciler = OrganizationReconciler()
 
 
-@kopf.on.create(OrganizationReconciler.GROUP, OrganizationReconciler.VERSION, OrganizationReconciler.plural)
-@kopf.on.update(OrganizationReconciler.GROUP, OrganizationReconciler.VERSION, OrganizationReconciler.plural)
-@kopf.on.resume(OrganizationReconciler.GROUP, OrganizationReconciler.VERSION, OrganizationReconciler.plural)
+@kopf.on.create(
+    OrganizationReconciler.GROUP, OrganizationReconciler.VERSION, OrganizationReconciler.plural
+)
+@kopf.on.update(
+    OrganizationReconciler.GROUP, OrganizationReconciler.VERSION, OrganizationReconciler.plural
+)
+@kopf.on.resume(
+    OrganizationReconciler.GROUP, OrganizationReconciler.VERSION, OrganizationReconciler.plural
+)
 def reconcile(**kwargs) -> None:
     return _reconciler.reconcile(**kwargs)

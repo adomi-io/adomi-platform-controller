@@ -12,7 +12,10 @@ from ..models import ApplicationSpec, ResourceStatus, WriteResult
 from ..service import TenantService
 from ._common import commit, get_status, list_status, remove, tenant_ns
 
-router = APIRouter(prefix="/clients/{client}/workspaces/{workspace}/applications", tags=["applications"])
+router = APIRouter(
+    prefix="/clients/{client}/workspaces/{workspace}/applications",
+    tags=["applications"],
+)
 
 PLURAL = "applications"
 

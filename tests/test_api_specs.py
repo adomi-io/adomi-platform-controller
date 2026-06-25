@@ -21,7 +21,9 @@ def test_workspace_spec_drops_none():
 
 
 def test_application_spec_attach_db_and_domain():
-    spec = specs.application_spec(workspace="prod", type="odoo", database="erp-db", domain="acme-com")
+    spec = specs.application_spec(
+        workspace="prod", type="odoo", database="erp-db", domain="acme-com"
+    )
     assert spec["workspaceRef"] == {"name": "prod"}
     assert spec["databaseRef"] == {"name": "erp-db"}
     assert spec["domainRef"] == {"name": "acme-com"}
@@ -42,7 +44,10 @@ def test_application_spec_database_mode_source_integrations():
 
 
 def test_domain_database_gitrepository_snapshot_specs():
-    assert specs.domain_spec(fqdn="acme.example.com") == {"fqdn": "acme.example.com", "wildcard": True}
+    assert specs.domain_spec(fqdn="acme.example.com") == {
+        "fqdn": "acme.example.com",
+        "wildcard": True,
+    }
     assert specs.database_spec(storage="20Gi", environment="prod") == {
         "engine": "postgres",
         "storage": "20Gi",

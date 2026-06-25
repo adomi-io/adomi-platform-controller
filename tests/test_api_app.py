@@ -56,7 +56,9 @@ class _FakeReader:
 def ctx(monkeypatch):
     writer = _FakeWriter()
     reader = _FakeReader()
-    service = TenantService(writer, namespace_prefix="adomi-tenant-", managed_by="test", git_mode="commit")
+    service = TenantService(
+        writer, namespace_prefix="adomi-tenant-", managed_by="test", git_mode="commit"
+    )
     app_module.app.dependency_overrides[get_service] = lambda: service
     app_module.app.dependency_overrides[get_reader] = lambda: reader
     app_module.app.dependency_overrides[check_backend_ready] = lambda: writer.check_ready()
@@ -87,7 +89,12 @@ def test_put_client(ctx):
 def test_put_workspace_class_alias_and_application(ctx):
     writer, _ = ctx
     c = _c()
-    assert c.put("/v1/clients/acme/workspaces/prod", json={"class": "production"}, headers=AUTH).status_code == 200
+    assert (
+        c.put(
+            "/v1/clients/acme/workspaces/prod", json={"class": "production"}, headers=AUTH
+        ).status_code
+        == 200
+    )
     assert "kind: Workspace" in writer.applied[-1]["content"]
     r = c.put(
         "/v1/clients/acme/workspaces/prod/applications/erp",
@@ -101,14 +108,20 @@ def test_put_workspace_class_alias_and_application(ctx):
 
 
 def test_invalid_name_is_400(ctx):
-    assert _c().put("/v1/clients/Bad_Name", json={"display_name": "x"}, headers=AUTH).status_code == 400
+    assert (
+        _c().put("/v1/clients/Bad_Name", json={"display_name": "x"}, headers=AUTH).status_code
+        == 400
+    )
 
 
 def test_get_status(ctx):
     _, reader = ctx
     reader.add(
-        "applications", "erp", "adomi-tenant-acme",
-        phase="Deployed", url="https://erp.example.com",
+        "applications",
+        "erp",
+        "adomi-tenant-acme",
+        phase="Deployed",
+        url="https://erp.example.com",
         conditions=[{"type": "Ready", "status": "True", "message": "ok"}],
         spec={"workspaceRef": {"name": "prod"}},
     )

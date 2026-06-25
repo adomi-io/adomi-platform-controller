@@ -210,7 +210,9 @@ class SSOApplicationReconciler(Reconciler):
                 openbao_path,
                 ["client-id", "client-secret"],
                 lambda key: secretgen.random_string(
-                    secretgen.CLIENT_ID_LENGTH if key == "client-id" else secretgen.CLIENT_SECRET_LENGTH
+                    secretgen.CLIENT_ID_LENGTH
+                    if key == "client-id"
+                    else secretgen.CLIENT_SECRET_LENGTH
                 ),
             )
         except Exception as exc:  # noqa: BLE001
@@ -334,7 +336,9 @@ class SSOApplicationReconciler(Reconciler):
                 try:
                     ak.remove_outpost_provider(outpost, pk)
                 except Exception as exc:  # noqa: BLE001
-                    logger.error(f"Failed detaching provider {pk} from outpost during finalize: {exc}")
+                    logger.error(
+                        f"Failed detaching provider {pk} from outpost during finalize: {exc}"
+                    )
                 try:
                     ak.delete_proxy_provider(pk)
                 except Exception as exc:  # noqa: BLE001

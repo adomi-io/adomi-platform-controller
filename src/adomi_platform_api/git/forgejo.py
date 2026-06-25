@@ -106,7 +106,9 @@ class ForgejoWriter:
         if resp.status_code == 200:
             return False
         if resp.status_code != 404:
-            raise GitError(f"Checking repo {self.owner}/{repo} failed: {resp.status_code} {resp.text}")
+            raise GitError(
+                f"Checking repo {self.owner}/{repo} failed: {resp.status_code} {resp.text}"
+            )
 
         payload = {
             "name": repo,
@@ -187,7 +189,9 @@ class ForgejoWriter:
         if mode == MODE_PR:
             work_branch = f"adomi/{path.replace('/', '-').rsplit('.', 1)[0]}"
             sha = self._file_sha(repo, path, base_branch)
-            self._put_file(repo, path, content, message, base_branch, sha=sha, new_branch=work_branch)
+            self._put_file(
+                repo, path, content, message, base_branch, sha=sha, new_branch=work_branch
+            )
             pr = self._open_pr(repo, work_branch, base_branch, message)
 
             return {"committed": True, "branch": work_branch, "pr": pr}

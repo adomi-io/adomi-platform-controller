@@ -53,9 +53,7 @@ class Workflow(CustomResource):
         spec: dict = {
             "workflowTemplateRef": {"name": self.workflow_template_ref},
             "arguments": {
-                "parameters": [
-                    {"name": k, "value": v} for k, v in sorted(self.parameters.items())
-                ],
+                "parameters": [{"name": k, "value": v} for k, v in sorted(self.parameters.items())],
             },
         }
 

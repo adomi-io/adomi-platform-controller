@@ -126,7 +126,9 @@ class ApplicationReconciler(Reconciler):
             )
 
         # Database.
-        db_conn = self._reconcile_database(cfg, eff, spec, labels, patch, status, generation, namespace)
+        db_conn = self._reconcile_database(
+            cfg, eff, spec, labels, patch, status, generation, namespace
+        )
 
         # Restore-from-snapshot (cnpg): gate deploy on a successful restore.
         if spec.get("restoreFrom"):
@@ -227,7 +229,9 @@ class ApplicationReconciler(Reconciler):
         if sso_slug:
             patch.status["ssoSlug"] = sso_slug
 
-        self._report_pr(cfg, source, meta, namespace, "success", eff.url, "Preview deployed", True, logger)
+        self._report_pr(
+            cfg, source, meta, namespace, "success", eff.url, "Preview deployed", True, logger
+        )
 
         conditions.mark_ready(patch, status, f"Application {eff.app_name!r} reconciled", generation)
 
@@ -404,7 +408,13 @@ class ApplicationReconciler(Reconciler):
         harbor_host = cfg.resolved_harbor_host()
 
         if not harbor_host:
-            fail(patch, status, conditions.REASON_INVALID_SPEC, "no Harbor host configured", generation)
+            fail(
+                patch,
+                status,
+                conditions.REASON_INVALID_SPEC,
+                "no Harbor host configured",
+                generation,
+            )
 
         built_image = resolve.built_image_ref(
             harbor_host,
@@ -413,7 +423,9 @@ class ApplicationReconciler(Reconciler):
             eff.app_name,
             ref,
         )
-        base_image = source.get("baseImage") or f"{eff.image_repository}:{eff.image_tag or 'latest'}"
+        base_image = (
+            source.get("baseImage") or f"{eff.image_repository}:{eff.image_tag or 'latest'}"
+        )
         git_secret = self._git_secret_name(eff.namespace)
 
         try:
@@ -499,7 +511,9 @@ class ApplicationReconciler(Reconciler):
         if ph in (workflows.PHASE_FAILED, workflows.PHASE_ERROR):
             patch.status["phase"] = "BuildFailed"
 
-            self._report_pr(cfg, source, meta, namespace, "failure", eff.url, "Build failed", False, logger)
+            self._report_pr(
+                cfg, source, meta, namespace, "failure", eff.url, "Build failed", False, logger
+            )
 
             fail(
                 patch,
@@ -512,7 +526,9 @@ class ApplicationReconciler(Reconciler):
 
         patch.status["phase"] = "Building"
 
-        self._report_pr(cfg, source, meta, namespace, "pending", eff.url, "Building image", False, logger)
+        self._report_pr(
+            cfg, source, meta, namespace, "pending", eff.url, "Building image", False, logger
+        )
 
         fail(
             patch,
@@ -675,7 +691,9 @@ class ApplicationReconciler(Reconciler):
                 generation,
             )
 
-    def _reconcile_integrations(self, items, namespace, ctx, patch, status, generation, logger) -> dict:
+    def _reconcile_integrations(
+        self, items, namespace, ctx, patch, status, generation, logger
+    ) -> dict:
         merged: dict = {}
 
         for item in items:
@@ -752,7 +770,9 @@ class ApplicationReconciler(Reconciler):
         if not cred.get("name"):
             return None
 
-        token = buildsecrets.ManagedSecret.read_key(cred["name"], namespace, cred.get("key") or "token")
+        token = buildsecrets.ManagedSecret.read_key(
+            cred["name"], namespace, cred.get("key") or "token"
+        )
 
         return github.GitHubClient(token, cfg.github_api_url)
 
@@ -815,13 +835,21 @@ class ApplicationReconciler(Reconciler):
 _reconciler = ApplicationReconciler()
 
 
-@kopf.on.create(ApplicationReconciler.GROUP, ApplicationReconciler.VERSION, ApplicationReconciler.plural)
-@kopf.on.update(ApplicationReconciler.GROUP, ApplicationReconciler.VERSION, ApplicationReconciler.plural)
-@kopf.on.resume(ApplicationReconciler.GROUP, ApplicationReconciler.VERSION, ApplicationReconciler.plural)
+@kopf.on.create(
+    ApplicationReconciler.GROUP, ApplicationReconciler.VERSION, ApplicationReconciler.plural
+)
+@kopf.on.update(
+    ApplicationReconciler.GROUP, ApplicationReconciler.VERSION, ApplicationReconciler.plural
+)
+@kopf.on.resume(
+    ApplicationReconciler.GROUP, ApplicationReconciler.VERSION, ApplicationReconciler.plural
+)
 def reconcile(**kwargs) -> None:
     return _reconciler.reconcile(**kwargs)
 
 
-@kopf.on.delete(ApplicationReconciler.GROUP, ApplicationReconciler.VERSION, ApplicationReconciler.plural)
+@kopf.on.delete(
+    ApplicationReconciler.GROUP, ApplicationReconciler.VERSION, ApplicationReconciler.plural
+)
 def finalize(**kwargs) -> None:
     return _reconciler.finalize(**kwargs)

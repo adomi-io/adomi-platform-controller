@@ -40,9 +40,7 @@ def tenant_ns(settings: Settings, client: str) -> str:
     return tenant_namespace(client, settings.tenant_namespace_prefix)
 
 
-def get_status(
-    reader: ClusterReader, settings: Settings, client, plural, name
-) -> ResourceStatus:
+def get_status(reader: ClusterReader, settings: Settings, client, plural, name) -> ResourceStatus:
     try:
         obj = reader.get(plural, tenant_ns(settings, client), name)
     except ClusterError as exc:

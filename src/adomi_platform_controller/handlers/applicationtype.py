@@ -25,7 +25,13 @@ class ApplicationTypeReconciler(Reconciler):
         chart = spec.get("chart") or {}
 
         if not chart.get("repoURL"):
-            fail(patch, status, conditions.REASON_INVALID_SPEC, "chart.repoURL is required", generation)
+            fail(
+                patch,
+                status,
+                conditions.REASON_INVALID_SPEC,
+                "chart.repoURL is required",
+                generation,
+            )
 
         adapter = spec.get("adapter") or registry.GENERIC
         msg = f"ApplicationType {name!r} ready (adapter={adapter})"
@@ -39,8 +45,20 @@ class ApplicationTypeReconciler(Reconciler):
 _reconciler = ApplicationTypeReconciler()
 
 
-@kopf.on.create(ApplicationTypeReconciler.GROUP, ApplicationTypeReconciler.VERSION, ApplicationTypeReconciler.plural)
-@kopf.on.update(ApplicationTypeReconciler.GROUP, ApplicationTypeReconciler.VERSION, ApplicationTypeReconciler.plural)
-@kopf.on.resume(ApplicationTypeReconciler.GROUP, ApplicationTypeReconciler.VERSION, ApplicationTypeReconciler.plural)
+@kopf.on.create(
+    ApplicationTypeReconciler.GROUP,
+    ApplicationTypeReconciler.VERSION,
+    ApplicationTypeReconciler.plural,
+)
+@kopf.on.update(
+    ApplicationTypeReconciler.GROUP,
+    ApplicationTypeReconciler.VERSION,
+    ApplicationTypeReconciler.plural,
+)
+@kopf.on.resume(
+    ApplicationTypeReconciler.GROUP,
+    ApplicationTypeReconciler.VERSION,
+    ApplicationTypeReconciler.plural,
+)
 def reconcile(**kwargs) -> None:
     return _reconciler.reconcile(**kwargs)

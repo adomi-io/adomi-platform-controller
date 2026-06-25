@@ -1,6 +1,6 @@
 """Dump the OpenAPI schema to a file (for generating typed clients).
 
-    adomi-platform-api-openapi [output.json]   # default: openapi.json
+adomi-platform-api-openapi [output.json]   # default: openapi.json
 """
 
 from __future__ import annotations

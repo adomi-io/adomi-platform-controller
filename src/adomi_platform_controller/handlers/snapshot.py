@@ -120,7 +120,9 @@ class SnapshotReconciler(Reconciler):
             logger.error(f"Failed deleting snapshot Workflow {wf!r} during finalize: {exc}")
 
         if status.get("location"):
-            logger.info(f"Snapshot object {status['location']} retained (object GC not implemented)")
+            logger.info(
+                f"Snapshot object {status['location']} retained (object GC not implemented)"
+            )
 
 
 _reconciler = SnapshotReconciler()

@@ -45,11 +45,13 @@ def _writer(session, owner="tenants"):
 
 
 def test_create_when_absent():
-    session = _StubSession([
-        (("GET", "repos/tenants/acme"), _Resp(200, {"name": "acme"})),
-        (("GET", "contents/clients/acme.yaml"), _Resp(404)),
-        (("PUT", "contents/clients/acme.yaml"), _Resp(201, {"content": {"sha": "a"}})),
-    ])
+    session = _StubSession(
+        [
+            (("GET", "repos/tenants/acme"), _Resp(200, {"name": "acme"})),
+            (("GET", "contents/clients/acme.yaml"), _Resp(404)),
+            (("PUT", "contents/clients/acme.yaml"), _Resp(201, {"content": {"sha": "a"}})),
+        ]
+    )
     res = _writer(session).apply_manifest("acme", "clients/acme.yaml", "kind: Client\n", "m")
     put = [c for c in session.calls if c["method"] == "PUT"][0]
     assert "sha" not in put["body"]
@@ -58,12 +60,14 @@ def test_create_when_absent():
 
 
 def test_pr_mode_opens_pull():
-    session = _StubSession([
-        (("GET", "repos/tenants/acme"), _Resp(200, {"name": "acme"})),
-        (("GET", "contents/applications/erp.yaml"), _Resp(404)),
-        (("PUT", "contents/applications/erp.yaml"), _Resp(201, {"content": {"sha": "x"}})),
-        (("POST", "pulls"), _Resp(201, {"number": 7})),
-    ])
+    session = _StubSession(
+        [
+            (("GET", "repos/tenants/acme"), _Resp(200, {"name": "acme"})),
+            (("GET", "contents/applications/erp.yaml"), _Resp(404)),
+            (("PUT", "contents/applications/erp.yaml"), _Resp(201, {"content": {"sha": "x"}})),
+            (("POST", "pulls"), _Resp(201, {"number": 7})),
+        ]
+    )
     res = _writer(session).apply_manifest("acme", "applications/erp.yaml", "x\n", "m", mode=MODE_PR)
     put = [c for c in session.calls if c["method"] == "PUT"][0]
     assert put["body"]["new_branch"] == "adomi/applications-erp"
@@ -78,10 +82,12 @@ def test_delete_absent_is_noop():
 
 
 def test_ensure_repo_creates_on_404():
-    session = _StubSession([
-        (("GET", "repos/tenants/new"), _Resp(404)),
-        (("POST", "orgs/tenants/repos"), _Resp(201, {"name": "new"})),
-    ])
+    session = _StubSession(
+        [
+            (("GET", "repos/tenants/new"), _Resp(404)),
+            (("POST", "orgs/tenants/repos"), _Resp(201, {"name": "new"})),
+        ]
+    )
     assert _writer(session).ensure_repo("new") is True
 
 

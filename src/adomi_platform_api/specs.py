@@ -17,7 +17,9 @@ def _drop_none(d: dict) -> dict:
     return {k: v for k, v in d.items() if v is not None}
 
 
-def client_spec(*, display_name: str, slug: str | None = None, organization: str | None = None) -> dict:
+def client_spec(
+    *, display_name: str, slug: str | None = None, organization: str | None = None
+) -> dict:
     spec = {"displayName": display_name}
 
     if slug:
@@ -38,7 +40,11 @@ def domain_spec(*, fqdn: str, wildcard: bool = True, issuer: str | None = None) 
 
 
 def database_spec(
-    *, engine: str = "postgres", storage: str = "10Gi", instances: int = 1, environment: str | None = None
+    *,
+    engine: str = "postgres",
+    storage: str = "10Gi",
+    instances: int = 1,
+    environment: str | None = None,
 ) -> dict:
     spec = {"engine": engine, "storage": storage, "instances": int(instances)}
 

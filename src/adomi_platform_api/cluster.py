@@ -49,7 +49,9 @@ class ClusterReader:
                 return None
             raise ClusterError(f"reading {plural}/{name}: {exc.reason}") from exc
 
-    def list(self, plural: str, namespace: str | None = None, label_selector: str = "") -> list[dict]:
+    def list(
+        self, plural: str, namespace: str | None = None, label_selector: str = ""
+    ) -> list[dict]:
         from kubernetes.client.exceptions import ApiException
 
         try:
