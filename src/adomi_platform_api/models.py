@@ -71,25 +71,23 @@ class ApplicationSource(BaseModel):
     ref: str | None = Field(default=None, description="Branch / tag / commit.")
 
 
-class ApplicationIntegration(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    type: str
-    from_: str = Field(alias="from")
-
-
 class ApplicationSpec(BaseModel):
     type: str = Field(description="ApplicationType (catalog) resource name.")
-    sso: bool = True
-    database: str | None = Field(default=None, description="Attach an existing managed Database.")
-    database_mode: str | None = Field(
-        default=None, description="auto | none | cnpg | external (when not attaching a Database)."
+    databases: list[dict] | None = Field(
+        default=None,
+        description="Explicit databases to provision: name / server / credentials.secret.",
+    )
+    sso: list[dict] | None = Field(
+        default=None,
+        description="Explicit SSO registrations: name / protocol / credentials.secret.",
+    )
+    env: list[dict] | None = Field(
+        default=None,
+        description="Explicit workload env (connection wiring); passed through verbatim.",
     )
     domain: str | None = Field(default=None, description="Domain resource to host this app under.")
     host: str | None = Field(default=None, description="Explicit hostname override.")
-    odoo_version: str | None = None
     source: ApplicationSource | None = None
-    integrations: list[ApplicationIntegration] | None = None
 
 
 class GitRepositoryPreview(BaseModel):

@@ -1,9 +1,8 @@
 """ApplicationTypeReconciler.
 
-An ApplicationType is a cluster-scoped catalog entry: the chart an Application of
-this type deploys, the code adapter that maps platform inputs into that chart's
-values, and the type's capabilities. It is configuration-only — the reconciler
-validates the entry and records status.
+An ApplicationType is a cluster-scoped catalog entry naming the chart an Application
+of this type deploys. It is configuration-only — the reconciler validates the entry
+and records status. (Value-shaping lives in the chart, not a controller adapter.)
 """
 
 from __future__ import annotations
@@ -11,7 +10,6 @@ from __future__ import annotations
 import kopf
 
 from .. import conditions, state
-from ..apptypes import registry
 from ._common import Reconciler, fail
 
 
@@ -33,13 +31,7 @@ class ApplicationTypeReconciler(Reconciler):
                 generation,
             )
 
-        adapter = spec.get("adapter") or registry.GENERIC
-        msg = f"ApplicationType {name!r} ready (adapter={adapter})"
-
-        if adapter not in (registry.GENERIC, "odoo", "superset", "mailpit"):
-            msg += " — no built-in adapter, using generic"
-
-        conditions.mark_ready(patch, status, msg, generation)
+        conditions.mark_ready(patch, status, f"ApplicationType {name!r} ready", generation)
 
 
 _reconciler = ApplicationTypeReconciler()

@@ -68,59 +68,39 @@ spec:
                 description: values are free-form Helm value overrides (highest precedence).
                 type: object
                 x-kubernetes-preserve-unknown-fields: true
-              database:
-                description: database configures the app's database backend.
-                properties:
-                  mode:
-                    description: |-
-                      mode selects the database backend. "none" for apps that need no
-                      database; "cnpg" provisions an in-cluster CloudNativePG cluster;
-                      "external" references a managed database. Defaults from the type
-                      (database.required) and workspace class when unset.
-                    enum:
-                    - none
-                    - cnpg
-                    - external
-                    type: string
-                  cnpg:
-                    properties:
-                      instances:
-                        default: 1
-                        format: int64
-                        minimum: 1
-                        type: integer
-                      storage:
-                        default: 10Gi
-                        type: string
-                      storageClass:
-                        type: string
-                    type: object
-                  external:
-                    properties:
-                      host:
-                        type: string
-                      port:
-                        default: 5432
-                        format: int64
-                        type: integer
-                      name:
-                        type: string
-                      user:
-                        type: string
-                      sslmode:
-                        type: string
-                      passwordSecret:
-                        properties:
-                          name:
-                            minLength: 1
-                            type: string
-                          key:
-                            type: string
-                        required:
-                        - name
-                        type: object
-                    type: object
-                type: object
+              databases:
+                description: |-
+                  databases declares the databases this app needs — explicit, nothing
+                  inferred. Each entry emits a Database CR on its named (standalone)
+                  DatabaseServer; the controller delivers the role password to
+                  credentials.secret and the workload reads the connection from spec.env.
+                items:
+                  properties:
+                    name:
+                      minLength: 1
+                      type: string
+                    server:
+                      description: The (standalone) DatabaseServer to create this database on.
+                      minLength: 1
+                      type: string
+                    databaseName:
+                      type: string
+                    user:
+                      type: string
+                    credentials:
+                      properties:
+                        secret:
+                          type: string
+                        openbaoPath:
+                          type: string
+                        passwordKey:
+                          type: string
+                      type: object
+                  required:
+                  - name
+                  - server
+                  type: object
+                type: array
               ingress:
                 description: ingress overrides ingress settings for the app.
                 properties:
@@ -139,54 +119,40 @@ spec:
                     type: array
                 type: object
               sso:
-                description: sso toggles single sign-on (protocol is driven by the type).
-                properties:
-                  enabled:
-                    default: true
-                    type: boolean
-                type: object
-              integrations:
                 description: |-
-                  integrations auto-wire this app to others. Each references a provider
-                  Application; a connector keyed by type injects values from the
-                  provider's published connection contract.
+                  sso declares the SSO registrations this app needs. Each entry emits an
+                  SSOApplication CR; credentials.secret receives the OIDC/proxy credentials.
                 items:
                   properties:
-                    type:
-                      description: type is the connector key (e.g. odoo-superset-datasource).
+                    name:
                       minLength: 1
                       type: string
-                    fromRef:
-                      description: fromRef names the provider Application (same namespace).
+                    protocol:
+                      enum:
+                      - oauth2
+                      - proxy
+                      type: string
+                    redirectUris:
+                      items:
+                        type: string
+                      type: array
+                    credentials:
                       properties:
-                        name:
-                          minLength: 1
+                        secret:
                           type: string
-                      required:
-                      - name
                       type: object
                   required:
-                  - type
-                  - fromRef
+                  - name
                   type: object
                 type: array
-              odoo:
-                description: odoo carries Odoo-specific settings (type "odoo").
-                properties:
-                  version:
-                    type: string
-                  workers:
-                    format: int64
-                    minimum: 0
-                    type: integer
-                  addons:
-                    properties:
-                      initModules:
-                        type: string
-                      updateModules:
-                        type: string
-                    type: object
-                type: object
+              env:
+                description: |-
+                  env is the explicit environment for the workload — the connection
+                  wiring (DB host, secretKeyRef to a delivered credential Secret, admin
+                  password, etc.). Nothing is inferred; passed to the chart verbatim.
+                items:
+                  x-kubernetes-preserve-unknown-fields: true
+                type: array
               source:
                 description: |-
                   source builds the app image from a GitRepository (type "odoo"); the
@@ -228,16 +194,6 @@ spec:
                     type: boolean
                 required:
                 - snapshotRef
-                type: object
-              adminPassword:
-                description: adminPassword sources the app's admin/master password (e.g. Odoo).
-                properties:
-                  value:
-                    type: string
-                  existingSecret:
-                    type: string
-                  existingSecretKey:
-                    type: string
                 type: object
             required:
             - workspaceRef

@@ -20,27 +20,37 @@ def test_workspace_spec_drops_none():
     }
 
 
-def test_application_spec_attach_db_and_domain():
+def test_application_spec_explicit_databases_env_domain():
     spec = specs.application_spec(
-        workspace="prod", type="odoo", database="erp-db", domain="acme-com"
+        workspace="prod",
+        type="odoo",
+        databases=[
+            {"name": "main", "server": "acme-prod-db", "credentials": {"secret": "odoo-main-db"}}
+        ],
+        env=[{"name": "ODOO_DB_HOST", "value": "main-rw.acme-prod.svc.cluster.local"}],
+        domain="acme-com",
     )
     assert spec["workspaceRef"] == {"name": "prod"}
-    assert spec["databaseRef"] == {"name": "erp-db"}
+    assert spec["databases"][0]["server"] == "acme-prod-db"
+    assert spec["databases"][0]["credentials"]["secret"] == "odoo-main-db"
+    assert spec["env"][0]["name"] == "ODOO_DB_HOST"
     assert spec["domainRef"] == {"name": "acme-com"}
-    assert "database" not in spec  # databaseRef wins over database_mode
 
 
-def test_application_spec_database_mode_source_integrations():
+def test_application_spec_sso_and_source():
     spec = specs.application_spec(
         workspace="dev",
         type="odoo",
-        database_mode="cnpg",
+        sso=[{"name": "web", "protocol": "oauth2", "credentials": {"secret": "odoo-oidc"}}],
         source={"repository": "erp-src", "ref": "main"},
-        integrations=[{"type": "odoo-mailpit-smtp", "from": "mail"}],
     )
-    assert spec["database"] == {"mode": "cnpg"}
+    assert spec["sso"][0]["credentials"]["secret"] == "odoo-oidc"
     assert spec["source"] == {"repositoryRef": {"name": "erp-src"}, "ref": "main"}
-    assert spec["integrations"] == [{"type": "odoo-mailpit-smtp", "fromRef": {"name": "mail"}}]
+
+
+def test_application_spec_minimal():
+    spec = specs.application_spec(workspace="dev", type="mailpit")
+    assert spec == {"workspaceRef": {"name": "dev"}, "type": "mailpit"}
 
 
 def test_domain_database_gitrepository_snapshot_specs():

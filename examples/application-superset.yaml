@@ -1,7 +1,6 @@
-# A Superset Application with native OIDC (oauth2) SSO and its own CloudNativePG
-# metadata database. The integration registers the Odoo Application's database as a
-# Superset data source: when the Odoo app is Ready and publishes its connection
-# contract, the controller injects the Odoo DB coordinates into Superset.
+# A Superset Application with native OIDC (oauth2) SSO and its own database. To use
+# Odoo's database as a Superset data source, point Superset's env at Odoo's database
+# Secret + host explicitly (a capability reference) — no runtime matchmaking.
 apiVersion: platform.adomi.io/v1alpha1
 kind: Application
 metadata:
@@ -11,13 +10,21 @@ spec:
   workspaceRef:
     name: production
   type: superset
-  database:
-    mode: cnpg
-    cnpg:
-      storage: 10Gi
+  databases:
+    - name: main
+      server: acme-prod-db
+      credentials:
+        secret: superset-main-db
   sso:
-    enabled: true
-  integrations:
-    - type: odoo-superset-datasource
-      fromRef:
-        name: odoo        # the provider Application (must be Ready first)
+    - name: web
+      protocol: oauth2
+      credentials:
+        secret: superset-oidc
+  env:
+    - name: DB_HOST
+      value: main-rw.acme-production.svc.cluster.local
+    - name: DB_PASS
+      valueFrom:
+        secretKeyRef:
+          name: superset-main-db
+          key: password

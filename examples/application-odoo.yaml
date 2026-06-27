@@ -1,6 +1,7 @@
-# An Odoo Application in the production workspace. The controller provisions a
-# CloudNativePG database, a forward-auth SSOApplication, and an Argo CD Application
-# that deploys the Odoo chart at https://odoo.production.acme.<baseDomain>.
+# An Odoo Application in the production workspace. The odoo chart emits a Database CR
+# (on the named, standalone DatabaseServer) and an SSOApplication CR; the controller
+# delivers the role password to credentials.secret, and the workload reads its
+# connection from the explicit env. Nothing is inferred.
 apiVersion: platform.adomi.io/v1alpha1
 kind: Application
 metadata:
@@ -10,14 +11,33 @@ spec:
   workspaceRef:
     name: production
   type: odoo
-  database:
-    mode: cnpg
-    cnpg:
-      storage: 20Gi
-  odoo:
-    version: "19.0"
-    workers: 2
-    addons:
-      initModules: base,web
+  databases:
+    - name: main
+      server: acme-prod-db          # a standalone DatabaseServer (cnpg or external)
+      credentials:
+        secret: odoo-main-db
   sso:
-    enabled: true
+    - name: web
+      protocol: oauth2
+      redirectUris:
+        - https://odoo-production-acme.example.com/oauth-authorized/authentik
+      credentials:
+        secret: odoo-oidc
+  env:
+    - name: ODOO_DB_HOST
+      value: main-rw.acme-production.svc.cluster.local
+    - name: ODOO_DB_PORT
+      value: "5432"
+    - name: ODOO_DB_USER
+      value: main
+    - name: ODOO_DB_NAME
+      value: main
+    - name: ODOO_DB_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: odoo-main-db
+          key: password
+  values:
+    odoo:
+      workers: 2
+      initModules: base,web

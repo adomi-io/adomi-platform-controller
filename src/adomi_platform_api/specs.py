@@ -102,45 +102,34 @@ def application_spec(
     *,
     workspace: str,
     type: str,
-    sso: bool = True,
-    database: str | None = None,
-    database_mode: str | None = None,
+    databases: list[dict] | None = None,
+    sso: list[dict] | None = None,
+    env: list[dict] | None = None,
     domain: str | None = None,
     host: str | None = None,
-    odoo_version: str | None = None,
     source: dict | None = None,
-    integrations: list[dict] | None = None,
 ) -> dict:
-    spec = {
+    spec: dict = {
         "workspaceRef": _ref(workspace),
         "type": type,
-        "sso": {"enabled": bool(sso)},
     }
 
-    if database:  # attach an existing managed Database by name
-        spec["databaseRef"] = _ref(database)
-    elif database_mode and database_mode != "auto":
-        spec["database"] = {"mode": database_mode}
-
+    if databases:
+        spec["databases"] = databases
+    if sso:
+        spec["sso"] = sso
+    if env:
+        spec["env"] = env
     if domain:
         spec["domainRef"] = _ref(domain)
     if host:
         spec["ingress"] = {"host": host}
-    if odoo_version:
-        spec["odoo"] = {"version": odoo_version}
 
     if source and source.get("repository"):
         s = {"repositoryRef": _ref(source["repository"])}
         if source.get("ref"):
             s["ref"] = source["ref"]
         spec["source"] = s
-
-    if integrations:
-        spec["integrations"] = [
-            {"type": i["type"], "fromRef": _ref(i["from"])}
-            for i in integrations
-            if i.get("type") and i.get("from")
-        ]
 
     return spec
 

@@ -3,15 +3,13 @@
 An Application runs a catalog app (by ApplicationType) in a Workspace. The reconciler:
 
   1. resolves Organization -> Client -> Workspace -> ApplicationType into effective config
-  2. provisions the database (none | cnpg | external)
-  3. (odoo, when spec.source) builds the image via an Argo Workflow, gating deploy
-  4. (when spec.restoreFrom) restores+sanitizes a Snapshot into the cnpg DB, gating deploy
-  5. declares an SSOApplication (oauth2 or proxy) per the type
-  6. runs the app-type adapter + integration connectors to build the Helm values
-  7. creates the Argo CD Application that deploys the chart, and publishes a connection
-     contract (status.connection) for other apps to integrate with.
+  2. (when spec.source) builds the image via an Argo Workflow, gating deploy
+  3. (when spec.restoreFrom) restores+sanitizes a Snapshot into the app's database
+  4. maps the explicit intent (databases / sso / env / ingress) onto the chart's value
+     contract (chartvalues.build_chart_values) and creates the Argo CD Application
 
-Argo CD owns the rendered workload; the controller owns intent + supporting resources.
+The chart owns value-shaping and emits its own capability CRs (Database / SSOApplication);
+the controller provisions nothing inline. Argo CD owns the rendered workload.
 """
 
 from __future__ import annotations
@@ -21,20 +19,15 @@ import kopf
 from .. import (
     argocd,
     buildsecrets,
-    cnpg,
+    chartvalues,
     conditions,
     dbjobs,
-    externalsecrets,
     github,
     namespaces,
     resolve,
-    ssoapps,
     state,
     workflows,
 )
-from ..apptypes import base
-from ..apptypes import registry as apptypes
-from ..integrations import registry as integrations
 from ._common import Reconciler, fail
 
 PUSH_SECRET_NAME = "harbor-push"
@@ -86,7 +79,6 @@ class ApplicationReconciler(Reconciler):
             )
 
         patch.status["namespace"] = eff.namespace
-        patch.status["databaseMode"] = eff.db_mode
 
         labels = {
             "app.kubernetes.io/managed-by": self.MANAGED_BY,
@@ -126,74 +118,32 @@ class ApplicationReconciler(Reconciler):
                 logger,
             )
 
-        # Database.
-        db_conn = self._reconcile_database(
-            cfg, eff, spec, labels, patch, status, generation, namespace
-        )
-
-        # Restore-from-snapshot (cnpg): gate deploy on a successful restore.
+        # Restore-from-snapshot (odoo): gate deploy on a successful restore, into the
+        # app's first explicit database (the chart provisions it via its Database CR).
         if spec.get("restoreFrom"):
             self._reconcile_restore(
-                cfg,
-                eff,
-                spec,
-                namespace,
-                db_conn,
-                built_image,
-                patch,
-                status,
-                generation,
-                logger,
+                cfg, eff, spec, namespace, built_image, patch, status, generation, logger
             )
 
-        # SSO.
-        sso_slug, sso_secret = ("", "")
-
-        if eff.sso_enabled and eff.sso_protocol:
-            sso_slug, sso_secret = self._reconcile_sso(eff, spec, patch, status, generation)
-
-        # Resolved image (odoo only; other types use their chart/type-default image).
-        image = ""
-
-        if eff.adapter == "odoo":
-            image = built_image or (
-                f"{eff.image_repository}:{eff.image_tag}" if eff.image_tag else eff.image_repository
-            )
-
-        ctx = base.Ctx(
-            app_name=eff.app_name,
-            namespace=eff.namespace,
-            host=eff.hostname,
-            url=eff.url,
-            ingress_class_name=eff.ingress_class_name,
-            longpolling=eff.longpolling,
-            list_db=eff.workspace_class != resolve.CLASS_PRODUCTION,
-            image=image,
-            db=db_conn,
-            sso_protocol=eff.sso_protocol if eff.sso_enabled else "",
-            sso_secret=sso_secret,
-            forward_auth_middleware=cfg.forward_auth_middleware,
-            odoo=spec.get("odoo") or {},
-            replicas=int(spec.get("replicas") or 1),
-            admin_password=spec.get("adminPassword") or None,
-            ingress_tls=(spec.get("ingress") or {}).get("tls") or [],
-        )
-
-        adapter = apptypes.get(eff.adapter)
-        app_values = adapter.helm_values(ctx)
-        integration_values = self._reconcile_integrations(
-            spec.get("integrations") or [],
-            namespace,
-            ctx,
-            patch,
-            status,
-            generation,
-            logger,
-        )
+        # The chart owns value-shaping and emits its own capability CRs (Database /
+        # SSOApplication) from the explicit databases/sso lists. The controller only maps
+        # the intent onto the chart's value contract — nothing inferred, nothing
+        # provisioned inline.
+        image = built_image or ""
         values = resolve.deep_merge(
             eff.type_defaults,
-            app_values,
-            integration_values,
+            chartvalues.build_chart_values(
+                client_slug=eff.client_slug,
+                replicas=int(spec.get("replicas") or 1),
+                image=image,
+                ingress_host=eff.hostname,
+                ingress_class_name=eff.ingress_class_name,
+                ingress_tls=(spec.get("ingress") or {}).get("tls") or [],
+                ingress_annotations=(spec.get("ingress") or {}).get("annotations") or None,
+                databases=spec.get("databases") or [],
+                sso=spec.get("sso") or [],
+                env=spec.get("env") or [],
+            ),
             spec.get("values") or {},
         )
 
@@ -222,13 +172,9 @@ class ApplicationReconciler(Reconciler):
         patch.status["url"] = eff.url
         patch.status["argoApplication"] = self._argo_app_name(eff)
         patch.status["phase"] = "Deployed"
-        patch.status["connection"] = adapter.connection(ctx)
 
         if built_image:
             patch.status["builtImage"] = built_image
-
-        if sso_slug:
-            patch.status["ssoSlug"] = sso_slug
 
         self._report_pr(
             cfg, source, meta, namespace, "success", eff.url, "Preview deployed", True, logger
@@ -285,124 +231,6 @@ class ApplicationReconciler(Reconciler):
             app_spec=spec,
             type_spec=app_type.get("spec") or {},
             domain_fqdn=domain_fqdn,
-        )
-
-    def _reconcile_database(self, cfg, eff, spec, labels, patch, status, generation, cr_namespace):
-        # Attach an existing managed Database (databaseRef) — the Database reconciler
-        # created the database + role on its DatabaseServer and published the OpenBao
-        # path of the role password; we deliver that into the app namespace and consume
-        # the published connection.
-        db_ref = (spec.get("databaseRef") or {}).get("name")
-
-        if db_ref:
-            try:
-                db_obj = resolve.get_database(db_ref, cr_namespace)
-            except resolve.NotFound as exc:
-                fail(patch, status, conditions.REASON_DEPENDENCY_NOT_MET, str(exc), generation)
-
-            try:
-                endpoint = resolve.database_endpoint(db_obj)
-            except resolve.NotFound as exc:
-                fail(
-                    patch,
-                    status,
-                    conditions.REASON_DEPENDENCY_NOT_MET,
-                    str(exc),
-                    generation,
-                    delay=INTEGRATION_DELAY,
-                )
-
-            secret_name = f"{db_ref}-db"
-
-            try:
-                externalsecrets.ExternalSecret(
-                    name=secret_name,
-                    namespace=eff.namespace,
-                    secret_name=secret_name,
-                    store_name=cfg.cluster_secret_store,
-                    remote_path=endpoint.openbao_path,
-                    data_map={endpoint.password_key: endpoint.password_key},
-                    labels={"app.kubernetes.io/managed-by": self.MANAGED_BY},
-                ).apply()
-            except Exception as exc:  # noqa: BLE001
-                fail(
-                    patch,
-                    status,
-                    conditions.REASON_BACKEND_ERROR,
-                    f"delivering database credentials: {exc}",
-                    generation,
-                )
-
-            patch.status["databaseMode"] = resolve.DB_MODE_EXTERNAL
-
-            return resolve.DbConnection(
-                host=endpoint.host,
-                port=endpoint.port,
-                name=endpoint.name,
-                user=endpoint.user,
-                password_secret_namespace=eff.namespace,
-                password_secret_name=secret_name,
-                password_secret_key=endpoint.password_key,
-            )
-
-        if eff.db_mode == resolve.DB_MODE_NONE:
-            return None
-
-        if eff.db_mode == resolve.DB_MODE_CNPG:
-            cfg_db = (spec.get("database") or {}).get("cnpg") or {}
-            cluster = resolve.cnpg_cluster_name(eff.app_name)
-
-            try:
-                cnpg.CnpgCluster(
-                    name=cluster,
-                    namespace=eff.namespace,
-                    instances=int(cfg_db.get("instances") or 1),
-                    storage_size=cfg_db.get("storage") or "10Gi",
-                    storage_class=cfg_db.get("storageClass") or "",
-                    database=resolve.CNPG_DB_NAME,
-                    owner=resolve.CNPG_DB_USER,
-                    labels=labels,
-                ).apply()
-            except Exception as exc:  # noqa: BLE001
-                fail(
-                    patch,
-                    status,
-                    conditions.REASON_BACKEND_ERROR,
-                    f"provisioning database: {exc}",
-                    generation,
-                )
-
-            return resolve.DbConnection(
-                host=f"{cluster}-rw.{eff.namespace}.svc.cluster.local",
-                port=resolve.DB_PORT,
-                name=resolve.CNPG_DB_NAME,
-                user=resolve.CNPG_DB_USER,
-                password_secret_namespace=eff.namespace,
-                password_secret_name=f"{cluster}-app",
-                password_secret_key="password",
-            )
-
-        # external
-        ext = (spec.get("database") or {}).get("external") or {}
-        pw = ext.get("passwordSecret") or {}
-
-        if not ext.get("host") or not pw.get("name"):
-            fail(
-                patch,
-                status,
-                conditions.REASON_INVALID_SPEC,
-                "database.external requires host and passwordSecret.name",
-                generation,
-            )
-
-        return resolve.DbConnection(
-            host=ext["host"],
-            port=int(ext.get("port") or resolve.DB_PORT),
-            name=ext.get("name") or resolve.CNPG_DB_NAME,
-            user=ext.get("user") or resolve.CNPG_DB_USER,
-            password_secret_namespace=eff.namespace,
-            password_secret_name=pw["name"],
-            password_secret_key=pw.get("key") or "db-password",
         )
 
     def _reconcile_build(
@@ -572,15 +400,26 @@ class ApplicationReconciler(Reconciler):
         )
 
     def _reconcile_restore(
-        self, cfg, eff, spec, namespace, db_conn, built_image, patch, status, generation, logger
+        self, cfg, eff, spec, namespace, built_image, patch, status, generation, logger
     ) -> None:
-        if eff.db_mode != resolve.DB_MODE_CNPG or db_conn is None:
+        # Resolve the target DB from the app's first explicit database (provisioned by
+        # the chart's Database CR on its named DatabaseServer).
+        try:
+            db_conn = resolve.app_db_connection(
+                {
+                    "spec": spec,
+                    "metadata": {"namespace": namespace},
+                    "status": {"namespace": eff.namespace},
+                }
+            )
+        except resolve.NotFound as exc:
             fail(
                 patch,
                 status,
-                conditions.REASON_INVALID_SPEC,
-                "restoreFrom requires database.mode 'cnpg'",
+                conditions.REASON_DEPENDENCY_NOT_MET,
+                f"restoreFrom: {exc}",
                 generation,
+                delay=INTEGRATION_DELAY,
             )
 
         restore_from = spec["restoreFrom"]
@@ -685,89 +524,6 @@ class ApplicationReconciler(Reconciler):
             delay=RESTORE_POLL_DELAY,
         )
 
-    def _reconcile_sso(self, eff, spec, patch, status, generation) -> tuple[str, str]:
-        slug = f"{eff.namespace}-{eff.app_name}"
-        display = f"{eff.client_slug} / {eff.workspace_name} / {eff.app_name}"
-
-        try:
-            if eff.sso_protocol == "oauth2":
-                target_secret = f"{eff.app_name}-oidc"
-                paths = eff.sso_redirect_paths or ["/oauth-authorized/authentik"]
-
-                ssoapps.OAuth2SSOApplication(
-                    name=eff.app_name,
-                    namespace=eff.namespace,
-                    slug=slug,
-                    display_name=display,
-                    redirect_uris=[f"{eff.url}{p}" for p in paths],
-                    target_secret=target_secret,
-                    auth_group=eff.client_slug,
-                ).apply()
-                return slug, target_secret
-
-            ssoapps.ProxySSOApplication(
-                name=eff.app_name,
-                namespace=eff.namespace,
-                slug=slug,
-                display_name=display,
-                external_host=eff.url,
-                auth_group=eff.client_slug,
-            ).apply()
-            return slug, ""
-        except Exception as exc:  # noqa: BLE001
-            fail(
-                patch,
-                status,
-                conditions.REASON_BACKEND_ERROR,
-                f"declaring SSOApplication: {exc}",
-                generation,
-            )
-
-    def _reconcile_integrations(
-        self, items, namespace, ctx, patch, status, generation, logger
-    ) -> dict:
-        merged: dict = {}
-
-        for item in items:
-            itype = item.get("type")
-            ref = (item.get("fromRef") or {}).get("name")
-            connector = integrations.get(itype)
-
-            if connector is None:
-                logger.info(f"unknown integration type {itype!r}; skipping")
-
-                continue
-
-            try:
-                provider = resolve.get_application(ref, namespace)
-            except resolve.NotFound as exc:
-                fail(patch, status, conditions.REASON_DEPENDENCY_NOT_MET, str(exc), generation)
-
-            pstatus = provider.get("status") or {}
-            connection = pstatus.get("connection")
-
-            if not self._ready(pstatus) or not connection:
-                fail(
-                    patch,
-                    status,
-                    conditions.REASON_DEPENDENCY_NOT_MET,
-                    f"integration provider {ref!r} not ready",
-                    generation,
-                    delay=INTEGRATION_DELAY,
-                )
-
-            merged = resolve.deep_merge(merged, connector.values(connection, ctx))
-
-        return merged
-
-    @staticmethod
-    def _ready(obj_status: dict) -> bool:
-        for cond in (obj_status or {}).get("conditions") or []:
-            if cond.get("type") == "Ready":
-                return cond.get("status") == "True"
-
-        return False
-
     # --- PR feedback (preview applications) ------------------------------------------
 
     def _pr_info(self, meta):
@@ -834,8 +590,6 @@ class ApplicationReconciler(Reconciler):
     def finalize(self, spec, status, name, namespace, logger, **_) -> None:
         """Best-effort teardown of the app's own resources (not the shared workspace ns)."""
         cfg = state.provider().config
-        ns = status.get("namespace")
-        app_name = name
 
         app_ref = status.get("argoApplication")
 
@@ -844,17 +598,6 @@ class ApplicationReconciler(Reconciler):
                 argocd.ArgoApplication.delete(app_ref, cfg.argocd_namespace)
             except Exception as exc:  # noqa: BLE001
                 logger.error(f"Failed deleting Argo CD Application {app_ref!r}: {exc}")
-
-        if ns:
-            try:
-                cnpg.CnpgCluster.delete(resolve.cnpg_cluster_name(app_name), ns)
-            except Exception as exc:  # noqa: BLE001
-                logger.error(f"Failed deleting CNPG cluster during finalize: {exc}")
-
-            try:
-                ssoapps.SSOApplication.delete(app_name, ns)
-            except Exception as exc:  # noqa: BLE001
-                logger.error(f"Failed deleting SSOApplication during finalize: {exc}")
 
         for wf in (status.get("buildWorkflow"), status.get("restoreWorkflow")):
             if wf:

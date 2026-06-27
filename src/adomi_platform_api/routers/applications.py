@@ -46,16 +46,12 @@ def put_application(
     spec = specs.application_spec(
         workspace=workspace,
         type=body.type,
+        databases=body.databases,
         sso=body.sso,
-        database=body.database,
-        database_mode=body.database_mode,
+        env=body.env,
         domain=body.domain,
         host=body.host,
-        odoo_version=body.odoo_version,
         source=body.source.model_dump() if body.source else None,
-        integrations=(
-            [i.model_dump(by_alias=True) for i in body.integrations] if body.integrations else None
-        ),
     )
 
     return commit(service, client, PLURAL, name, spec)

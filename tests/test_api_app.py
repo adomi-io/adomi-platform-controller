@@ -98,12 +98,18 @@ def test_put_workspace_class_alias_and_application(ctx):
     assert "kind: Workspace" in writer.applied[-1]["content"]
     r = c.put(
         "/v1/clients/acme/workspaces/prod/applications/erp",
-        json={"type": "odoo", "domain": "acme-com", "database": "erp-db"},
+        json={
+            "type": "odoo",
+            "domain": "acme-com",
+            "databases": [
+                {"name": "main", "server": "acme-prod-db", "credentials": {"secret": "erp-db"}}
+            ],
+        },
         headers=AUTH,
     )
     assert r.status_code == 200, r.text
     body = writer.applied[-1]["content"]
-    assert "kind: Application" in body and "domainRef" in body and "databaseRef" in body
+    assert "kind: Application" in body and "domainRef" in body and "databases" in body
     assert writer.applied[-1]["path"] == "applications/erp.yaml"
 
 

@@ -85,6 +85,28 @@ spec:
                 required:
                 - name
                 type: object
+              credentials:
+                description: |-
+                  credentials sets WHERE the role's password is stored and delivered —
+                  explicit by design, nothing is inferred. openbaoPath overrides the
+                  derived OpenBao location; when secret is set, the controller delivers
+                  the password into a Secret of that name in this Database's own
+                  namespace, which the workload references from env via secretKeyRef.
+                properties:
+                  secret:
+                    description: |-
+                      Name of the Secret to deliver the password into (this namespace).
+                      Leave empty to publish only the OpenBao path (status.connection).
+                    type: string
+                  openbaoPath:
+                    description: |-
+                      OpenBao KV path to store the password at. Overrides the derived
+                      default (database_credentials_path / server / user).
+                    type: string
+                  passwordKey:
+                    description: Key holding the password in the delivered Secret (default "password").
+                    type: string
+                type: object
             required:
             - serverRef
             - databaseName
@@ -112,6 +134,9 @@ spec:
                     type: string
                   passwordKey:
                     description: Key within the OpenBao path / delivered Secret.
+                    type: string
+                  secret:
+                    description: Delivered Secret name (this namespace), when credentials.secret is set.
                     type: string
                 type: object
               conditions:

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import kopf
 
-from .. import conditions, dbprovision, resolve, secretgen, state
+from .. import conditions, dbprovision, externalsecrets, resolve, secretgen, state
 from ..buildsecrets import ManagedSecret
 from ._common import Reconciler, fail
 
@@ -95,7 +95,11 @@ class DatabaseReconciler(Reconciler):
         ssl_mode = (((server.get("spec") or {}).get("external") or {}).get("sslMode") or "").strip()
 
         # Generate the role password once in OpenBao (shared users share their password).
-        path = resolve.db_credentials_path(cfg.database_credentials_path, server_ref, user)
+        # credentials.openbaoPath overrides the derived location (explicit by design).
+        creds_spec = spec.get("credentials") or {}
+        path = creds_spec.get("openbaoPath") or resolve.db_credentials_path(
+            cfg.database_credentials_path, server_ref, user
+        )
 
         try:
             creds, _ = provider.openbao().ensure_keys(
@@ -177,14 +181,44 @@ class DatabaseReconciler(Reconciler):
                 delay=PROVISION_POLL_DELAY,
             )
 
-        patch.status["connection"] = {
+        # Deliver the password into this Database's own namespace under the Secret name
+        # the chart dictated (explicit wiring — the workload's env references this Secret).
+        deliver_secret = creds_spec.get("secret") or ""
+        password_key = creds_spec.get("passwordKey") or "password"
+
+        if deliver_secret:
+            try:
+                externalsecrets.ExternalSecret(
+                    name=deliver_secret,
+                    namespace=namespace,
+                    secret_name=deliver_secret,
+                    store_name=cfg.cluster_secret_store,
+                    remote_path=path,
+                    data_map={password_key: "password"},
+                    labels=labels,
+                ).apply()
+            except Exception as exc:  # noqa: BLE001
+                fail(
+                    patch,
+                    status,
+                    conditions.REASON_BACKEND_ERROR,
+                    f"delivering database credentials: {exc}",
+                    generation,
+                )
+
+        connection = {
             "host": server_host,
             "port": server_port,
             "name": database_name,
             "user": user,
             "openbaoPath": path,
-            "passwordKey": "password",
+            "passwordKey": password_key,
         }
+
+        if deliver_secret:
+            connection["secret"] = deliver_secret
+
+        patch.status["connection"] = connection
 
         conditions.mark_ready(
             patch, status, f"Database {database_name!r} ready on {server_ref!r}", generation

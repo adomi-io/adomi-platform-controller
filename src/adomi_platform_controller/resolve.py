@@ -41,10 +41,6 @@ CLASS_PDI = "pdi"
 CLASS_PRODUCTION = "production"
 CLASS_TEST = "test"
 
-# Database modes.
-DB_MODE_NONE = "none"
-DB_MODE_CNPG = "cnpg"
-DB_MODE_EXTERNAL = "external"
 
 DEFAULT_INGRESS_CLASS = "traefik"
 DB_PORT = 5432
@@ -98,13 +94,11 @@ class Effective:
     hostname: str
     url: str
 
-    adapter: str
     chart_repo_url: str
     chart_name: str
     chart_path: str
     chart_target_revision: str
 
-    db_mode: str
     ingress_class_name: str
     longpolling: bool
 
@@ -113,8 +107,6 @@ class Effective:
     sso_redirect_paths: list[str]
 
     type_defaults: dict
-    provides: list[str]
-    consumes: list[str]
 
     # Odoo image resolution (used by the odoo adapter / build pipeline).
     image_repository: str
@@ -205,16 +197,6 @@ def deep_merge(*layers: dict) -> dict:
     return out
 
 
-def resolve_db_mode(app_database: dict, type_database: dict) -> str:
-    """The database backend: explicit spec wins, else cnpg if the type needs one, else none."""
-    explicit = (app_database or {}).get("mode")
-
-    if explicit:
-        return explicit
-
-    return DB_MODE_CNPG if (type_database or {}).get("required") else DB_MODE_NONE
-
-
 def compute(
     cfg: Config,
     *,
@@ -245,7 +227,6 @@ def compute(
     type_chart = type_spec.get("chart") or {}
     type_sso = type_spec.get("sso") or {}
     type_ingress = type_spec.get("ingress") or {}
-    type_db = type_spec.get("database") or {}
 
     client_slug = _slug(client_spec, client_name)
     workspace_class = workspace_spec.get("class") or CLASS_DEVELOPMENT
@@ -275,12 +256,10 @@ def compute(
         namespace=namespace,
         hostname=host,
         url=f"https://{host}" if host else "",
-        adapter=type_spec.get("adapter") or "generic",
         chart_repo_url=type_chart.get("repoURL") or "",
         chart_name=type_chart.get("chart") or "",
         chart_path=type_chart.get("path") or "",
         chart_target_revision=type_chart.get("targetRevision") or "",
-        db_mode=resolve_db_mode(app_spec.get("database") or {}, type_db),
         ingress_class_name=(
             app_ingress.get("className") or org_ingress.get("className") or DEFAULT_INGRESS_CLASS
         ),
@@ -289,60 +268,52 @@ def compute(
         sso_protocol=type_sso.get("protocol") or "",
         sso_redirect_paths=list(type_sso.get("redirectPaths") or []),
         type_defaults=type_spec.get("defaultValues") or {},
-        provides=list(type_spec.get("provides") or []),
-        consumes=list(type_spec.get("consumes") or []),
         image_repository=image_repository,
         image_tag=image_tag,
     )
 
 
 def app_db_connection(app_obj: dict) -> DbConnection:
-    """Resolve an Application's database connection (cnpg or external).
+    """Resolve the connection for an app's first explicit database (spec.databases[0]).
 
-    Uses ``status.databaseMode`` (set during reconcile) or ``spec.database.mode``.
-    Raises NotFound when the app has no database or hasn't been reconciled enough to
-    have a namespace.
+    The database is provisioned by the chart's Database CR on its named DatabaseServer;
+    here we read that server's published host and point at the delivered credential
+    Secret. Used by snapshot/restore. Raises NotFound until the server publishes a host.
     """
     spec = app_obj.get("spec") or {}
+    meta = app_obj.get("metadata") or {}
     status = app_obj.get("status") or {}
-    db = spec.get("database") or {}
-    mode = status.get("databaseMode") or db.get("mode") or DB_MODE_NONE
-    app_name = (app_obj.get("metadata") or {}).get("name") or ""
+    server_ns = meta.get("namespace") or ""
+    app_ns = status.get("namespace") or server_ns
+    dbs = spec.get("databases") or []
 
-    if mode == DB_MODE_CNPG:
-        ns = status.get("namespace")
+    if not dbs:
+        raise NotFound("application has no spec.databases")
 
-        if not ns:
-            raise NotFound("application has no status.namespace yet (not reconciled)")
+    db = dbs[0]
+    server_ref = db.get("server")
 
-        cluster = cnpg_cluster_name(app_name)
+    if not server_ref:
+        raise NotFound("databases[0].server is required")
 
-        return DbConnection(
-            host=f"{cluster}-rw.{ns}.svc.cluster.local",
-            port=DB_PORT,
-            name=CNPG_DB_NAME,
-            user=CNPG_DB_USER,
-            password_secret_namespace=ns,
-            password_secret_name=f"{cluster}-app",
-            password_secret_key="password",
-        )
+    server = get_database_server(server_ref, server_ns)
+    srv = server.get("status") or {}
+    host = srv.get("host")
 
-    if mode == DB_MODE_EXTERNAL:
-        ext = db.get("external") or {}
-        pw = ext.get("passwordSecret") or {}
-        mgmt_ns = (app_obj.get("metadata") or {}).get("namespace") or ""
+    if not host:
+        raise NotFound(f"DatabaseServer {server_ref!r} not ready (no status.host)")
 
-        return DbConnection(
-            host=ext.get("host") or "",
-            port=int(ext.get("port") or DB_PORT),
-            name=ext.get("name") or CNPG_DB_NAME,
-            user=ext.get("user") or CNPG_DB_USER,
-            password_secret_namespace=mgmt_ns,
-            password_secret_name=pw.get("name") or "",
-            password_secret_key=pw.get("key") or "db-password",
-        )
+    creds = db.get("credentials") or {}
 
-    raise NotFound(f"application {app_name!r} has no database (mode={mode})")
+    return DbConnection(
+        host=host,
+        port=int(srv.get("port") or DB_PORT),
+        name=db.get("databaseName") or db.get("name"),
+        user=db.get("user") or db.get("name"),
+        password_secret_namespace=app_ns,
+        password_secret_name=creds.get("secret") or "",
+        password_secret_key=creds.get("passwordKey") or "password",
+    )
 
 
 # --- cluster fetching ------------------------------------------------------------
