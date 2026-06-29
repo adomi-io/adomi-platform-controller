@@ -62,7 +62,10 @@ class OidcSetup(models.AbstractModel):
         vals = {
             "name": "Authentik",
             "flow": "id_token_code",  # OpenID Connect authorization code flow
-            "scope": "openid profile email",
+            # `groups` is required: Authentik only puts the group claim in the
+            # id_token when the scope is requested, and the role sync (res_users)
+            # reads it to grant admin to "Platform Admins". Mirrors ArgoCD's scopes.
+            "scope": "openid profile email groups",
             "auth_endpoint": "%s/authorize/" % base,
             "token_endpoint": "%s/token/" % base,
             "validation_endpoint": "%s/userinfo/" % base,
