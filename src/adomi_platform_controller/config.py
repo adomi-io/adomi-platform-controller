@@ -139,7 +139,9 @@ class Config:
     # live state immediately instead of polling. Empty URL disables the push (the
     # portal's fallback cron still reconciles). A shared bearer token (read from
     # OpenBao) authenticates the call and must match the portal's ADOMI_INGEST_TOKEN.
-    odoo_notify_url: str = ""  # e.g. http://adomi-platform-management.adomi-platform-management.svc.cluster.local:8069
+    odoo_notify_url: str = (
+        ""  # e.g. http://adomi-platform-management.adomi-platform-management.svc.cluster.local:8069
+    )
     odoo_notify_secret_path: str = "adomi-ingest"  # OpenBao KV path holding the token
     odoo_notify_token_key: str = "token"  # key within that path
 
