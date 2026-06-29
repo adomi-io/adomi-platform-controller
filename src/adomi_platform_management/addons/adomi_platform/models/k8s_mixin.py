@@ -226,38 +226,85 @@ class K8sMixin(models.AbstractModel):
             rec._k8s_apply_obj(obj)
         return True
 
+    # --- reverse sync: discover + import CRs FROM the cluster ---
+    def _k8s_import_vals(self, obj):
+        """Odoo field values from a CR object — the reverse of ``_k8s_spec``.
+
+        Return None to skip (model not importable, or a required parent hasn't been
+        imported yet). Concrete models that should be discoverable from the cluster
+        override this.
+        """
+        return None
+
+    @api.model
+    def _adomi_import_one(self, obj):
+        """Upsert the Odoo record for one CR (best-effort, never pushes back).
+
+        A missing record is created from the CR spec so Odoo reflects resources made
+        outside the portal (git / kubectl); an existing record gets only a status
+        refresh, so a live status push never clobbers Odoo-side intent.
+        """
+        name = (obj.get("metadata") or {}).get("name")
+        if not name:
+            return False
+        rec = self.search([("k8s_name", "=", name)], limit=1)
+        if not rec:
+            vals = self._k8s_import_vals(obj)
+            if vals is None:
+                return False  # not importable, or a parent isn't there yet
+            vals["k8s_name"] = name
+            rec = self.with_context(adomi_no_push=True).create(vals)
+        rec._k8s_apply_obj(obj or {})
+        return rec
+
+    @api.model
+    def _adomi_import_kind(self):
+        """Discover + import every CR of this model's kind, cluster-wide."""
+        if not self._k8s_plural:
+            return 0
+        count = 0
+        for obj in k8s.list_(self._k8s_plural):
+            try:
+                if self._adomi_import_one(obj):
+                    count += 1
+            except Exception as exc:  # noqa: BLE001 - one bad CR shouldn't stop the sweep
+                _logger.warning("Adomi import skipped a %s: %s", self._k8s_plural, exc)
+        return count
+
     @api.model
     def ingest_status(self, k8s_name, obj):
         """Apply a status push from the platform controller (matched by k8s_name).
 
-        Called by the ingest HTTP endpoint when a CR's status changes, so the
-        portal reflects live state without polling. Status-only; never pushes back.
-        Returns True if a matching record was found and updated.
+        Upserts: an unknown resource (created in git / kubectl outside the portal) is
+        imported so Odoo stays reflective; a known one gets a status refresh. Never
+        pushes back. Returns True if a record was matched or created.
         """
-        rec = self.search([("k8s_name", "=", k8s_name)], limit=1)
-        if rec:
-            rec._k8s_apply_obj(obj or {})
-        return bool(rec)
+        return bool(self._adomi_import_one(obj or {}))
 
     @api.model
     def cron_sync_all(self):
-        """Cron entry point: refresh status for every synced record across models."""
-        model_names = [
+        """Cron + manual entry point: discover and import every platform resource
+        from the cluster. New CRs become Odoo records; known ones get a status
+        refresh. Processed in dependency order so parent references resolve.
+        """
+        order = [
             "adomi.organization",
+            "adomi.application.type",
             "adomi.client",
             "adomi.workspace",
             "adomi.database.server",
-            "adomi.application.type",
             "adomi.application",
             "adomi.git.repository",
             "adomi.snapshot",
         ]
-        for model_name in model_names:
+        for model_name in order:
             model = self.env.get(model_name)
             if model is None:
                 continue
-            for rec in model.search([]):
-                rec._k8s_refresh_quiet()
+            try:
+                model._adomi_import_kind()
+            except Exception as exc:  # noqa: BLE001
+                _logger.warning("Adomi cluster sync failed for %s: %s", model_name, exc)
         return True
 
     # --- ORM overrides ---

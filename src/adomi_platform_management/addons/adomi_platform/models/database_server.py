@@ -114,6 +114,33 @@ class DatabaseServer(models.Model):
             "host": (obj.get("status") or {}).get("host") or False,
         }
 
+    def _k8s_import_vals(self, obj):
+        spec = obj.get("spec") or {}
+        cnpg = spec.get("cnpg") or {}
+        ext = spec.get("external") or {}
+        admin = spec.get("admin") or {}
+        env_ref = (spec.get("environmentRef") or {}).get("name")
+        environment = (
+            self.env["adomi.workspace"].search([("k8s_name", "=", env_ref)], limit=1)
+            if env_ref
+            else self.env["adomi.workspace"]
+        )
+        return {
+            "name": (obj.get("metadata") or {}).get("name"),
+            "engine": spec.get("engine") or "postgres",
+            "mode": spec.get("mode") or "cnpg",
+            "cnpg_storage": cnpg.get("storage") or False,
+            "cnpg_storage_class": cnpg.get("storageClass") or False,
+            "cnpg_instances": cnpg.get("instances") or 1,
+            "external_host": ext.get("host") or False,
+            "external_port": ext.get("port") or 5432,
+            "external_ssl_mode": ext.get("sslMode") or False,
+            "admin_user": admin.get("user") or False,
+            "admin_openbao_path": admin.get("openbaoPath") or False,
+            "environment_id": environment.id or False,
+            "client_id": environment.client_id.id if environment else False,
+        }
+
     @api.onchange("client_id")
     def _onchange_client_scope_environment(self):
         # Keep the environment within the selected customer.

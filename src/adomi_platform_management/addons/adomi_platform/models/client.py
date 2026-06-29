@@ -76,6 +76,20 @@ class Client(models.Model):
 
         return spec
 
+    def _k8s_import_vals(self, obj):
+        spec = obj.get("spec") or {}
+        org_ref = (spec.get("organizationRef") or {}).get("name")
+        org = (
+            self.env["adomi.organization"].search([("k8s_name", "=", org_ref)], limit=1)
+            if org_ref
+            else self.env["adomi.organization"]
+        )
+        return {
+            "name": spec.get("displayName") or (obj.get("metadata") or {}).get("name"),
+            "slug": spec.get("slug") or False,
+            "organization_id": org.id or False,
+        }
+
     # --- customer-centric onboarding shortcuts ---
     def action_open_deploy_wizard(self):
         """Launch the guided deploy flow pre-scoped to this customer."""

@@ -44,3 +44,19 @@ class Workspace(models.Model):
         return {
             "namespace": (obj.get("status") or {}).get("namespace") or False,
         }
+
+    def _k8s_import_vals(self, obj):
+        spec = obj.get("spec") or {}
+        client_ref = (spec.get("clientRef") or {}).get("name")
+        client = (
+            self.env["adomi.client"].search([("k8s_name", "=", client_ref)], limit=1)
+            if client_ref
+            else self.env["adomi.client"]
+        )
+        if not client:
+            return None  # the customer must be imported first
+        return {
+            "name": spec.get("displayName") or (obj.get("metadata") or {}).get("name"),
+            "client_id": client.id,
+            "workspace_class": spec.get("class") or "development",
+        }

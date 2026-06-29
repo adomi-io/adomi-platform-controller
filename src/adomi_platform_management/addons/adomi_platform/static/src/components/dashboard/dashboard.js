@@ -21,6 +21,7 @@ export class AdomiDashboard extends Component {
         this.action = useService("action");
         this.state = useState({
             loading: true,
+            syncing: false,
             stats: {customers: 0, appsTotal: 0, appsReady: 0, dbServers: 0, environments: 0},
             steps: [],
             allDone: false,
@@ -146,6 +147,17 @@ export class AdomiDashboard extends Component {
 
     open(xmlid) {
         this.action.doAction(xmlid);
+    }
+
+    async syncCluster() {
+        // Discover + import everything from the cluster, then refresh the tiles.
+        this.state.syncing = true;
+        try {
+            await this.orm.call("adomi.application", "cron_sync_all", []);
+            await this.load();
+        } finally {
+            this.state.syncing = false;
+        }
     }
 }
 

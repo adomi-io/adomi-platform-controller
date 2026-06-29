@@ -2,9 +2,15 @@
 <templates xml:space="preserve">
     <t t-name="adomi_platform.Dashboard">
         <div class="o_adomi_dashboard p-4">
-            <div class="o_adomi_hero mb-4">
-                <h1 class="mb-1">Adomi Platform</h1>
-                <p class="text-muted mb-0">Your control center for customers, applications and infrastructure.</p>
+            <div class="o_adomi_hero mb-4 d-flex justify-content-between align-items-start">
+                <div>
+                    <h1 class="mb-1">Adomi Platform</h1>
+                    <p class="text-muted mb-0">Your control center for customers, applications and infrastructure.</p>
+                </div>
+                <button class="btn btn-outline-secondary" t-on-click="() => this.syncCluster()" t-att-disabled="state.syncing">
+                    <i t-att-class="'fa me-1 ' + (state.syncing ? 'fa-circle-o-notch fa-spin' : 'fa-refresh')"/>
+                    <t t-esc="state.syncing ? 'Syncing…' : 'Sync from cluster'"/>
+                </button>
             </div>
 
             <t t-if="state.loading">

@@ -34,3 +34,12 @@ class Organization(models.Model):
             spec["ingress"] = {"className": self.ingress_class}
 
         return spec
+
+    def _k8s_import_vals(self, obj):
+        spec = obj.get("spec") or {}
+        return {
+            "name": (obj.get("metadata") or {}).get("name"),
+            "base_domain": (spec.get("domain") or {}).get("base") or False,
+            "odoo_image_repository": (spec.get("images") or {}).get("odooRepository") or False,
+            "ingress_class": (spec.get("ingress") or {}).get("className") or "traefik",
+        }

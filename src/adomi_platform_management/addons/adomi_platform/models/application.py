@@ -121,6 +121,82 @@ class Application(models.Model):
             "namespace": status.get("namespace") or False,
         }
 
+    def _k8s_import_vals(self, obj):
+        spec = obj.get("spec") or {}
+
+        ws_ref = (spec.get("workspaceRef") or {}).get("name")
+        workspace = (
+            self.env["adomi.workspace"].search([("k8s_name", "=", ws_ref)], limit=1)
+            if ws_ref
+            else self.env["adomi.workspace"]
+        )
+        if not workspace:
+            return None  # the workspace must be imported first
+
+        type_ref = spec.get("type")
+        app_type = (
+            self.env["adomi.application.type"].search([("k8s_name", "=", type_ref)], limit=1)
+            if type_ref
+            else self.env["adomi.application.type"]
+        )
+        if not app_type:
+            return None  # type is required — import the catalog first
+
+        vals = {
+            "name": (obj.get("metadata") or {}).get("name"),
+            "workspace_id": workspace.id,
+            "type_id": app_type.id,
+            "replicas": spec.get("replicas") or 1,
+            "hostname": (spec.get("ingress") or {}).get("host") or False,
+        }
+
+        vals["database_ids"] = [
+            (0, 0, {
+                "name": d.get("name"),
+                "server_name": d.get("server") or False,
+                "database_name": d.get("databaseName") or False,
+                "user": d.get("user") or False,
+                "secret": (d.get("credentials") or {}).get("secret") or False,
+            })
+            for d in spec.get("databases") or []
+        ]
+
+        vals["sso_ids"] = [
+            (0, 0, {
+                "name": s.get("name"),
+                "protocol": s.get("protocol") or "oauth2",
+                "redirect_uris": "\n".join(s.get("redirectUris") or []) or False,
+                "secret": (s.get("credentials") or {}).get("secret") or False,
+            })
+            for s in spec.get("sso") or []
+        ]
+
+        vals["env_ids"] = [
+            (0, 0, {
+                "name": e.get("name"),
+                "value": e.get("value") or False,
+                "secret_name": ((e.get("valueFrom") or {}).get("secretKeyRef") or {}).get("name")
+                or False,
+                "secret_key": ((e.get("valueFrom") or {}).get("secretKeyRef") or {}).get("key")
+                or False,
+            })
+            for e in spec.get("env") or []
+        ]
+
+        values = spec.get("values")
+        if values:
+            vals["values"] = json.dumps(values, indent=2)
+
+        source = spec.get("source") or {}
+        repo_ref = (source.get("repositoryRef") or {}).get("name")
+        if repo_ref:
+            repo = self.env["adomi.git.repository"].search([("k8s_name", "=", repo_ref)], limit=1)
+            if repo:
+                vals["git_repository_id"] = repo.id
+            vals["source_ref"] = source.get("ref") or False
+
+        return vals
+
     # --- observability hooks ---
     def _obs_argocd_app(self):
         self.ensure_one()

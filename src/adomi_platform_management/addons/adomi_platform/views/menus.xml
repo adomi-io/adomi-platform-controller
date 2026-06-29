@@ -43,6 +43,8 @@
     <menuitem id="menu_adomi_config" name="Configuration" parent="menu_adomi_root" sequence="90"/>
     <menuitem id="menu_adomi_github_accounts" name="GitHub"
               parent="menu_adomi_config" action="action_adomi_github_app" sequence="5"/>
+    <menuitem id="menu_adomi_sync_cluster" name="Sync from cluster"
+              parent="menu_adomi_config" action="action_adomi_sync_cluster" sequence="8"/>
     <menuitem id="menu_adomi_organizations" name="Organizations"
               parent="menu_adomi_config" action="action_adomi_organization" sequence="10"/>
 </odoo>

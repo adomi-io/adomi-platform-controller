@@ -57,6 +57,21 @@ class ApplicationType(models.Model):
 
         return spec
 
+    def _k8s_import_vals(self, obj):
+        spec = obj.get("spec") or {}
+        chart = spec.get("chart") or {}
+        return {
+            "name": spec.get("displayName") or (obj.get("metadata") or {}).get("name"),
+            "adapter": spec.get("adapter") or "generic",
+            "chart_repo_url": chart.get("repoURL") or False,
+            "chart_name": chart.get("chart") or False,
+            "chart_path": chart.get("path") or False,
+            "chart_target_revision": chart.get("targetRevision") or False,
+            "database_required": bool((spec.get("database") or {}).get("required")),
+            "sso_protocol": (spec.get("sso") or {}).get("protocol") or False,
+            "provides": ",".join(spec.get("provides") or []) or False,
+        }
+
     @api.model
     def action_import_types(self):
         """Pull the cluster's ApplicationType catalog into Odoo (idempotent)."""
