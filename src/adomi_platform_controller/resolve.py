@@ -102,10 +102,6 @@ class Effective:
     ingress_class_name: str
     longpolling: bool
 
-    sso_enabled: bool
-    sso_protocol: str
-    sso_redirect_paths: list[str]
-
     type_defaults: dict
 
     # Odoo image resolution (used by the odoo adapter / build pipeline).
@@ -221,11 +217,9 @@ def compute(
     org_ingress = org.get("ingress") or {}
 
     app_ingress = app_spec.get("ingress") or {}
-    app_sso = app_spec.get("sso") or {}
     odoo = app_spec.get("odoo") or {}
 
     type_chart = type_spec.get("chart") or {}
-    type_sso = type_spec.get("sso") or {}
     type_ingress = type_spec.get("ingress") or {}
 
     client_slug = _slug(client_spec, client_name)
@@ -264,9 +258,6 @@ def compute(
             app_ingress.get("className") or org_ingress.get("className") or DEFAULT_INGRESS_CLASS
         ),
         longpolling=bool(type_ingress.get("longpolling")),
-        sso_enabled=bool(app_sso.get("enabled", True)) and bool(type_sso.get("enabled")),
-        sso_protocol=type_sso.get("protocol") or "",
-        sso_redirect_paths=list(type_sso.get("redirectPaths") or []),
         type_defaults=type_spec.get("defaultValues") or {},
         image_repository=image_repository,
         image_tag=image_tag,

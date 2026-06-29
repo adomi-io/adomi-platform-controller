@@ -44,15 +44,12 @@ def test_compute_defaults():
     assert eff.url == "https://odoo-production-acme.adomi.io"
     assert eff.chart_path == "charts/odoo"
     assert eff.longpolling is True
-    assert eff.sso_enabled is True
-    assert eff.sso_protocol == "proxy"
     assert eff.type_defaults == {"odoo": {"logLevel": "info"}}
 
 
-def test_compute_host_override_and_sso_disable():
-    eff = _eff(app={"ingress": {"host": "odoo.acme.com"}, "sso": {"enabled": False}})
+def test_compute_host_override():
+    eff = _eff(app={"ingress": {"host": "odoo.acme.com"}})
     assert eff.hostname == "odoo.acme.com"
-    assert eff.sso_enabled is False
 
 
 def test_helpers():
