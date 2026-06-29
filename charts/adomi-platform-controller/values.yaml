@@ -112,7 +112,7 @@ platform:
   # polling. Empty url disables the push. The bearer token is read from OpenBao at
   # secretPath/tokenKey and must match the portal's ADOMI_INGEST_TOKEN.
   odooNotify:
-    url: ""  # e.g. http://adomi-platform-management-odoo.adomi-platform-management.svc.cluster.local:8069
+    url: ""  # e.g. http://adomi-platform-management.adomi-platform-management.svc.cluster.local:8069
     secretPath: adomi-ingest
     tokenKey: token
 

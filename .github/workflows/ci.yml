@@ -47,10 +47,10 @@ jobs:
             context: .
             platforms: linux/amd64,linux/arm64
           # Odoo image: its base (odoo-community-base) is amd64-only, so build amd64.
-          - image: adomi-platform-management-odoo
-            dockerfile: src/adomi-platform-management-odoo/Dockerfile
+          - image: adomi-platform-management
+            dockerfile: src/adomi_platform_management/Dockerfile
             chart: charts/adomi-platform-management/Chart.yaml
-            context: src/adomi-platform-management-odoo
+            context: src/adomi_platform_management
             platforms: linux/amd64
     steps:
       - uses: actions/checkout@v4

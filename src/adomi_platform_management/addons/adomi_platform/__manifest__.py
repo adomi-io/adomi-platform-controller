@@ -14,7 +14,7 @@ the primary portal for running the platform.
 """,
     "category": "Services/Platform",
     "author": "Adomi Software, LLC",
-    "website": "https://github.com/adomi-io/adomi-platform-management-odoo",
+    "website": "https://github.com/adomi-io/adomi-platform-controller",
     "depends": ["base", "mail", "web", "bus", "auth_oidc"],
     "external_dependencies": {"python": ["kubernetes", "jwt"]},
     "post_init_hook": "post_init_hook",

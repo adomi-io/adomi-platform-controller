@@ -2,8 +2,8 @@ apiVersion: v2
 name: adomi-platform-management
 description: |
   Versioning anchor for the Adomi platform management portal image
-  (ghcr.io/adomi-io/adomi-platform-management-odoo). The portal source lives in
-  this monorepo under src/adomi-platform-management-odoo (an Odoo project with the
+  (ghcr.io/adomi-io/adomi-platform-management). The portal source lives in
+  this monorepo under src/adomi_platform_management (an Odoo project with the
   adomi_platform addon). CI tags the image from this chart's appVersion.
 
   The portal is DEPLOYED by the platform itself: the kubernetes-provisioner renders
@@ -11,7 +11,7 @@ description: |
   our own resources — a CloudNativePG database, OpenBao-delivered secrets, an
   Authentik SSOApplication, and the platform API as the git write-backend.
 type: application
-# Chart version tracks this packaging; appVersion is the management-odoo image tag.
+# Chart version tracks this packaging; appVersion is the management image tag.
 version: 0.1.0
 appVersion: "0.1.0"
 home: https://github.com/adomi-io/adomi-platform-controller

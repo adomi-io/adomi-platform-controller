@@ -137,7 +137,7 @@ class K8sMixin(models.AbstractModel):
         meta = {"name": self.k8s_name}
         if not self._k8s_cluster_scoped:
             meta["namespace"] = self._k8s_namespace()
-        meta["labels"] = {"app.kubernetes.io/managed-by": "adomi-platform-management-odoo"}
+        meta["labels"] = {"app.kubernetes.io/managed-by": "adomi-platform-management"}
         return {
             "apiVersion": "%s/%s" % (k8s.GROUP, k8s.VERSION),
             "kind": self._k8s_kind,

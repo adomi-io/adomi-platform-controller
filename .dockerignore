@@ -9,9 +9,9 @@ deploy
 docs
 examples
 tests
-# The management portal is its own image (built from src/adomi-platform-management-odoo
+# The management portal is its own image (built from src/adomi_platform_management
 # with its own Dockerfile); keep it out of the operator/API image build context.
-src/adomi-platform-management-odoo
+src/adomi_platform_management
 **/__pycache__
 *.pyc
 *.pyo

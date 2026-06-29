@@ -118,7 +118,7 @@ System Parameters) to edit records without pushing.
 
 ## In-cluster deployment
 
-The image is `ghcr.io/adomi-io/adomi-platform-management-odoo`. When deployed onto the
+The image is `ghcr.io/adomi-io/adomi-platform-management`. When deployed onto the
 platform it needs a ServiceAccount bound to a ClusterRole that can read/write the
 `platform.adomi.io` resources (same verbs the controller's UI used). See
 `deploy/rbac.example.yaml`.
