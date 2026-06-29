@@ -66,6 +66,15 @@ class ResUsers(models.Model):
         if internal:
             add |= internal
 
+        # A platform user is an INTERNAL user, never portal/public. Those three
+        # "user type" groups are mutually exclusive, but a raw write of the internal
+        # group does NOT drop portal/public (auto-assigned on OAuth signup), so remove
+        # them explicitly — otherwise portal record rules block normal record access.
+        for xmlid in ("base.group_portal", "base.group_public"):
+            g = self.env.ref(xmlid, raise_if_not_found=False)
+            if g:
+                remove |= g
+
         system = self.env.ref("base.group_system", raise_if_not_found=False)
 
         if system:

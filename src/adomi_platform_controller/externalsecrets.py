@@ -35,9 +35,19 @@ class ExternalSecret(CustomResource):
     # Maps each target Secret data key to the OpenBao property to read for it (e.g.
     # {"password": "password"} for a database role credential).
     data_map: dict[str, str] = field(default_factory=dict)
+    # Extra non-secret keys to write into the SAME target Secret (literals, e.g. a
+    # database host/port/user/dbname). Delivered via the ESO target template so a
+    # consumer can wire every connection field from one Secret — the fetched secret
+    # values are carried through automatically.
+    template_data: dict[str, str] = field(default_factory=dict)
     refresh_interval: str = "1h"
     labels: dict[str, str] = field(default_factory=dict)
     owner_references: list[dict] = field(default_factory=list)
+
+    def _fetched_keys(self) -> list[str]:
+        if self.data_map:
+            return list(self.data_map.keys())
+        return [self.client_id_key, self.client_secret_key]
 
     def _data(self) -> list[dict]:
         """The ExternalSecret ``data`` entries (custom data_map, else OAuth pair)."""
@@ -69,6 +79,16 @@ class ExternalSecret(CustomResource):
         if self.owner_references:
             metadata["ownerReferences"] = self.owner_references
 
+        target: dict = {"name": secret_name, "creationPolicy": "Owner"}
+
+        if self.template_data:
+            # With a template the rendered output IS the Secret, so carry the fetched
+            # keys through ({{ .<key> }}) alongside the static connection metadata.
+            template = dict(self.template_data)
+            for key in self._fetched_keys():
+                template.setdefault(key, "{{ .%s }}" % key)
+            target["template"] = {"engine": "v2", "data": template}
+
         return {
             "apiVersion": f"{self.group}/{self.version}",
             "kind": "ExternalSecret",
@@ -76,7 +96,7 @@ class ExternalSecret(CustomResource):
             "spec": {
                 "refreshInterval": self.refresh_interval,
                 "secretStoreRef": {"kind": "ClusterSecretStore", "name": self.store_name},
-                "target": {"name": secret_name, "creationPolicy": "Owner"},
+                "target": target,
                 "data": self._data(),
             },
         }

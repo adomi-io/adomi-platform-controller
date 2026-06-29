@@ -195,6 +195,19 @@ class DatabaseReconciler(Reconciler):
                     store_name=cfg.cluster_secret_store,
                     remote_path=path,
                     data_map={password_key: "password"},
+                    # Publish the full connection into the same Secret so the workload
+                    # wires it from there (valueFrom) instead of hardcoding the host —
+                    # which depends on where the server landed. Separate keys for apps
+                    # that take host/user/..., plus a ready `url` for the many apps that
+                    # take a single DATABASE_URL (password rendered by the ESO template).
+                    template_data={
+                        "host": server_host,
+                        "port": str(server_port),
+                        "dbname": database_name,
+                        "user": user,
+                        "url": "postgresql://%s:{{ .%s }}@%s:%s/%s"
+                        % (user, password_key, server_host, server_port, database_name),
+                    },
                     labels=labels,
                 ).apply()
             except Exception as exc:  # noqa: BLE001
