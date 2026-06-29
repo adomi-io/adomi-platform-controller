@@ -40,12 +40,12 @@ jobs:
             dockerfile: Dockerfile
             chart: charts/adomi-platform-controller/Chart.yaml
             context: .
-            platforms: linux/amd64,linux/arm64
+            platforms: linux/amd64  # TEMP: arm64 disabled to speed CI (restore linux/amd64,linux/arm64)
           - image: adomi-platform-api
             dockerfile: Dockerfile.api
             chart: charts/adomi-platform-api/Chart.yaml
             context: .
-            platforms: linux/amd64,linux/arm64
+            platforms: linux/amd64  # TEMP: arm64 disabled to speed CI (restore linux/amd64,linux/arm64)
           # Odoo image: its base (odoo-community-base) is amd64-only, so build amd64.
           - image: adomi-platform-management
             dockerfile: src/adomi_platform_management/Dockerfile

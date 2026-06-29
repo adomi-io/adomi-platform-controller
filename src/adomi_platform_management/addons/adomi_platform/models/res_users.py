@@ -77,7 +77,8 @@ class ResUsers(models.Model):
         commands = [(4, g.id) for g in add] + [(3, g.id) for g in remove]
 
         if commands:
-            user.sudo().write({"groups_id": commands})
+            # Odoo 19 renamed the user-groups m2m from `groups_id` to `group_ids`.
+            user.sudo().write({"group_ids": commands})
 
         _logger.info(
             "Adomi: synced OIDC roles for %s (admin=%s)", login, admin_group_name in claim
