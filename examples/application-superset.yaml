@@ -1,6 +1,9 @@
-# A Superset Application with native OIDC (oauth2) SSO and its own database. To use
-# Odoo's database as a Superset data source, point Superset's env at Odoo's database
-# Secret + host explicitly (a capability reference) — no runtime matchmaking.
+# A Superset Application with native OIDC (oauth2) SSO and its own metadata database.
+# Provision ("spin it up") and connect ("hook it up") are separate and FULLY explicit:
+# the databases/sso lists emit capability CRs whose credentials land in the named
+# Secrets; the workload reads its connection ONLY from env. Nothing is inferred.
+# To use another app's database as a Superset data source, point Superset's env at
+# that database's Secret + host explicitly — no runtime matchmaking.
 apiVersion: platform.adomi.io/v1alpha1
 kind: Application
 metadata:
@@ -11,20 +14,59 @@ spec:
     name: production
   type: superset
   databases:
-    - name: main
-      server: acme-prod-db
+    - name: meta
+      server: acme-prod-db          # a standalone DatabaseServer (cnpg or external)
+      databaseName: superset
+      user: superset
       credentials:
-        secret: superset-main-db
+        secret: superset-meta-db
   sso:
     - name: web
       protocol: oauth2
+      redirectUris:
+        - https://superset-production-acme.example.com/oauth-authorized/authentik
       credentials:
-        secret: superset-oidc
+        secret: superset-oidc        # client-id/client-secret delivered here
   env:
-    - name: DB_HOST
-      value: main-rw.acme-production.svc.cluster.local
-    - name: DB_PASS
+    # --- metadata database (references the provisioned Secret) ---
+    - name: DATABASE_HOST
+      value: meta-rw.acme-production.svc.cluster.local
+    - name: DATABASE_PORT
+      value: "5432"
+    - name: DATABASE_USER
+      value: superset
+    - name: DATABASE_DB
+      value: superset
+    - name: DATABASE_PASSWORD
       valueFrom:
         secretKeyRef:
-          name: superset-main-db
+          name: superset-meta-db
           key: password
+    # --- app secrets / admin bootstrap ---
+    - name: SUPERSET_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: superset-secret
+          key: secret-key
+    - name: SUPERSET_ADMIN_USERNAME
+      value: admin
+    - name: SUPERSET_ADMIN_EMAIL
+      value: admin@example.com
+    - name: SUPERSET_ADMIN_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: superset-admin
+          key: password
+    # --- optional: wire the SSOApplication creds into Superset's OAuth ---
+    - name: SUPERSET_OAUTH_CLIENT_ID
+      valueFrom:
+        secretKeyRef:
+          name: superset-oidc
+          key: client-id
+    - name: SUPERSET_OAUTH_CLIENT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: superset-oidc
+          key: client-secret
+    - name: SUPERSET_OAUTH_METADATA_URL
+      value: https://auth.example.com/application/o/superset/.well-known/openid-configuration
