@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_adomi_root" name="Adomi Platform"
+              groups="base.group_user" sequence="20"/>
+
+    <!-- Customers (kanban) is the landing page: the platform is organised around
+         the end customer, with apps deployed under each. The root menu auto-opens
+         its first leaf, so this must come before the Deploy wizard (a dialog). -->
+    <menuitem id="menu_adomi_clients" name="Customers"
+              parent="menu_adomi_root" action="action_adomi_client" sequence="10"/>
+    <menuitem id="menu_adomi_deploy" name="Deploy Application"
+              parent="menu_adomi_root" action="action_adomi_deploy_wizard" sequence="15"/>
+    <menuitem id="menu_adomi_applications" name="Applications"
+              parent="menu_adomi_root" action="action_adomi_application" sequence="20"/>
+    <menuitem id="menu_adomi_workspaces" name="Workspaces"
+              parent="menu_adomi_root" action="action_adomi_workspace" sequence="30"/>
+    <menuitem id="menu_adomi_snapshots" name="Snapshots"
+              parent="menu_adomi_root" action="action_adomi_snapshot" sequence="40"/>
+
+    <!-- Infrastructure: the shared capability resources customers' apps attach to. -->
+    <menuitem id="menu_adomi_infrastructure" name="Infrastructure"
+              parent="menu_adomi_root" sequence="45"/>
+    <menuitem id="menu_adomi_database_servers" name="Database Servers"
+              parent="menu_adomi_infrastructure" action="action_adomi_database_server" sequence="10"/>
+
+    <!-- Sources -->
+    <menuitem id="menu_adomi_sources" name="Sources" parent="menu_adomi_root" sequence="50"/>
+    <menuitem id="menu_adomi_git_repositories" name="Git Repositories"
+              parent="menu_adomi_sources" action="action_adomi_git_repository" sequence="10"/>
+
+    <!-- Catalog -->
+    <menuitem id="menu_adomi_catalog" name="Catalog" parent="menu_adomi_root" sequence="60"/>
+    <menuitem id="menu_adomi_application_types" name="Application Types"
+              parent="menu_adomi_catalog" action="action_adomi_application_type" sequence="10"/>
+    <menuitem id="menu_adomi_import_types" name="Import from cluster"
+              parent="menu_adomi_catalog" action="action_import_application_types" sequence="20"/>
+
+    <!-- Configuration -->
+    <menuitem id="menu_adomi_config" name="Configuration" parent="menu_adomi_root" sequence="90"/>
+    <menuitem id="menu_adomi_github_accounts" name="GitHub"
+              parent="menu_adomi_config" action="action_adomi_github_app" sequence="5"/>
+    <menuitem id="menu_adomi_organizations" name="Organizations"
+              parent="menu_adomi_config" action="action_adomi_organization" sequence="10"/>
+</odoo>

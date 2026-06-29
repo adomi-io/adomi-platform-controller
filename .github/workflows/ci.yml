@@ -28,9 +28,10 @@ jobs:
     permissions:
       contents: read
       packages: write
-    # Both images build from this one repo (the control plane): the operator
-    # (default Dockerfile) and the front-door API (Dockerfile.api). Each is tagged
-    # from its OWN chart's appVersion, since the two charts version independently.
+    # Every image builds from this one repo (the control plane): the operator
+    # (default Dockerfile), the front-door API (Dockerfile.api), and the management
+    # portal (an Odoo project under src/). Each is tagged from its OWN chart's
+    # appVersion, since the charts version independently.
     strategy:
       fail-fast: false
       matrix:
@@ -38,9 +39,15 @@ jobs:
           - image: adomi-platform-controller
             dockerfile: Dockerfile
             chart: charts/adomi-platform-controller/Chart.yaml
+            context: .
           - image: adomi-platform-api
             dockerfile: Dockerfile.api
             chart: charts/adomi-platform-api/Chart.yaml
+            context: .
+          - image: adomi-platform-management-odoo
+            dockerfile: src/adomi-platform-management-odoo/Dockerfile
+            chart: charts/adomi-platform-management/Chart.yaml
+            context: src/adomi-platform-management-odoo
     steps:
       - uses: actions/checkout@v4
 
@@ -80,7 +87,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}

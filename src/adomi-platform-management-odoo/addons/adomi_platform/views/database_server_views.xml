@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_adomi_database_server_list" model="ir.ui.view">
+        <field name="name">adomi.database.server.list</field>
+        <field name="model">adomi.database.server</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="k8s_name"/>
+                <field name="client_id"/>
+                <field name="environment_id"/>
+                <field name="mode"/>
+                <field name="host"/>
+                <field name="k8s_state" widget="badge"
+                       decoration-success="k8s_state == 'ready'"
+                       decoration-danger="k8s_state == 'not_ready'"
+                       decoration-warning="k8s_state == 'pending'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_adomi_database_server_form" model="ir.ui.view">
+        <field name="name">adomi.database.server.form</field>
+        <field name="model">adomi.database.server</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_k8s_sync" type="object" string="Sync from cluster"
+                            class="btn-secondary"/>
+                    <field name="k8s_state" widget="statusbar"
+                           statusbar_visible="pending,ready"/>
+                </header>
+                <sheet>
+                    <field name="id" widget="adomi_bus_listener" nolabel="1"/>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="e.g. acme-prod-db"/></h1>
+                    </div>
+                    <group>
+                        <group string="Scope">
+                            <field name="k8s_name"/>
+                            <field name="client_id"/>
+                            <field name="environment_id"
+                                   domain="[('client_id', '=', client_id)]"/>
+                        </group>
+                        <group string="Server">
+                            <field name="engine"/>
+                            <field name="mode" widget="radio"/>
+                        </group>
+                    </group>
+                    <group string="CloudNativePG" invisible="mode != 'cnpg'">
+                        <field name="cnpg_storage"/>
+                        <field name="cnpg_storage_class" placeholder="(cluster default)"/>
+                        <field name="cnpg_instances"/>
+                    </group>
+                    <group string="External server" invisible="mode != 'external'">
+                        <field name="external_host"/>
+                        <field name="external_port"/>
+                        <field name="external_ssl_mode"/>
+                    </group>
+                    <group string="Admin credentials">
+                        <field name="admin_user" placeholder="(engine default)"/>
+                        <field name="admin_openbao_path" placeholder="(derived)"/>
+                    </group>
+                    <group string="Status">
+                        <field name="host" readonly="1"/>
+                        <field name="k8s_message" readonly="1"/>
+                        <field name="k8s_last_sync" readonly="1"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_adomi_database_server_search" model="ir.ui.view">
+        <field name="name">adomi.database.server.search</field>
+        <field name="model">adomi.database.server</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="client_id"/>
+                <field name="environment_id"/>
+                <filter name="cnpg" string="In-cluster (CNPG)" domain="[('mode', '=', 'cnpg')]"/>
+                <filter name="external" string="External" domain="[('mode', '=', 'external')]"/>
+                <separator/>
+                <filter name="ready" string="Ready" domain="[('k8s_state', '=', 'ready')]"/>
+                <group>
+                    <filter name="group_client" string="Customer" context="{'group_by': 'client_id'}"/>
+                    <filter name="group_mode" string="Mode" context="{'group_by': 'mode'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_adomi_database_server" model="ir.actions.act_window">
+        <field name="name">Database Servers</field>
+        <field name="res_model">adomi.database.server</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Create a database server</p>
+            <p>A standalone PostgreSQL server (in-cluster CloudNativePG or an external
+               managed server) that your applications attach databases to.</p>
+        </field>
+    </record>
+</odoo>

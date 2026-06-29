@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_adomi_application_list" model="ir.ui.view">
+        <field name="name">adomi.application.list</field>
+        <field name="model">adomi.application</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="client_id"/>
+                <field name="type_id"/>
+                <field name="workspace_id"/>
+                <field name="phase"/>
+                <field name="url" widget="url"/>
+                <field name="k8s_state" widget="badge"
+                       decoration-success="k8s_state == 'ready'"
+                       decoration-danger="k8s_state == 'not_ready'"
+                       decoration-warning="k8s_state == 'pending'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_adomi_application_kanban" model="ir.ui.view">
+        <field name="name">adomi.application.kanban</field>
+        <field name="model">adomi.application</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="client_id">
+                <field name="name"/>
+                <field name="k8s_state"/>
+                <field name="client_id"/>
+                <field name="type_id"/>
+                <field name="workspace_id"/>
+                <field name="phase"/>
+                <field name="url"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="d-flex flex-column gap-1 p-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong t-esc="record.name.value"/>
+                                <field name="k8s_state" widget="badge"
+                                       decoration-success="k8s_state == 'ready'"
+                                       decoration-danger="k8s_state == 'not_ready'"
+                                       decoration-warning="k8s_state == 'pending'"/>
+                            </div>
+                            <div class="text-muted small">
+                                <field name="type_id"/>
+                                <t t-if="record.workspace_id.value"> · <t t-esc="record.workspace_id.value"/></t>
+                                <t t-if="record.phase.value"> · <t t-esc="record.phase.value"/></t>
+                            </div>
+                            <div t-if="record.url.value">
+                                <a t-att-href="record.url.value" target="_blank" t-esc="record.url.value"/>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_adomi_application_form" model="ir.ui.view">
+        <field name="name">adomi.application.form</field>
+        <field name="model">adomi.application</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_k8s_sync" type="object" string="Sync from cluster" class="btn-secondary"/>
+                    <field name="k8s_state" widget="statusbar" statusbar_visible="pending,ready"/>
+                </header>
+                <sheet>
+                    <field name="id" widget="adomi_bus_listener" nolabel="1"/>
+                    <!-- Deep links to the related platform services. -->
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" icon="fa-external-link" type="object"
+                                name="action_open_app" invisible="not link_app_url">
+                            <div class="o_stat_info"><span class="o_stat_text">Open app</span></div>
+                        </button>
+                        <button class="oe_stat_button" icon="fa-rocket" type="object"
+                                name="action_open_argocd" invisible="not link_argocd_url">
+                            <div class="o_stat_info"><span class="o_stat_text">Argo CD</span></div>
+                        </button>
+                        <button class="oe_stat_button" icon="fa-area-chart" type="object"
+                                name="action_open_grafana" invisible="not link_grafana_url">
+                            <div class="o_stat_info"><span class="o_stat_text">Metrics</span></div>
+                        </button>
+                        <button class="oe_stat_button" icon="fa-file-text-o" type="object"
+                                name="action_open_logs" invisible="not link_logs_url">
+                            <div class="o_stat_info"><span class="o_stat_text">Logs</span></div>
+                        </button>
+                        <button class="oe_stat_button" icon="fa-cubes" type="object"
+                                name="action_open_harbor" invisible="not link_harbor_url">
+                            <div class="o_stat_info"><span class="o_stat_text">Registry</span></div>
+                        </button>
+                    </div>
+                    <field name="link_app_url" invisible="1"/>
+                    <field name="link_argocd_url" invisible="1"/>
+                    <field name="link_grafana_url" invisible="1"/>
+                    <field name="link_logs_url" invisible="1"/>
+                    <field name="link_harbor_url" invisible="1"/>
+
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Application name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Deployment">
+                            <field name="client_id" readonly="1"/>
+                            <field name="workspace_id"/>
+                            <field name="type_id"/>
+                            <field name="replicas"/>
+                            <field name="hostname"/>
+                        </group>
+                        <group string="Status">
+                            <field name="url" widget="url" readonly="1"/>
+                            <field name="phase" readonly="1"/>
+                            <field name="namespace" readonly="1"/>
+                            <field name="k8s_last_sync" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Capabilities">
+                            <separator string="Provision — spin it up"/>
+                            <p class="text-muted">
+                                Each database / SSO entry makes the chart emit a capability CR;
+                                the controller delivers credentials to the Secret you name.
+                            </p>
+                            <field name="database_ids" string="Databases">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                    <field name="server_id"/>
+                                    <field name="server_name" optional="hide"/>
+                                    <field name="database_name"/>
+                                    <field name="user"/>
+                                    <field name="secret"/>
+                                </list>
+                            </field>
+                            <field name="sso_ids" string="SSO">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                    <field name="protocol"/>
+                                    <field name="redirect_uris"/>
+                                    <field name="secret"/>
+                                </list>
+                            </field>
+                            <separator string="Connect — hook it up (env)"/>
+                            <p class="text-muted">
+                                The workload reads only env. Reference the Secrets the
+                                provision side delivered. Nothing is inferred.
+                            </p>
+                            <field name="env_ids">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                    <field name="value"/>
+                                    <field name="secret_name"/>
+                                    <field name="secret_key"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Observability">
+                            <field name="namespace" widget="adomi_observability" nolabel="1" class="w-100"/>
+                        </page>
+                        <page string="Build from source">
+                            <group>
+                                <field name="git_repository_id"/>
+                                <field name="source_ref"/>
+                            </group>
+                        </page>
+                        <page string="Advanced">
+                            <group>
+                                <group string="Chart values">
+                                    <field name="values" nolabel="1" colspan="2"
+                                           placeholder="Extra chart values (YAML or JSON), merged last."/>
+                                </group>
+                                <group string="Cluster">
+                                    <field name="k8s_name"/>
+                                    <field name="k8s_message" readonly="1"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_adomi_application_search" model="ir.ui.view">
+        <field name="name">adomi.application.search</field>
+        <field name="model">adomi.application</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="client_id"/>
+                <field name="workspace_id"/>
+                <field name="type_id"/>
+                <filter name="ready" string="Healthy" domain="[('k8s_state', '=', 'ready')]"/>
+                <filter name="not_ready" string="Degraded" domain="[('k8s_state', '=', 'not_ready')]"/>
+                <filter name="pending" string="Provisioning" domain="[('k8s_state', '=', 'pending')]"/>
+                <separator/>
+                <group>
+                    <filter name="group_client" string="Customer" context="{'group_by': 'client_id'}"/>
+                    <filter name="group_workspace" string="Workspace" context="{'group_by': 'workspace_id'}"/>
+                    <filter name="group_type" string="Type" context="{'group_by': 'type_id'}"/>
+                    <filter name="group_state" string="Status" context="{'group_by': 'k8s_state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_adomi_application" model="ir.actions.act_window">
+        <field name="name">Applications</field>
+        <field name="res_model">adomi.application</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="search_view_id" ref="view_adomi_application_search"/>
+    </record>
+</odoo>

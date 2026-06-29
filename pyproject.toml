@@ -52,10 +52,16 @@ Source = "https://github.com/adomi-io/adomi-platform-controller"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+# Only the control-plane packages. The management portal (an Odoo project that
+# lives under src/adomi-platform-management-odoo for the monorepo build) is not a
+# Python package of this project and must not be picked up by setuptools.
+include = ["adomi_platform_api*", "adomi_platform_controller*", "adomi_platform_schema*"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# The bundled Odoo project follows Odoo's own conventions; don't lint it here.
+extend-exclude = ["src/adomi-platform-management-odoo"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

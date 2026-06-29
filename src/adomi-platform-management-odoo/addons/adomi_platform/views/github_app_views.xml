@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================ GitHub App ============================ -->
+    <record id="view_adomi_github_app_form" model="ir.ui.view">
+        <field name="name">adomi.github.app.form</field>
+        <field name="model">adomi.github.app</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_start_manifest" type="object"
+                            string="Set up GitHub App" class="btn-primary"
+                            invisible="state not in ('draft', 'error')"/>
+                    <button name="action_install" type="object"
+                            string="Install on an organization" class="btn-primary"
+                            invisible="state == 'draft'"/>
+                    <button name="action_sync_installations" type="object"
+                            string="Sync installations" class="btn-secondary"
+                            invisible="state == 'draft'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,created,installed"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Installed" bg_color="text-bg-success"
+                            invisible="state != 'installed'"/>
+                    <widget name="web_ribbon" title="Error" bg_color="text-bg-danger"
+                            invisible="state != 'error'"/>
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" icon="fa-github" type="object"
+                                name="action_view_installations">
+                            <field name="installation_count" widget="statinfo" string="Installations"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="e.g. Acme Deploy"/></h1>
+                    </div>
+
+                    <div class="alert alert-info" role="status" invisible="state != 'draft'">
+                        <p class="mb-1"><strong>One-time setup</strong></p>
+                        <p class="mb-0">
+                            Press <strong>Set up GitHub App</strong>. You'll be sent to GitHub to
+                            create an app (pre-configured with the right permissions and webhook),
+                            then back here to install it on your organization. Make sure the portal
+                            URL (<em>web.base.url</em>) is reachable from GitHub.
+                        </p>
+                    </div>
+                    <div class="alert alert-success" role="status" invisible="state != 'created'">
+                        <p class="mb-0">App created. Now press
+                           <strong>Install on an organization</strong> to choose the org and repos.</p>
+                    </div>
+
+                    <group>
+                        <group string="App">
+                            <field name="app_id" readonly="1"/>
+                            <field name="slug" readonly="1"/>
+                            <field name="owner_login" readonly="1"/>
+                            <field name="html_url" widget="url" readonly="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group string="Credentials" groups="base.group_system">
+                            <field name="client_id" password="True"/>
+                            <field name="client_secret" password="True"/>
+                            <field name="webhook_secret" password="True"/>
+                            <field name="private_key" password="True"
+                                   placeholder="-----BEGIN RSA PRIVATE KEY-----"/>
+                        </group>
+                    </group>
+                    <field name="last_error" readonly="1" invisible="not last_error"/>
+
+                    <notebook>
+                        <page string="Installations">
+                            <field name="installation_ids">
+                                <list>
+                                    <field name="account_login"/>
+                                    <field name="account_type"/>
+                                    <field name="repository_selection"/>
+                                    <field name="state" widget="badge"
+                                           decoration-success="state == 'active'"
+                                           decoration-danger="state == 'suspended'"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_adomi_github_app_list" model="ir.ui.view">
+        <field name="name">adomi.github.app.list</field>
+        <field name="model">adomi.github.app</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="owner_login"/>
+                <field name="installation_count"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'installed'"
+                       decoration-info="state == 'created'"
+                       decoration-danger="state == 'error'"
+                       decoration-muted="state == 'draft'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_adomi_github_app" model="ir.actions.act_window">
+        <field name="name">GitHub</field>
+        <field name="res_model">adomi.github.app</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Set up your GitHub App</p>
+            <p>Create the GitHub App this portal deploys through, then install it on
+               the organization that owns your customers' repositories.</p>
+        </field>
+    </record>
+
+    <!-- ========================= GitHub Installation ========================= -->
+    <record id="view_adomi_github_installation_form" model="ir.ui.view">
+        <field name="name">adomi.github.installation.form</field>
+        <field name="model">adomi.github.installation</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_view_repos" type="object" string="View repositories"
+                            class="btn-secondary"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="account_login" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="app_id"/>
+                            <field name="installation_id" readonly="1"/>
+                            <field name="account_type" readonly="1"/>
+                            <field name="repository_selection" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="state"/>
+                            <field name="html_url" widget="url" readonly="1"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_adomi_github_installation_list" model="ir.ui.view">
+        <field name="name">adomi.github.installation.list</field>
+        <field name="model">adomi.github.installation</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="account_login"/>
+                <field name="app_id"/>
+                <field name="account_type"/>
+                <field name="repository_selection"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'active'"
+                       decoration-danger="state == 'suspended'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_adomi_github_installation" model="ir.actions.act_window">
+        <field name="name">Installations</field>
+        <field name="res_model">adomi.github.installation</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

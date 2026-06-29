@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="adomi_platform.AppCatalog" owl="1">
+        <div class="o_adomi_catalog w-100">
+            <div t-if="state.loading" class="text-muted small">Loading catalog…</div>
+            <div t-elif="!state.types.length" class="text-muted small">
+                No application types yet — import them under Catalog ▸ Import from cluster.
+            </div>
+            <div t-else="" class="row g-2">
+                <div t-foreach="state.types" t-as="type" t-key="type.id" class="col-6 col-lg-4">
+                    <div class="o_adomi_catalog_card border rounded p-2 h-100"
+                         t-att-class="{'border-primary bg-light shadow-sm': isSelected(type)}"
+                         style="cursor: pointer;"
+                         t-on-click="() => this.select(type)">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fa fa-2x text-primary" t-att-class="iconFor(type)"/>
+                            <div class="flex-grow-1">
+                                <div class="fw-bold text-truncate" t-esc="type.name"/>
+                                <div class="text-muted small text-truncate" t-esc="type.adapter"/>
+                            </div>
+                            <i t-if="isSelected(type)" class="fa fa-check-circle text-primary"/>
+                        </div>
+                        <div class="mt-2 d-flex flex-wrap gap-1">
+                            <span t-if="type.database_required" class="badge text-bg-light border">
+                                <i class="fa fa-database me-1"/>Database
+                            </span>
+                            <span t-if="type.sso_protocol" class="badge text-bg-light border">
+                                <i class="fa fa-lock me-1"/>SSO
+                            </span>
+                            <span t-foreach="providesFor(type)" t-as="cap" t-key="cap"
+                                  class="badge text-bg-light border" t-esc="cap"/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

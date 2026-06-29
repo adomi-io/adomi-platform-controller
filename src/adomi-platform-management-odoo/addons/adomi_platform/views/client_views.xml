@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_adomi_client_list" model="ir.ui.view">
+        <field name="name">adomi.client.list</field>
+        <field name="model">adomi.client</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="k8s_name"/>
+                <field name="partner_id"/>
+                <field name="organization_id"/>
+                <field name="workspace_count" string="Workspaces"/>
+                <field name="application_count" string="Apps"/>
+                <field name="health" widget="badge"
+                       decoration-success="health == 'ok'"
+                       decoration-warning="health == 'pending'"
+                       decoration-danger="health == 'degraded'"
+                       decoration-muted="health == 'empty'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Customer-first estate overview: each card is a customer with its app
+         health, counts, and a one-click "Deploy app" action. -->
+    <record id="view_adomi_client_kanban" model="ir.ui.view">
+        <field name="name">adomi.client.kanban</field>
+        <field name="model">adomi.client</field>
+        <field name="arch" type="xml">
+            <kanban>
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="workspace_count"/>
+                <field name="application_count"/>
+                <field name="application_ready_count"/>
+                <field name="health"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="d-flex flex-column gap-2 p-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong class="fs-5" t-esc="record.name.value"/>
+                                    <div class="text-muted small" t-if="record.partner_id.value"
+                                         t-esc="record.partner_id.value"/>
+                                </div>
+                                <span class="badge"
+                                      t-att-class="{
+                                          'text-bg-success': record.health.raw_value == 'ok',
+                                          'text-bg-warning': record.health.raw_value == 'pending',
+                                          'text-bg-danger': record.health.raw_value == 'degraded',
+                                          'text-bg-light border': record.health.raw_value == 'empty'}"
+                                      t-esc="record.health.value"/>
+                            </div>
+                            <div class="d-flex gap-3 text-muted small">
+                                <span>
+                                    <i class="fa fa-cubes me-1"/>
+                                    <t t-esc="record.application_ready_count.value"/>/<t t-esc="record.application_count.value"/> apps
+                                </span>
+                                <span>
+                                    <i class="fa fa-folder-o me-1"/>
+                                    <t t-esc="record.workspace_count.value"/> workspaces
+                                </span>
+                            </div>
+                            <div class="d-flex gap-2 mt-1">
+                                <button type="object" name="action_open_deploy_wizard"
+                                        class="btn btn-sm btn-primary">
+                                    <i class="fa fa-rocket me-1"/>Deploy app
+                                </button>
+                                <button type="object" name="action_view_applications"
+                                        class="btn btn-sm btn-secondary"
+                                        t-if="record.application_count.value">
+                                    View apps
+                                </button>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_adomi_client_form" model="ir.ui.view">
+        <field name="name">adomi.client.form</field>
+        <field name="model">adomi.client</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_open_deploy_wizard" type="object"
+                            string="Deploy Application" class="btn-primary"/>
+                    <button name="action_k8s_sync" type="object" string="Sync from cluster" class="btn-secondary"/>
+                    <field name="k8s_state" widget="statusbar" statusbar_visible="pending,ready"/>
+                </header>
+                <sheet>
+                    <field name="id" widget="adomi_bus_listener" nolabel="1"/>
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" icon="fa-cubes" type="object"
+                                name="action_view_applications">
+                            <field name="application_count" widget="statinfo" string="Applications"/>
+                        </button>
+                        <button class="oe_stat_button" icon="fa-folder-o" type="object"
+                                name="action_view_workspaces">
+                            <field name="workspace_count" widget="statinfo" string="Workspaces"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Customer name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="partner_id"/>
+                            <field name="organization_id"/>
+                            <field name="health" widget="badge"
+                                   decoration-success="health == 'ok'"
+                                   decoration-warning="health == 'pending'"
+                                   decoration-danger="health == 'degraded'"
+                                   decoration-muted="health == 'empty'"/>
+                        </group>
+                        <group>
+                            <field name="k8s_name"/>
+                            <field name="slug"/>
+                            <field name="k8s_last_sync" readonly="1"/>
+                            <field name="k8s_message" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Applications" name="applications">
+                            <field name="application_ids" mode="kanban" readonly="1"
+                                   context="{'default_client_id': id}">
+                                <kanban>
+                                    <field name="name"/>
+                                    <field name="type_id"/>
+                                    <field name="workspace_id"/>
+                                    <field name="phase"/>
+                                    <field name="url"/>
+                                    <field name="k8s_state"/>
+                                    <templates>
+                                        <t t-name="card">
+                                            <div class="d-flex flex-column gap-1 p-2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <strong t-esc="record.name.value"/>
+                                                    <span class="badge"
+                                                          t-att-class="{
+                                                              'text-bg-success': record.k8s_state.raw_value == 'ready',
+                                                              'text-bg-danger': record.k8s_state.raw_value == 'not_ready',
+                                                              'text-bg-warning': record.k8s_state.raw_value == 'pending'}"
+                                                          t-esc="record.k8s_state.value"/>
+                                                </div>
+                                                <div class="text-muted small">
+                                                    <field name="type_id"/>
+                                                    <t t-if="record.phase.value"> · <t t-esc="record.phase.value"/></t>
+                                                </div>
+                                                <div t-if="record.url.value">
+                                                    <a t-att-href="record.url.value" target="_blank"
+                                                       t-esc="record.url.value"/>
+                                                </div>
+                                            </div>
+                                        </t>
+                                    </templates>
+                                </kanban>
+                            </field>
+                        </page>
+                        <page string="Workspaces" name="workspaces">
+                            <field name="workspace_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="workspace_class"/>
+                                    <field name="namespace"/>
+                                    <field name="k8s_state" widget="badge"
+                                           decoration-success="k8s_state == 'ready'"
+                                           decoration-danger="k8s_state == 'not_ready'"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_adomi_client" model="ir.actions.act_window">
+        <field name="name">Customers</field>
+        <field name="res_model">adomi.client</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Add your first customer</p>
+            <p>A customer groups the workspaces and applications you run for one
+               end client. Create one, then use <b>Deploy Application</b> to roll out apps.</p>
+        </field>
+    </record>
+</odoo>

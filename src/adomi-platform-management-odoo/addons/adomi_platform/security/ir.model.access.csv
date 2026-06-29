@@ -1,0 +1,17 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_adomi_organization,adomi.organization,model_adomi_organization,base.group_user,1,1,1,1
+access_adomi_github_app_user,adomi.github.app.user,model_adomi_github_app,base.group_user,1,0,0,0
+access_adomi_github_app_admin,adomi.github.app.admin,model_adomi_github_app,base.group_system,1,1,1,1
+access_adomi_github_installation_user,adomi.github.installation.user,model_adomi_github_installation,base.group_user,1,0,0,0
+access_adomi_github_installation_admin,adomi.github.installation.admin,model_adomi_github_installation,base.group_system,1,1,1,1
+access_adomi_client,adomi.client,model_adomi_client,base.group_user,1,1,1,1
+access_adomi_workspace,adomi.workspace,model_adomi_workspace,base.group_user,1,1,1,1
+access_adomi_database_server,adomi.database.server,model_adomi_database_server,base.group_user,1,1,1,1
+access_adomi_application_type,adomi.application.type,model_adomi_application_type,base.group_user,1,1,1,1
+access_adomi_application,adomi.application,model_adomi_application,base.group_user,1,1,1,1
+access_adomi_application_database,adomi.application.database,model_adomi_application_database,base.group_user,1,1,1,1
+access_adomi_application_sso,adomi.application.sso,model_adomi_application_sso,base.group_user,1,1,1,1
+access_adomi_application_env,adomi.application.env,model_adomi_application_env,base.group_user,1,1,1,1
+access_adomi_git_repository,adomi.git.repository,model_adomi_git_repository,base.group_user,1,1,1,1
+access_adomi_snapshot,adomi.snapshot,model_adomi_snapshot,base.group_user,1,1,1,1
+access_adomi_deploy_wizard,adomi.deploy.wizard,model_adomi_deploy_wizard,base.group_user,1,1,1,1

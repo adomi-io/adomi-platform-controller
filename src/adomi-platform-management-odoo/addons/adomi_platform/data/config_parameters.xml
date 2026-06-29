@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="param_namespace" model="ir.config_parameter">
+        <field name="key">adomi_platform.namespace</field>
+        <field name="value">adomi-system</field>
+    </record>
+    <record id="param_sync_enabled" model="ir.config_parameter">
+        <field name="key">adomi_platform.sync_enabled</field>
+        <field name="value">1</field>
+    </record>
+
+    <!-- Write backend for platform records: 'kubernetes' applies CRs straight to the
+         cluster API (legacy / offline dev); 'api' sends each record's intent to the
+         platform API, which commits the CR to the customer's tenant repo in Forgejo
+         (git is the durable source of truth; Argo CD reconciles it). Status still
+         flows back live via /adomi_platform/ingest. The ADOMI_WRITE_BACKEND env var
+         overrides this (the in-cluster deployment sets it to 'api'). -->
+    <record id="param_write_backend" model="ir.config_parameter">
+        <field name="key">adomi_platform.write_backend</field>
+        <field name="value">kubernetes</field>
+    </record>
+    <!-- Platform API endpoint. The bearer token is provided via the
+         ADOMI_PLATFORM_API_TOKEN env var (from a Secret); ADOMI_PLATFORM_API_URL
+         overrides this URL in-cluster. -->
+    <record id="param_api_url" model="ir.config_parameter">
+        <field name="key">adomi_platform.api_url</field>
+        <field name="value">http://adomi-platform-api.adomi-system.svc.cluster.local:8080</field>
+    </record>
+    <record id="param_api_verify_tls" model="ir.config_parameter">
+        <field name="key">adomi_platform.api_verify_tls</field>
+        <field name="value">1</field>
+    </record>
+
+    <!-- Observability backends (in-cluster monitoring services). Deep-link hosts
+         (adomi_platform.{argocd,grafana,harbor}_host) are derived from the
+         Organization base domain unless set here explicitly. -->
+    <record id="param_prometheus_url" model="ir.config_parameter">
+        <field name="key">adomi_platform.prometheus_url</field>
+        <field name="value">http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090</field>
+    </record>
+    <record id="param_loki_url" model="ir.config_parameter">
+        <field name="key">adomi_platform.loki_url</field>
+        <field name="value">http://loki.monitoring.svc.cluster.local:3100</field>
+    </record>
+    <record id="param_argocd_namespace" model="ir.config_parameter">
+        <field name="key">adomi_platform.argocd_namespace</field>
+        <field name="value">argocd</field>
+    </record>
+
+    <!-- Authentik group whose members get Odoo Settings (admin) access on OIDC login.
+         Members of this group are synced into base.group_system; non-members are
+         removed from it (the bootstrap admin is never touched). -->
+    <record id="param_oidc_admin_group" model="ir.config_parameter">
+        <field name="key">adomi_platform.oidc_admin_group</field>
+        <field name="value">Platform Admins</field>
+    </record>
+</odoo>

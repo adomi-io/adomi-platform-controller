@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="adomi_platform.K8sObservability" owl="1">
+        <div class="o_adomi_observability w-100">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <span class="text-muted small">
+                    <t t-if="state.loading">Loading…</t>
+                    <t t-elif="state.error" t-esc="state.error"/>
+                    <t t-else="">Last hour · namespace <t t-esc="state.metrics and state.metrics.namespace"/></t>
+                </span>
+                <button type="button" class="btn btn-sm btn-secondary" t-on-click="() => this.load()">
+                    Refresh
+                </button>
+            </div>
+
+            <div t-if="hasMetrics" class="row g-3 mb-3">
+                <div class="col-12 col-md-6">
+                    <div class="text-muted small">CPU</div>
+                    <div class="fw-bold" t-esc="cpuLatest"/>
+                    <svg t-att-viewBox="'0 0 ' + sparkWidth + ' ' + sparkHeight"
+                         width="100%" t-att-height="sparkHeight" preserveAspectRatio="none"
+                         class="d-block w-100">
+                        <polyline t-att-points="cpuSpark" fill="none" stroke="#017e84"
+                                  stroke-width="2" vector-effect="non-scaling-stroke"/>
+                    </svg>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="text-muted small">Memory</div>
+                    <div class="fw-bold" t-esc="memLatest"/>
+                    <svg t-att-viewBox="'0 0 ' + sparkWidth + ' ' + sparkHeight"
+                         width="100%" t-att-height="sparkHeight" preserveAspectRatio="none"
+                         class="d-block w-100">
+                        <polyline t-att-points="memSpark" fill="none" stroke="#7c4dff"
+                                  stroke-width="2" vector-effect="non-scaling-stroke"/>
+                    </svg>
+                </div>
+            </div>
+            <div t-elif="!state.loading and !state.error" class="text-muted small mb-3">
+                No metrics yet (namespace not deployed, or monitoring unavailable).
+            </div>
+
+            <div class="text-muted small mb-1">Recent logs</div>
+            <div class="o_adomi_logs w-100 border rounded p-2 bg-dark text-light" style="max-height: 320px; overflow:auto; font-family: monospace; font-size: 12px;">
+                <t t-if="state.logs.length">
+                    <div t-foreach="state.logs" t-as="entry" t-key="entry_index" class="text-nowrap">
+                        <span class="text-info" t-esc="formatTs(entry.ts)"/>
+                        <span class="text-warning ms-1" t-if="entry.pod" t-esc="entry.pod"/>
+                        <span class="ms-2" t-esc="entry.line"/>
+                    </div>
+                </t>
+                <t t-else="">
+                    <span class="text-muted">No log lines.</span>
+                </t>
+            </div>
+        </div>
+    </t>
+</templates>

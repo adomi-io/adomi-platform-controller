@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_adomi_organization_list" model="ir.ui.view">
+        <field name="name">adomi.organization.list</field>
+        <field name="model">adomi.organization</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="k8s_name"/>
+                <field name="base_domain"/>
+                <field name="k8s_state" widget="badge"
+                       decoration-success="k8s_state == 'ready'"
+                       decoration-danger="k8s_state == 'not_ready'"
+                       decoration-warning="k8s_state == 'pending'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_adomi_organization_form" model="ir.ui.view">
+        <field name="name">adomi.organization.form</field>
+        <field name="model">adomi.organization</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_k8s_sync" type="object" string="Sync from cluster" class="btn-secondary"/>
+                    <field name="k8s_state" widget="statusbar" statusbar_visible="pending,ready"/>
+                </header>
+                <sheet>
+                    <field name="id" widget="adomi_bus_listener" nolabel="1"/>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="k8s_name"/>
+                            <field name="base_domain"/>
+                            <field name="odoo_image_repository"/>
+                            <field name="ingress_class"/>
+                        </group>
+                        <group>
+                            <field name="k8s_message" readonly="1"/>
+                            <field name="k8s_last_sync" readonly="1"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_adomi_organization" model="ir.actions.act_window">
+        <field name="name">Organizations</field>
+        <field name="res_model">adomi.organization</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

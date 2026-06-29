@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_adomi_application_type_list" model="ir.ui.view">
+        <field name="name">adomi.application.type.list</field>
+        <field name="model">adomi.application.type</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="k8s_name"/>
+                <field name="adapter"/>
+                <field name="database_required"/>
+                <field name="sso_protocol"/>
+                <field name="provides"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_adomi_application_type_form" model="ir.ui.view">
+        <field name="name">adomi.application.type.form</field>
+        <field name="model">adomi.application.type</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_k8s_sync" type="object" string="Sync from cluster" class="btn-secondary"/>
+                    <field name="k8s_state" widget="statusbar" statusbar_visible="pending,ready"/>
+                </header>
+                <sheet>
+                    <field name="id" widget="adomi_bus_listener" nolabel="1"/>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="k8s_name"/>
+                            <field name="adapter"/>
+                            <field name="database_required"/>
+                            <field name="sso_protocol"/>
+                            <field name="provides"/>
+                        </group>
+                        <group string="Chart">
+                            <field name="chart_repo_url"/>
+                            <field name="chart_name"/>
+                            <field name="chart_path"/>
+                            <field name="chart_target_revision"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_adomi_application_type" model="ir.actions.act_window">
+        <field name="name">Application Types</field>
+        <field name="res_model">adomi.application.type</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Import the cluster's ApplicationType catalog into Odoo. -->
+    <record id="action_import_application_types" model="ir.actions.server">
+        <field name="name">Import from cluster</field>
+        <field name="model_id" ref="model_adomi_application_type"/>
+        <field name="state">code</field>
+        <field name="code">
+action = model.action_import_types()
+action = {
+    'type': 'ir.actions.act_window',
+    'res_model': 'adomi.application.type',
+    'view_mode': 'list,form',
+    'target': 'current',
+    'name': 'Application Types',
+}
+        </field>
+    </record>
+</odoo>

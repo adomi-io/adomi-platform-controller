@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_adomi_workspace_list" model="ir.ui.view">
+        <field name="name">adomi.workspace.list</field>
+        <field name="model">adomi.workspace</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="client_id"/>
+                <field name="workspace_class"/>
+                <field name="namespace"/>
+                <field name="k8s_state" widget="badge"
+                       decoration-success="k8s_state == 'ready'"
+                       decoration-danger="k8s_state == 'not_ready'"
+                       decoration-warning="k8s_state == 'pending'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_adomi_workspace_form" model="ir.ui.view">
+        <field name="name">adomi.workspace.form</field>
+        <field name="model">adomi.workspace</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_k8s_sync" type="object" string="Sync from cluster" class="btn-secondary"/>
+                    <field name="k8s_state" widget="statusbar" statusbar_visible="pending,ready"/>
+                </header>
+                <sheet>
+                    <field name="id" widget="adomi_bus_listener" nolabel="1"/>
+                    <!-- Namespace-scoped deep links. -->
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" icon="fa-area-chart" type="object"
+                                name="action_open_grafana" invisible="not link_grafana_url">
+                            <div class="o_stat_info"><span class="o_stat_text">Metrics</span></div>
+                        </button>
+                        <button class="oe_stat_button" icon="fa-file-text-o" type="object"
+                                name="action_open_logs" invisible="not link_logs_url">
+                            <div class="o_stat_info"><span class="o_stat_text">Logs</span></div>
+                        </button>
+                    </div>
+                    <field name="link_grafana_url" invisible="1"/>
+                    <field name="link_logs_url" invisible="1"/>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="k8s_name"/>
+                            <field name="client_id"/>
+                            <field name="workspace_class"/>
+                        </group>
+                        <group>
+                            <field name="namespace" readonly="1"/>
+                            <field name="k8s_message" readonly="1"/>
+                            <field name="k8s_last_sync" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Applications">
+                            <field name="application_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="type_id"/>
+                                    <field name="phase"/>
+                                    <field name="url" widget="url"/>
+                                    <field name="k8s_state" widget="badge"
+                                           decoration-success="k8s_state == 'ready'"
+                                           decoration-danger="k8s_state == 'not_ready'"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Observability">
+                            <field name="namespace" widget="adomi_observability" nolabel="1" class="w-100"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_adomi_workspace" model="ir.actions.act_window">
+        <field name="name">Workspaces</field>
+        <field name="res_model">adomi.workspace</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>
