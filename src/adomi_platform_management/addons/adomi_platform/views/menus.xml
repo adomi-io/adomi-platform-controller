@@ -3,9 +3,13 @@
     <menuitem id="menu_adomi_root" name="Adomi Platform"
               groups="base.group_user" sequence="20"/>
 
-    <!-- Customers (kanban) is the landing page: the platform is organised around
-         the end customer, with apps deployed under each. The root menu auto-opens
-         its first leaf, so this must come before the Deploy wizard (a dialog). -->
+    <!-- Home dashboard is the landing page: the root menu auto-opens its first
+         leaf, so this must have the lowest sequence. -->
+    <menuitem id="menu_adomi_home" name="Home"
+              parent="menu_adomi_root" action="action_adomi_dashboard" sequence="1"/>
+
+    <!-- Customers (kanban): the platform is organised around the end customer,
+         with apps deployed under each. -->
     <menuitem id="menu_adomi_clients" name="Customers"
               parent="menu_adomi_root" action="action_adomi_client" sequence="10"/>
     <menuitem id="menu_adomi_deploy" name="Deploy Application"

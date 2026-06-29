@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The Home dashboard (OWL client action). The menu lives in menus.xml at the
+         top sequence so the root menu auto-opens it as the landing page. -->
+    <record id="action_adomi_dashboard" model="ir.actions.client">
+        <field name="name">Home</field>
+        <field name="tag">adomi_dashboard</field>
+    </record>
+</odoo>

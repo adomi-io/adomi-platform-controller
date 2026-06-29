@@ -22,6 +22,7 @@ the primary portal for running the platform.
         "security/ir.model.access.csv",
         "data/config_parameters.xml",
         "data/ir_cron.xml",
+        "views/dashboard_views.xml",
         "views/github_app_views.xml",
         "views/organization_views.xml",
         "views/client_views.xml",
@@ -36,6 +37,9 @@ the primary portal for running the platform.
     ],
     "assets": {
         "web.assets_backend": [
+            "adomi_platform/static/src/components/dashboard/dashboard.js",
+            "adomi_platform/static/src/components/dashboard/dashboard.xml",
+            "adomi_platform/static/src/components/dashboard/dashboard.scss",
             "adomi_platform/static/src/components/k8s_bus_listener/k8s_bus_listener.js",
             "adomi_platform/static/src/components/k8s_bus_listener/k8s_bus_listener.xml",
             "adomi_platform/static/src/components/k8s_observability/k8s_observability.js",

@@ -26,7 +26,11 @@ APP_PERMISSIONS = {
     "issues": "write",
     "administration": "write",
 }
-APP_EVENTS = ["push", "pull_request", "issues", "installation", "installation_repositories"]
+# Subscribable webhook events for the manifest's default_events. NOTE: `installation`
+# and `installation_repositories` are delivered automatically to every App and are NOT
+# valid default_events (GitHub rejects them) — the webhook handler still receives them
+# regardless, so they don't belong here.
+APP_EVENTS = ["push", "pull_request", "issues"]
 
 
 class GithubApp(models.Model):
