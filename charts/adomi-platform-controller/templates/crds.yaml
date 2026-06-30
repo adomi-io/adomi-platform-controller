@@ -958,6 +958,18 @@ spec:
                     description: Key holding the password in the delivered Secret (default "password").
                     type: string
                 type: object
+              initSql:
+                description: |-
+                  Optional app-specific SQL the provisioning Job runs as the server
+                  admin AFTER creating the database/role, reconnected to the created
+                  database. Use for setup the generic provisioning doesn't cover —
+                  auxiliary roles (e.g. Windmill's windmill_admin / windmill_user) or
+                  extensions (CREATE EXTENSION). Statements run in order and MUST be
+                  idempotent (the Job re-runs whenever this list changes). They run as
+                  the server superuser, so supply them only from trusted charts.
+                items:
+                  type: string
+                type: array
             required:
             - serverRef
             - databaseName

@@ -146,6 +146,7 @@ class DatabaseReconciler(Reconciler):
                 user=user,
                 user_secret=owner_secret,
                 ssl_mode=ssl_mode,
+                init_sql=spec.get("initSql") or [],
                 labels=labels,
             ).apply()
         except Exception as exc:  # noqa: BLE001

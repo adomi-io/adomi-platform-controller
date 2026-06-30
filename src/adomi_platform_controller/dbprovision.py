@@ -14,6 +14,7 @@ The ``build_*`` functions are pure so the SQL and the Job manifest are unit-test
 
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass, field
 
@@ -47,37 +48,49 @@ def validate_identifier(value: str, what: str = "identifier") -> str:
     return value
 
 
-def build_sql(database: str, user: str) -> str:
+def build_sql(database: str, user: str, init_sql: list[str] | None = None) -> str:
     """The idempotent SQL that creates the database, role, and ownership (pure).
 
     ``database`` and ``user`` must already be validated identifiers; they are inlined
     as quoted identifiers. The role password is read from the psql ``pw`` variable
     (set from the environment) so it is never part of this string.
+
+    ``init_sql`` is optional app-specific setup (e.g. auxiliary roles, extensions) the
+    chart declared on the Database. It runs AFTER the base provisioning, reconnected to
+    the just-created database (``\\c``) so it can both create cluster-global roles and
+    touch the database itself. The statements run as the server admin (superuser); the
+    chart author is responsible for making them idempotent.
     """
     validate_identifier(database, "databaseName")
     validate_identifier(user, "user")
 
-    return "\n".join(
-        [
-            # CREATE DATABASE cannot run in a transaction or DO block; \gexec runs the
-            # generated statement only when the database does not already exist.
-            f"SELECT 'CREATE DATABASE \"{database}\"'",
-            f"WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '{database}')\\gexec",
-            "DO $do$",
-            "BEGIN",
-            f"  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{user}') THEN",
-            f'    CREATE ROLE "{user}" LOGIN;',
-            "  END IF;",
-            "END",
-            "$do$;",
-            f"ALTER ROLE \"{user}\" WITH LOGIN PASSWORD :'pw';",
-            f'GRANT ALL PRIVILEGES ON DATABASE "{database}" TO "{user}";',
-            f'ALTER DATABASE "{database}" OWNER TO "{user}";',
-        ]
-    )
+    lines = [
+        # CREATE DATABASE cannot run in a transaction or DO block; \gexec runs the
+        # generated statement only when the database does not already exist.
+        f"SELECT 'CREATE DATABASE \"{database}\"'",
+        f"WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = '{database}')\\gexec",
+        "DO $do$",
+        "BEGIN",
+        f"  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{user}') THEN",
+        f'    CREATE ROLE "{user}" LOGIN;',
+        "  END IF;",
+        "END",
+        "$do$;",
+        f"ALTER ROLE \"{user}\" WITH LOGIN PASSWORD :'pw';",
+        f'GRANT ALL PRIVILEGES ON DATABASE "{database}" TO "{user}";',
+        f'ALTER DATABASE "{database}" OWNER TO "{user}";',
+    ]
+
+    if init_sql:
+        # Reconnect to the created database so init SQL can also install extensions
+        # there; CREATE ROLE / GRANT remain cluster-global regardless of the database.
+        lines.append(f'\\c "{database}"')
+        lines.extend(init_sql)
+
+    return "\n".join(lines)
 
 
-def build_command(database: str, user: str) -> list[str]:
+def build_command(database: str, user: str, init_sql: list[str] | None = None) -> list[str]:
     """The container command (``sh -c``) that pipes the SQL into psql (pure).
 
     The heredoc delimiter is single-quoted so the shell does not expand the SQL body;
@@ -85,7 +98,7 @@ def build_command(database: str, user: str) -> list[str]:
     """
     script = (
         f"psql -v ON_ERROR_STOP=1 -v pw=\"${NEW_PASSWORD_ENV}\" -d postgres <<'EOSQL'\n"
-        f"{build_sql(database, user)}\n"
+        f"{build_sql(database, user, init_sql)}\n"
         "EOSQL"
     )
 
@@ -111,6 +124,9 @@ class ProvisionJob(TypedResource):
     """
 
     MANAGED_BY = "adomi-platform-controller"
+    # Stamps the hash of the provisioning command so apply() can recreate the (otherwise
+    # immutable) Job when the desired SQL changes — e.g. when initSql is edited.
+    HASH_ANNOTATION = "platform.adomi.io/provision-hash"
 
     name: str
     namespace: str  # the server's namespace (cnpg cluster / admin Secret live here)
@@ -125,8 +141,15 @@ class ProvisionJob(TypedResource):
     admin_username_key: str = "username"
     admin_password_key: str = "password"
     ssl_mode: str = ""
+    init_sql: list[str] = field(default_factory=list)
     backoff_limit: int = 4
     labels: dict[str, str] = field(default_factory=dict)
+
+    def _command(self) -> list[str]:
+        return build_command(self.database, self.user, self.init_sql)
+
+    def _hash(self) -> str:
+        return hashlib.sha256(self._command()[-1].encode()).hexdigest()[:16]
 
     @staticmethod
     def _api() -> client.BatchV1Api:
@@ -152,7 +175,7 @@ class ProvisionJob(TypedResource):
         container = client.V1Container(
             name="provision",
             image=self.image,
-            command=build_command(self.database, self.user),
+            command=self._command(),
             env=self._env(),
         )
 
@@ -161,6 +184,7 @@ class ProvisionJob(TypedResource):
                 name=self.name,
                 namespace=self.namespace,
                 labels=meta_labels,
+                annotations={self.HASH_ANNOTATION: self._hash()},
             ),
             spec=client.V1JobSpec(
                 backoff_limit=self.backoff_limit,
@@ -185,14 +209,24 @@ class ProvisionJob(TypedResource):
         return None
 
     def apply(self) -> None:
-        """Create the Job if absent; never patch a Job that already exists."""
+        """Create the Job if absent; recreate it when the provisioning SQL changed.
+
+        Jobs are immutable, so a Job whose stamped hash no longer matches the desired
+        command is deleted; the next reconcile (re)creates it fresh. An unchanged Job is
+        left untouched (so a completed provision is not needlessly re-run)."""
         try:
-            self._read()
+            existing = self._read()
         except ApiException as exc:
             if exc.status != 404:
                 raise
 
             self._create()
+            return
+
+        annotations = (existing.metadata.annotations or {}) if existing.metadata else {}
+
+        if annotations.get(self.HASH_ANNOTATION) != self._hash():
+            self.delete(self.name, self.namespace)
 
     @classmethod
     def read(cls, name: str, namespace: str) -> dict | None:
