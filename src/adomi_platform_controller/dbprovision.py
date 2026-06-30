@@ -31,7 +31,14 @@ _IDENTIFIER = re.compile(r"^[a-z_][a-z0-9_]*$")
 # psql connects with the admin credentials from these env vars (PG* are libpq's).
 ADMIN_USER_ENV = "PGUSER"
 ADMIN_PASSWORD_ENV = "PGPASSWORD"
-NEW_PASSWORD_ENV = "NEW_USER_PASSWORD"  # the role password psql sets via :'pw'
+NEW_PASSWORD_ENV = "NEW_USER_PASSWORD"  # the role password psql reads via \getenv
+
+# The provisioning SQL is delivered as a file (a mounted ConfigMap) and run with
+# ``psql -f`` — never piped through a shell — so no SQL content (dollar-quoting,
+# backticks, etc.) is ever interpolated. These name the mount.
+SQL_VOLUME = "provision-sql"
+SQL_MOUNT_PATH = "/sql"
+SQL_FILENAME = "provision.sql"
 
 
 class InvalidIdentifier(ValueError):
@@ -52,19 +59,25 @@ def build_sql(database: str, user: str, init_sql: list[str] | None = None) -> st
     """The idempotent SQL that creates the database, role, and ownership (pure).
 
     ``database`` and ``user`` must already be validated identifiers; they are inlined
-    as quoted identifiers. The role password is read from the psql ``pw`` variable
-    (set from the environment) so it is never part of this string.
+    as quoted identifiers. The role password is read from the ``NEW_USER_PASSWORD``
+    environment variable into the psql ``pw`` variable via ``\\getenv`` — so it is
+    never part of this string nor of the process arguments.
 
     ``init_sql`` is optional app-specific setup (e.g. auxiliary roles, extensions) the
     chart declared on the Database. It runs AFTER the base provisioning, reconnected to
     the just-created database (``\\c``) so it can both create cluster-global roles and
-    touch the database itself. The statements run as the server admin (superuser); the
-    chart author is responsible for making them idempotent.
+    touch the database itself. Because the whole script is delivered as a file and run
+    with ``psql -f`` (never through a shell), it is safe to use any SQL — including
+    anonymous ``$$`` dollar-quoting. The statements run as the server admin (superuser);
+    the chart author is responsible for making them idempotent.
     """
     validate_identifier(database, "databaseName")
     validate_identifier(user, "user")
 
     lines = [
+        # Read the role password from the environment into :pw without exposing it on
+        # the psql command line (psql 14+).
+        f"\\getenv pw {NEW_PASSWORD_ENV}",
         # CREATE DATABASE cannot run in a transaction or DO block; \gexec runs the
         # generated statement only when the database does not already exist.
         f"SELECT 'CREATE DATABASE \"{database}\"'",
@@ -90,19 +103,20 @@ def build_sql(database: str, user: str, init_sql: list[str] | None = None) -> st
     return "\n".join(lines)
 
 
-def build_command(database: str, user: str, init_sql: list[str] | None = None) -> list[str]:
-    """The container command (``sh -c``) that pipes the SQL into psql (pure).
+def provision_args() -> list[str]:
+    """psql arguments to run the mounted provisioning SQL file (pure).
 
-    The heredoc delimiter is single-quoted so the shell does not expand the SQL body;
-    the role password reaches psql via ``-v pw`` from the environment.
+    The SQL is a file (a mounted ConfigMap), so no shell interpolates it; the role
+    password is read inside the script via ``\\getenv`` rather than passed as an arg.
     """
-    script = (
-        f"psql -v ON_ERROR_STOP=1 -v pw=\"${NEW_PASSWORD_ENV}\" -d postgres <<'EOSQL'\n"
-        f"{build_sql(database, user, init_sql)}\n"
-        "EOSQL"
-    )
-
-    return ["/bin/sh", "-c", script]
+    return [
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-d",
+        "postgres",
+        "-f",
+        f"{SQL_MOUNT_PATH}/{SQL_FILENAME}",
+    ]
 
 
 def _secret_env(name: str, secret: str, key: str) -> client.V1EnvVar:
@@ -137,19 +151,22 @@ class ProvisionJob(TypedResource):
     database: str
     user: str
     user_secret: str  # Secret holding the new role's password
+    sql_configmap: str = ""  # ConfigMap holding the provisioning SQL file
+    init_sql: list[str] = field(default_factory=list)
     user_secret_key: str = "password"
     admin_username_key: str = "username"
     admin_password_key: str = "password"
     ssl_mode: str = ""
-    init_sql: list[str] = field(default_factory=list)
     backoff_limit: int = 4
     labels: dict[str, str] = field(default_factory=dict)
 
-    def _command(self) -> list[str]:
-        return build_command(self.database, self.user, self.init_sql)
+    @property
+    def sql(self) -> str:
+        """The provisioning SQL the Job runs (handler writes this into the ConfigMap)."""
+        return build_sql(self.database, self.user, self.init_sql)
 
     def _hash(self) -> str:
-        return hashlib.sha256(self._command()[-1].encode()).hexdigest()[:16]
+        return hashlib.sha256(self.sql.encode()).hexdigest()[:16]
 
     @staticmethod
     def _api() -> client.BatchV1Api:
@@ -175,8 +192,23 @@ class ProvisionJob(TypedResource):
         container = client.V1Container(
             name="provision",
             image=self.image,
-            command=self._command(),
+            # Run the SQL straight from the mounted file — no shell, so nothing in the
+            # SQL (dollar-quoting, etc.) is ever interpolated.
+            command=["psql"],
+            args=provision_args(),
             env=self._env(),
+            volume_mounts=[
+                client.V1VolumeMount(
+                    name=SQL_VOLUME,
+                    mount_path=SQL_MOUNT_PATH,
+                    read_only=True,
+                ),
+            ],
+        )
+
+        volume = client.V1Volume(
+            name=SQL_VOLUME,
+            config_map=client.V1ConfigMapVolumeSource(name=self.sql_configmap),
         )
 
         return client.V1Job(
@@ -193,6 +225,7 @@ class ProvisionJob(TypedResource):
                     spec=client.V1PodSpec(
                         restart_policy="Never",
                         containers=[container],
+                        volumes=[volume],
                     ),
                 ),
             ),

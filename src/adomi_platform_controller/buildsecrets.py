@@ -127,3 +127,50 @@ class ManagedSecret(TypedResource):
         except ApiException as exc:
             if exc.status != 404:
                 raise
+
+
+@dataclass
+class ManagedConfigMap(TypedResource):
+    """A ConfigMap the controller owns (``apply`` creates or updates it).
+
+    Used for non-secret payloads a Job needs as a file — e.g. the provisioning SQL,
+    mounted and run with ``psql -f`` so no shell ever interpolates the SQL content.
+    """
+
+    MANAGED_BY = "adomi-platform-controller"
+
+    name: str
+    namespace: str
+    data: dict = field(default_factory=dict)
+
+    @staticmethod
+    def _api() -> client.CoreV1Api:
+        return client.CoreV1Api()
+
+    def _body(self) -> client.V1ConfigMap:
+        return client.V1ConfigMap(
+            metadata=client.V1ObjectMeta(
+                name=self.name,
+                namespace=self.namespace,
+                labels={"app.kubernetes.io/managed-by": self.MANAGED_BY},
+            ),
+            data=dict(self.data),
+        )
+
+    def _read(self):
+        return self._api().read_namespaced_config_map(self.name, self.namespace)
+
+    def _create(self):
+        return self._api().create_namespaced_config_map(self.namespace, self._body())
+
+    def _patch(self):
+        self._api().patch_namespaced_config_map(self.name, self.namespace, self._body())
+
+    @classmethod
+    def delete(cls, name: str, namespace: str) -> None:
+        """Delete a managed ConfigMap by name (no-op if already gone)."""
+        try:
+            cls._api().delete_namespaced_config_map(name, namespace)
+        except ApiException as exc:
+            if exc.status != 404:
+                raise

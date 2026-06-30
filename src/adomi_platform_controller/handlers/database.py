@@ -14,7 +14,7 @@ from __future__ import annotations
 import kopf
 
 from .. import conditions, dbprovision, externalsecrets, resolve, secretgen, state
-from ..buildsecrets import ManagedSecret
+from ..buildsecrets import ManagedConfigMap, ManagedSecret
 from ._common import Reconciler, fail
 
 PROVISION_POLL_DELAY = 15  # seconds; requeue while the provisioning Job runs
@@ -35,6 +35,10 @@ class DatabaseReconciler(Reconciler):
     @staticmethod
     def _owner_secret_name(name: str) -> str:
         return f"{name}-owner"[:253]
+
+    @staticmethod
+    def _sql_configmap_name(name: str) -> str:
+        return f"dbprov-{name}-sql"[:253]
 
     def reconcile(self, spec, meta, status, patch, name, namespace, **_) -> None:
         generation = meta.get("generation", 0)
@@ -126,6 +130,7 @@ class DatabaseReconciler(Reconciler):
         # namespace (the canonical copy stays in OpenBao; generate-once keeps it stable).
         owner_secret = self._owner_secret_name(name)
         job_name = self._job_name(name)
+        sql_configmap = self._sql_configmap_name(name)
 
         try:
             ManagedSecret.opaque(
@@ -135,7 +140,7 @@ class DatabaseReconciler(Reconciler):
                 create_only=True,
             ).apply()
 
-            dbprovision.ProvisionJob(
+            job = dbprovision.ProvisionJob(
                 name=job_name,
                 namespace=server_ns,
                 image=cfg.db_provision_image,
@@ -145,10 +150,22 @@ class DatabaseReconciler(Reconciler):
                 database=database_name,
                 user=user,
                 user_secret=owner_secret,
-                ssl_mode=ssl_mode,
+                sql_configmap=sql_configmap,
                 init_sql=spec.get("initSql") or [],
+                ssl_mode=ssl_mode,
                 labels=labels,
+            )
+
+            # The provisioning SQL is delivered as a file the Job mounts and runs with
+            # psql -f (no shell), updated in place when it changes; the Job recreates
+            # itself (hash annotation) to pick up the new file.
+            ManagedConfigMap(
+                sql_configmap,
+                server_ns,
+                {dbprovision.SQL_FILENAME: job.sql},
             ).apply()
+
+            job.apply()
         except Exception as exc:  # noqa: BLE001
             fail(
                 patch,
@@ -255,6 +272,11 @@ class DatabaseReconciler(Reconciler):
             ManagedSecret.delete(self._owner_secret_name(name), ns)
         except Exception as exc:  # noqa: BLE001
             logger.error(f"Failed deleting owner Secret during finalize: {exc}")
+
+        try:
+            ManagedConfigMap.delete(self._sql_configmap_name(name), ns)
+        except Exception as exc:  # noqa: BLE001
+            logger.error(f"Failed deleting provisioning SQL ConfigMap during finalize: {exc}")
 
 
 _reconciler = DatabaseReconciler()
