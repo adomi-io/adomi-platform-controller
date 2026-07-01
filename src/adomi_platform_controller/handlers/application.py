@@ -24,6 +24,7 @@ from .. import (
     dbjobs,
     github,
     namespaces,
+    oidc,
     resolve,
     state,
     workflows,
@@ -37,6 +38,7 @@ BUILD_FAIL_DELAY = 120
 RESTORE_POLL_DELAY = 15
 RESTORE_FAIL_DELAY = 120
 INTEGRATION_DELAY = 20
+SSO_POLL_DELAY = 15
 
 # PR-feedback annotations (set by the preview Sensor).
 ANN_REPO = "platform.adomi.io/repo"
@@ -50,6 +52,52 @@ class ApplicationReconciler(Reconciler):
     @staticmethod
     def _argo_app_name(eff: resolve.Effective) -> str:
         return f"{eff.namespace}-{eff.app_name}"[:63].rstrip("-")
+
+    @staticmethod
+    def _resolve_oidc(cfg, spec, namespace: str) -> tuple[dict, bool]:
+        """Resolve the primary SSOApplication's OIDC descriptor for value injection.
+
+        Returns (descriptor, ready). ready is True (nothing to wait on) unless an
+        oauth2 SSO entry exists whose SSOApplication has not yet published a client-id —
+        then ready is False so the caller requeues. The descriptor is empty until ready
+        so the chart renders without OIDC values on the first pass (which creates the
+        SSOApplication), then with them once Authentik has minted the client.
+        """
+        sso_entries = spec.get("sso") or []
+        primary = sso_entries[0] if sso_entries else None
+
+        if not primary or (primary.get("protocol") or "oauth2") != "oauth2":
+            return {}, True
+
+        secret = (primary.get("credentials") or {}).get("secret")
+        authority = cfg.resolved_authentik_url()
+
+        # Without a delivered Secret or a configured public Authentik URL there is
+        # nothing to inject and nothing to gate on.
+        if not secret or not authority:
+            return {}, True
+
+        try:
+            sso = resolve.get_sso_application(primary["name"], namespace)
+        except resolve.NotFound:
+            return {}, False  # chart hasn't created it yet — requeue
+
+        client_id = (sso.get("status") or {}).get("clientID")
+
+        if not client_id:
+            return {}, False  # created but not reconciled — requeue
+
+        creds = primary.get("credentials") or {}
+        descriptor = oidc.descriptor_values(
+            authority,
+            (sso.get("status") or {}).get("slug") or primary.get("slug") or primary["name"],
+            client_id=client_id,
+            secret=secret,
+            scopes=primary.get("scopes"),
+            client_secret_key=creds.get("clientSecretKey") or "client-secret",
+        )
+
+        return descriptor, True
 
     @staticmethod
     def _git_secret_name(namespace: str) -> str:
@@ -130,6 +178,10 @@ class ApplicationReconciler(Reconciler):
         # the intent onto the chart's value contract — nothing inferred, nothing
         # provisioned inline.
         image = built_image or ""
+        # Resolve the primary SSOApplication's OIDC descriptor (client-id comes from its
+        # published status). Injected as .Values.oidc so charts can wire runtime SSO
+        # config from values; sso_ready is False until Authentik has minted the client.
+        oidc_values, sso_ready = self._resolve_oidc(cfg, spec, eff.namespace)
         values = resolve.deep_merge(
             eff.type_defaults,
             chartvalues.build_chart_values(
@@ -143,6 +195,7 @@ class ApplicationReconciler(Reconciler):
                 databases=spec.get("databases") or [],
                 sso=spec.get("sso") or [],
                 env=spec.get("env") or [],
+                oidc=oidc_values,
             ),
             spec.get("values") or {},
         )
@@ -179,6 +232,19 @@ class ApplicationReconciler(Reconciler):
         self._report_pr(
             cfg, source, meta, namespace, "success", eff.url, "Preview deployed", True, logger
         )
+
+        # The Argo Application (and thus the chart-emitted SSOApplication) is applied; if
+        # SSO isn't fully reconciled yet, requeue so the next pass injects the descriptor
+        # (client-id) into the chart values and wires the app's runtime SSO config.
+        if not sso_ready:
+            fail(
+                patch,
+                status,
+                conditions.REASON_RECONCILING,
+                "waiting for SSO client credentials to wire the application",
+                generation,
+                delay=SSO_POLL_DELAY,
+            )
 
         conditions.mark_ready(patch, status, f"Application {eff.app_name!r} reconciled", generation)
 

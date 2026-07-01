@@ -23,12 +23,19 @@ def build_chart_values(
     databases: list,
     sso: list,
     env: list,
+    oidc: dict | None = None,
 ) -> dict:
     """Map the explicit intent onto the per-app chart's value contract (pure).
 
     Only generic, every-app fields are produced here; app-specific configuration
     (e.g. odoo workers) flows through the Application's free-form ``values`` and the
     chart's own defaults, never through controller code.
+
+    ``oidc`` is the resolved OIDC descriptor (endpoints + client-id + the delivered
+    Secret name) for the app's primary SSOApplication, injected as ``.Values.oidc`` so
+    a chart can wire runtime SSO config (e.g. an operator ConfigMap) from values while
+    still secretKeyRef'ing the client-secret. Omitted until the SSOApplication has
+    published its client-id.
     """
     values: dict = {
         "platform": {"client": client_slug},
@@ -37,6 +44,9 @@ def build_chart_values(
         "sso": list(sso or []),
         "env": list(env or []),
     }
+
+    if oidc:
+        values["oidc"] = dict(oidc)
 
     if image:
         repo, _, tag = image.partition(":")

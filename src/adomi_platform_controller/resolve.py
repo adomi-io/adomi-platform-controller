@@ -34,6 +34,10 @@ PLURAL_DATABASESERVERS = "databaseservers"
 PLURAL_DATABASES = "databases"
 PLURAL_DOMAINS = "domains"
 
+# SSOApplication lives in a different API group (identity, not platform).
+IDENTITY_GROUP = "identity.adomi.io"
+PLURAL_SSOAPPLICATIONS = "ssoapplications"
+
 # Workspace classes.
 CLASS_PREVIEW = "preview"
 CLASS_DEVELOPMENT = "development"
@@ -340,6 +344,21 @@ def get_database_server(name: str, namespace: str) -> dict:
 
 def get_domain(name: str, namespace: str) -> dict:
     return _get_namespaced(PLURAL_DOMAINS, name, namespace)
+
+
+def get_sso_application(name: str, namespace: str) -> dict:
+    """Fetch a namespaced SSOApplication (identity group), or raise NotFound."""
+    api = client.CustomObjectsApi()
+
+    try:
+        return api.get_namespaced_custom_object(
+            IDENTITY_GROUP, VERSION, namespace, PLURAL_SSOAPPLICATIONS, name
+        )
+    except ApiException as exc:
+        if exc.status == 404:
+            raise NotFound(f"SSOApplication {namespace}/{name!r} not found") from exc
+
+        raise
 
 
 def database_endpoint(db_obj: dict) -> DatabaseEndpoint:

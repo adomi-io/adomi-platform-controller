@@ -38,3 +38,38 @@ def descriptor(authority: str, slug: str, scopes: list[str] | None = None) -> di
         "end-session-endpoint": f"{app}/end-session/",
         "scopes": " ".join(scopes or DEFAULT_SCOPES),
     }
+
+
+def descriptor_values(
+    authority: str,
+    slug: str,
+    *,
+    client_id: str,
+    secret: str,
+    scopes: list[str] | None = None,
+    client_secret_key: str = "client-secret",
+) -> dict:
+    """The OIDC descriptor shaped for injection into a chart's Helm values.
+
+    Same metadata as :func:`descriptor` but camelCased (values convention, so charts
+    read ``.Values.oidc.discoveryUrl`` without ``index``), plus the resolved
+    ``clientId`` and the delivered ``secret`` name + key so a chart can ``secretKeyRef``
+    the client-secret. Charts that need runtime config from a ConfigMap (which cannot
+    reference Secret values) render the URLs + clientId from here and secretKeyRef only
+    the client-secret.
+    """
+    d = descriptor(authority, slug, scopes)
+
+    return {
+        "issuer": d["issuer"],
+        "discoveryUrl": d["discovery-url"],
+        "authorizationEndpoint": d["authorization-endpoint"],
+        "tokenEndpoint": d["token-endpoint"],
+        "userinfoEndpoint": d["userinfo-endpoint"],
+        "jwksUri": d["jwks-uri"],
+        "endSessionEndpoint": d["end-session-endpoint"],
+        "scopes": d["scopes"],
+        "clientId": client_id,
+        "secret": secret,
+        "clientSecretKey": client_secret_key,
+    }
