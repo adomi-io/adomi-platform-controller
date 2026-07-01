@@ -44,6 +44,26 @@ class Config:
     authentik_addr: str = "http://authentik-server.authentik.svc.cluster.local"
     authentik_secret_path: str = "authentik"  # OpenBao KV path holding the API token
     authentik_token_key: str = "bootstrap-token"  # key within that path
+    # Public, browser-facing Authentik base URL. The OIDC descriptor the controller
+    # publishes into each SSO Secret (issuer / endpoints) must use this — the id_token
+    # issuer and the browser redirects are the public URL, never the in-cluster addr.
+    # Falls back to https://auth.<baseDomain>.
+    authentik_public_host: str = ""  # e.g. auth.example.com
+
+    def resolved_authentik_url(self) -> str:
+        """The public Authentik base URL (https, no trailing slash) for OIDC discovery."""
+        host = self.authentik_public_host or (
+            f"auth.{self.base_domain}" if self.base_domain else ""
+        )
+
+        if not host:
+            return ""
+
+        if host.startswith(("http://", "https://")):
+            return host.rstrip("/")
+
+        return f"https://{host}"
+
     authorization_flow_slug: str = "default-provider-authorization-implicit-consent"
     invalidation_flow_slug: str = "default-provider-invalidation-flow"
     # Flow proxy providers send un-authenticated users through (forward-auth login).
@@ -167,6 +187,7 @@ class Config:
             authentik_addr=_env("AUTHENTIK_ADDR", d.authentik_addr),
             authentik_secret_path=_env("AUTHENTIK_SECRET_PATH", d.authentik_secret_path),
             authentik_token_key=_env("AUTHENTIK_TOKEN_KEY", d.authentik_token_key),
+            authentik_public_host=_env("AUTHENTIK_PUBLIC_HOST", d.authentik_public_host),
             authorization_flow_slug=_env("AUTHENTIK_AUTHORIZATION_FLOW", d.authorization_flow_slug),
             invalidation_flow_slug=_env("AUTHENTIK_INVALIDATION_FLOW", d.invalidation_flow_slug),
             authentication_flow_slug=_env(

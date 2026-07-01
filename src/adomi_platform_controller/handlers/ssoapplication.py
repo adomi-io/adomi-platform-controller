@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import kopf
 
-from .. import conditions, externalsecrets, secretgen, state
+from .. import conditions, externalsecrets, oidc, secretgen, state
 from ..authentik import ApplicationSpec, OAuth2ProviderSpec, ProxyProviderSpec
 from ._common import Reconciler, fail
 
@@ -166,6 +166,7 @@ class SSOApplicationReconciler(Reconciler):
                         namespace,
                         openbao_path,
                         cfg.cluster_secret_store,
+                        descriptor=self._oidc_descriptor(cfg, slug, spec),
                     )
                 except Exception as exc:  # noqa: BLE001
                     fail(
@@ -351,8 +352,24 @@ class SSOApplicationReconciler(Reconciler):
                         f"Failed deleting Authentik provider {provider_id!r} during finalize: {exc}"
                     )
 
-    def _publish_credentials(self, target, meta, namespace, openbao_path, store) -> None:
-        """Create/update an ExternalSecret delivering the credentials into the target Secret."""
+    @staticmethod
+    def _oidc_descriptor(cfg, slug, spec) -> dict:
+        """The standard OIDC metadata delivered alongside the client credentials.
+
+        Empty when no public Authentik URL is configured — the Secret then carries only
+        client-id/client-secret, exactly as before (backwards compatible)."""
+        authority = cfg.resolved_authentik_url()
+
+        if not authority:
+            return {}
+
+        return oidc.descriptor(authority, slug, spec.get("scopes"))
+
+    def _publish_credentials(
+        self, target, meta, namespace, openbao_path, store, descriptor=None
+    ) -> None:
+        """Create/update an ExternalSecret delivering the credentials + OIDC descriptor
+        into the target Secret, so downstream apps wire everything from one Secret."""
         ns = target.get("namespace") or namespace
 
         # Own the ExternalSecret only when it lives in the SSOApplication's namespace,
@@ -379,6 +396,7 @@ class SSOApplicationReconciler(Reconciler):
             remote_path=openbao_path,
             client_id_key=target.get("clientIDKey") or "client-id",
             client_secret_key=target.get("clientSecretKey") or "client-secret",
+            template_data=descriptor or {},
             labels={"app.kubernetes.io/managed-by": "adomi-platform-controller"},
             owner_references=owner_refs,
         ).apply()

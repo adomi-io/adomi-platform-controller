@@ -83,10 +83,12 @@ class ExternalSecret(CustomResource):
 
         if self.template_data:
             # With a template the rendered output IS the Secret, so carry the fetched
-            # keys through ({{ .<key> }}) alongside the static connection metadata.
+            # keys through alongside the static metadata. Use `index` (not `.<key>`) so
+            # hyphenated keys like client-id work — Go templates read `.client-id` as a
+            # subtraction.
             template = dict(self.template_data)
             for key in self._fetched_keys():
-                template.setdefault(key, "{{ .%s }}" % key)
+                template.setdefault(key, '{{ index . "%s" }}' % key)
             target["template"] = {"engine": "v2", "data": template}
 
         return {
