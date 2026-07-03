@@ -51,11 +51,12 @@ def databaseserver_spec(
     port: int = 5432,
     admin_user: str | None = None,
     admin_openbao_path: str | None = None,
+    ssl_mode: str | None = None,
 ) -> dict:
     spec: dict = {"engine": engine, "mode": mode}
 
     if mode == "external":
-        external = {"host": host, "port": int(port)}
+        external = {"host": host, "port": int(port), "sslMode": ssl_mode}
         spec["external"] = _drop_none(external)
     else:  # cnpg
         cnpg: dict = {"storage": storage, "instances": int(instances)}
@@ -102,11 +103,13 @@ def application_spec(
     *,
     workspace: str,
     type: str,
+    display_name: str | None = None,
     databases: list[dict] | None = None,
     sso: list[dict] | None = None,
     env: list[dict] | None = None,
-    domain: str | None = None,
+    replicas: int | None = None,
     host: str | None = None,
+    values: dict | None = None,
     source: dict | None = None,
 ) -> dict:
     spec: dict = {
@@ -114,16 +117,20 @@ def application_spec(
         "type": type,
     }
 
+    if display_name:
+        spec["displayName"] = display_name
     if databases:
         spec["databases"] = databases
     if sso:
         spec["sso"] = sso
     if env:
         spec["env"] = env
-    if domain:
-        spec["domainRef"] = _ref(domain)
+    if replicas:
+        spec["replicas"] = int(replicas)
     if host:
         spec["ingress"] = {"host": host}
+    if values:
+        spec["values"] = values
 
     if source and source.get("repository"):
         s = {"repositoryRef": _ref(source["repository"])}

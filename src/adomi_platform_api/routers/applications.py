@@ -46,11 +46,13 @@ def put_application(
     spec = specs.application_spec(
         workspace=workspace,
         type=body.type,
+        display_name=body.display_name,
         databases=body.databases,
         sso=body.sso,
         env=body.env,
-        domain=body.domain,
+        replicas=body.replicas,
         host=body.host,
+        values=body.values,
         source=body.source.model_dump() if body.source else None,
     )
 

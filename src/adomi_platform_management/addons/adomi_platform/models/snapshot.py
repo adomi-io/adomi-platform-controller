@@ -20,6 +20,11 @@ class Snapshot(models.Model):
     def _k8s_tenant_slug(self):
         return self.application_id.client_id.k8s_name or False
 
+    def _api_body(self):
+        self.ensure_one()
+
+        return {"application": self.application_id.k8s_name}
+
     def _k8s_spec(self):
         self.ensure_one()
 

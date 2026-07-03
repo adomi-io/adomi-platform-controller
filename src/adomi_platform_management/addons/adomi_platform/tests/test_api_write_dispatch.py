@@ -10,11 +10,11 @@ class _RecordingApi:
         self.upserts = []
         self.deletes = []
 
-    def upsert(self, client, plural, name, spec, labels=None):
-        self.upserts.append({"client": client, "plural": plural, "name": name, "spec": spec})
+    def upsert(self, path, body):
+        self.upserts.append({"path": path, "body": body})
 
-    def delete(self, client, plural, name):
-        self.deletes.append({"client": client, "plural": plural, "name": name})
+    def delete(self, path):
+        self.deletes.append({"path": path})
 
 
 class TestApiWriteDispatch(TransactionCase):
@@ -31,10 +31,8 @@ class TestApiWriteDispatch(TransactionCase):
         self._new_client()
         self.assertEqual(len(self.api.upserts), 1)
         call = self.api.upserts[0]
-        self.assertEqual(call["client"], "acme")     # tenant == client slug
-        self.assertEqual(call["plural"], "clients")
-        self.assertEqual(call["name"], "acme")
-        self.assertEqual(call["spec"]["displayName"], "Acme")
+        self.assertEqual(call["path"], "/v1/clients/acme")  # the client IS the resource
+        self.assertEqual(call["body"], {"display_name": "Acme"})
 
     def test_workspace_routes_to_client_tenant(self):
         client = self._new_client()
@@ -43,12 +41,42 @@ class TestApiWriteDispatch(TransactionCase):
             {"name": "Dev", "k8s_name": "dev", "client_id": client.id, "workspace_class": "development"}
         )
         call = self.api.upserts[-1]
-        self.assertEqual(call["client"], "acme")
-        self.assertEqual(call["plural"], "workspaces")
+        self.assertEqual(call["path"], "/v1/clients/acme/workspaces/dev")
+        self.assertEqual(call["body"], {"display_name": "Dev", "class": "development"})
+
+    def test_application_nests_under_workspace(self):
+        client = self._new_client()
+        workspace = self.env["adomi.workspace"].create(
+            {"name": "Prod", "k8s_name": "prod", "client_id": client.id, "workspace_class": "production"}
+        )
+        app_type = self.env["adomi.application.type"].search([], limit=1)
+        if not app_type:
+            app_type = self.env["adomi.application.type"].with_context(adomi_no_push=True).create(
+                {"name": "Odoo", "k8s_name": "odoo"}
+            )
+        self.api.upserts.clear()
+        self.env["adomi.application"].create(
+            {
+                "name": "ERP",
+                "k8s_name": "erp",
+                "workspace_id": workspace.id,
+                "type_id": app_type.id,
+                "hostname": "erp.acme.example.com",
+                "database_ids": [
+                    (0, 0, {"name": "erp", "server_name": "acme-prod-db", "secret": "erp-db"})
+                ],
+            }
+        )
+        call = self.api.upserts[-1]
+        self.assertEqual(call["path"], "/v1/clients/acme/workspaces/prod/applications/erp")
+        self.assertEqual(call["body"]["type"], "odoo")
+        self.assertEqual(call["body"]["host"], "erp.acme.example.com")
+        self.assertEqual(call["body"]["databases"][0]["server"], "acme-prod-db")
+        self.assertEqual(call["body"]["databases"][0]["credentials"], {"secret": "erp-db"})
 
     def test_unlink_calls_delete(self):
         self._new_client().unlink()
-        self.assertTrue(any(d["plural"] == "clients" and d["name"] == "acme" for d in self.api.deletes))
+        self.assertTrue(any(d["path"] == "/v1/clients/acme" for d in self.api.deletes))
 
     def test_cluster_scoped_stays_on_kubernetes(self):
         # Organization is cluster-scoped / platform-owned: never routed to the API.

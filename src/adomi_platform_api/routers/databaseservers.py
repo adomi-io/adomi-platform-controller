@@ -44,6 +44,7 @@ def put_database_server(
         port=body.port,
         admin_user=body.admin_user,
         admin_openbao_path=body.admin_openbao_path,
+        ssl_mode=body.ssl_mode,
     )
 
     return commit(service, client, PLURAL, name, spec)

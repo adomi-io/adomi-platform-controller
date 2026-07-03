@@ -36,6 +36,9 @@ class DatabaseServerSpec(BaseModel):
     )
     host: str | None = Field(default=None, description="Server host (external).")
     port: int = Field(default=5432, description="Server port (external).")
+    ssl_mode: str | None = Field(
+        default=None, description="SSL mode for the connection, e.g. require (external)."
+    )
     admin_user: str | None = Field(default=None, description="Admin role name (external).")
     admin_openbao_path: str | None = Field(
         default=None, description="OpenBao KV path holding the admin credentials (external)."
@@ -73,6 +76,7 @@ class ApplicationSource(BaseModel):
 
 class ApplicationSpec(BaseModel):
     type: str = Field(description="ApplicationType (catalog) resource name.")
+    display_name: str | None = Field(default=None, description="Human name of the application.")
     databases: list[dict] | None = Field(
         default=None,
         description="Explicit databases to provision: name / server / credentials.secret.",
@@ -85,8 +89,11 @@ class ApplicationSpec(BaseModel):
         default=None,
         description="Explicit workload env (connection wiring); passed through verbatim.",
     )
-    domain: str | None = Field(default=None, description="Domain resource to host this app under.")
+    replicas: int | None = Field(default=None, ge=1, description="Workload replica count.")
     host: str | None = Field(default=None, description="Explicit hostname override.")
+    values: dict | None = Field(
+        default=None, description="Extra chart values merged last; passed through verbatim."
+    )
     source: ApplicationSource | None = None
 
 

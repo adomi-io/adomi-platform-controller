@@ -1,18 +1,21 @@
 """Thin client for the Adomi platform API.
 
 When the addon's write backend is ``api`` (see ``adomi_platform.write_backend``),
-creating/editing a customer-owned record sends its intent (the CR ``spec``) to the
-platform API, which builds the full custom resource and commits it to that customer's
-tenant git repo. The API owns the Forgejo credentials and the repo / namespace / kind
-conventions, so this client is deliberately tiny.
+creating/editing a customer-owned record sends its intent to the platform API, which
+builds the full custom resource and commits it to that customer's tenant git repo.
+The API owns the Forgejo credentials and the repo / namespace / kind conventions.
+
+Each model supplies its own resource path (``_api_path``) and typed request body
+(``_api_body``) matching the API's OpenAPI contract — e.g.
+``PUT /v1/clients/{client}`` with ``{"display_name": ...}``, or
+``PUT /v1/clients/{client}/workspaces/{ws}/applications/{name}`` with
+``{"type": ..., "databases": [...], ...}`` — so this client is deliberately tiny.
 
 Free of any Odoo import so it can be unit-tested with a stub HTTP session. The mixin
 builds a client from config and wraps these calls.
 """
 
 import json
-
-UPSERT_PATH = "/v1/tenants/%s/%s/%s"  # client, plural, name
 
 
 class PlatformApiError(Exception):
@@ -66,13 +69,10 @@ class PlatformApiClient:
 
         return resp
 
-    def upsert(self, client, plural, name, spec, labels=None):
+    def upsert(self, path, body):
         """Create/update a resource by committing its CR to the tenant repo."""
-        body = {"spec": spec or {}}
-        if labels:
-            body["labels"] = labels
-        return self._request("PUT", UPSERT_PATH % (client, plural, name), body)
+        return self._request("PUT", path, body or {})
 
-    def delete(self, client, plural, name):
+    def delete(self, path):
         """Remove a resource's CR from the tenant repo."""
-        return self._request("DELETE", UPSERT_PATH % (client, plural, name))
+        return self._request("DELETE", path)

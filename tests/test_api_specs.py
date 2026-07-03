@@ -20,21 +20,28 @@ def test_workspace_spec_drops_none():
     }
 
 
-def test_application_spec_explicit_databases_env_domain():
+def test_application_spec_explicit_databases_env_ingress():
     spec = specs.application_spec(
         workspace="prod",
         type="odoo",
+        display_name="ERP",
         databases=[
-            {"name": "main", "server": "acme-prod-db", "credentials": {"secret": "odoo-main-db"}}
+            {"name": "erp", "server": "acme-prod-db", "credentials": {"secret": "odoo-erp-db"}}
         ],
-        env=[{"name": "ODOO_DB_HOST", "value": "main-rw.acme-prod.svc.cluster.local"}],
-        domain="acme-com",
+        env=[{"name": "ODOO_DB_HOST", "value": "erp-rw.acme-prod.svc.cluster.local"}],
+        replicas=2,
+        host="erp.acme.example.com",
+        values={"odoo": {"workers": 4}},
     )
     assert spec["workspaceRef"] == {"name": "prod"}
+    assert spec["displayName"] == "ERP"
     assert spec["databases"][0]["server"] == "acme-prod-db"
-    assert spec["databases"][0]["credentials"]["secret"] == "odoo-main-db"
+    assert spec["databases"][0]["credentials"]["secret"] == "odoo-erp-db"
     assert spec["env"][0]["name"] == "ODOO_DB_HOST"
-    assert spec["domainRef"] == {"name": "acme-com"}
+    assert spec["replicas"] == 2
+    assert spec["ingress"] == {"host": "erp.acme.example.com"}
+    assert spec["values"] == {"odoo": {"workers": 4}}
+    assert "domainRef" not in spec  # dropped: the Application CRD has no domainRef
 
 
 def test_application_spec_sso_and_source():
@@ -82,10 +89,11 @@ def test_databaseserver_spec_external():
         port=5433,
         admin_user="postgres",
         admin_openbao_path="databases/acme-rds-admin",
+        ssl_mode="require",
     ) == {
         "engine": "postgres",
         "mode": "external",
-        "external": {"host": "db.example.com", "port": 5433},
+        "external": {"host": "db.example.com", "port": 5433, "sslMode": "require"},
         "admin": {"user": "postgres", "openbaoPath": "databases/acme-rds-admin"},
     }
 

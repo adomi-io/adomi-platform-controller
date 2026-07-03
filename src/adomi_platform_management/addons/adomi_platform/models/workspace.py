@@ -31,6 +31,14 @@ class Workspace(models.Model):
     def _k8s_tenant_slug(self):
         return self.client_id.k8s_name or False
 
+    def _api_body(self):
+        self.ensure_one()
+
+        return {
+            "display_name": self.name,
+            "class": self.workspace_class,
+        }
+
     def _k8s_spec(self):
         self.ensure_one()
 

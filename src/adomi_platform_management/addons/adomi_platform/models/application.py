@@ -59,6 +59,54 @@ class Application(models.Model):
     def _k8s_tenant_slug(self):
         return self.client_id.k8s_name or False
 
+    def _api_path(self):
+        # Applications are nested under their workspace:
+        # PUT /v1/clients/{client}/workspaces/{workspace}/applications/{name}.
+        self.ensure_one()
+        return "/v1/clients/%s/workspaces/%s/applications/%s" % (
+            self._k8s_tenant_slug(),
+            self.workspace_id.k8s_name,
+            self.k8s_name,
+        )
+
+    def _api_body(self):
+        self.ensure_one()
+
+        body = {
+            "type": self.type_id.k8s_name,
+            "display_name": self.name,
+        }
+
+        databases = [d._spec() for d in self.database_ids]
+        if databases:
+            body["databases"] = databases
+
+        sso = [s._spec() for s in self.sso_ids]
+        if sso:
+            body["sso"] = sso
+
+        env = [e._spec() for e in self.env_ids]
+        if env:
+            body["env"] = env
+
+        if self.replicas:
+            body["replicas"] = self.replicas
+
+        if self.hostname:
+            body["host"] = self.hostname
+
+        values = self._parse_values(self.values)
+        if values:
+            body["values"] = values
+
+        if self.git_repository_id:
+            source = {"repository": self.git_repository_id.k8s_name}
+            if self.source_ref:
+                source["ref"] = self.source_ref
+            body["source"] = source
+
+        return body
+
     @api.model
     def _parse_values(self, text):
         text = (text or "").strip()

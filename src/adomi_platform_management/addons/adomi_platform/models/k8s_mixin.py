@@ -98,6 +98,33 @@ class K8sMixin(models.AbstractModel):
         """
         return False
 
+    def _api_path(self):
+        """Platform-API resource path for this record.
+
+        Default: a resource collection under the owning client
+        (``/v1/clients/{client}/{plural}/{name}``). Models with a different shape
+        override this — Client (the client IS the resource) and Application
+        (nested under its workspace).
+        """
+        self.ensure_one()
+        return "/v1/clients/%s/%s/%s" % (
+            self._k8s_tenant_slug(),
+            self._k8s_plural,
+            self.k8s_name,
+        )
+
+    def _api_body(self):
+        """Typed request body for the platform API (its OpenAPI contract).
+
+        Distinct from ``_k8s_spec()``: the API takes request-level intent
+        (snake_case fields, refs from the URL path) and builds the CR spec itself.
+        Every customer-owned model (``_k8s_tenant_slug`` truthy) must implement it.
+        """
+        self.ensure_one()
+        raise NotImplementedError(
+            "%s is routed to the platform API but defines no _api_body()" % self._name
+        )
+
     @api.model
     def _platform_api(self):
         import requests
@@ -117,19 +144,14 @@ class K8sMixin(models.AbstractModel):
         )
 
     def _k8s_api_apply(self):
-        """Send this record's intent (spec) to the platform API, which commits the CR."""
+        """Send this record's intent to the platform API, which commits the CR."""
         self.ensure_one()
-        self._platform_api().upsert(
-            self._k8s_tenant_slug(),
-            self._k8s_plural,
-            self.k8s_name,
-            self._k8s_spec(),
-        )
+        self._platform_api().upsert(self._api_path(), self._api_body())
 
     def _k8s_api_delete(self):
         """Ask the platform API to remove this record's CR from the tenant repo."""
         self.ensure_one()
-        self._platform_api().delete(self._k8s_tenant_slug(), self._k8s_plural, self.k8s_name)
+        self._platform_api().delete(self._api_path())
 
     # --- body / push ---
     def _k8s_body(self):

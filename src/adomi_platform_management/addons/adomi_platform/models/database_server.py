@@ -70,6 +70,36 @@ class DatabaseServer(models.Model):
     def _k8s_tenant_slug(self):
         return self.client_id.k8s_name or False
 
+    def _api_body(self):
+        self.ensure_one()
+
+        body = {"engine": self.engine, "mode": self.mode}
+
+        if self.mode == "cnpg":
+            if self.cnpg_storage:
+                body["storage"] = self.cnpg_storage
+            if self.cnpg_storage_class:
+                body["storage_class"] = self.cnpg_storage_class
+            if self.cnpg_instances:
+                body["instances"] = self.cnpg_instances
+        elif self.mode == "external":
+            if self.external_host:
+                body["host"] = self.external_host
+            if self.external_port:
+                body["port"] = self.external_port
+            if self.external_ssl_mode:
+                body["ssl_mode"] = self.external_ssl_mode
+
+        if self.admin_user:
+            body["admin_user"] = self.admin_user
+        if self.admin_openbao_path:
+            body["admin_openbao_path"] = self.admin_openbao_path
+
+        if self.environment_id:
+            body["environment"] = self.environment_id.k8s_name
+
+        return body
+
     def _k8s_spec(self):
         self.ensure_one()
 

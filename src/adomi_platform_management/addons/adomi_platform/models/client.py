@@ -63,6 +63,24 @@ class Client(models.Model):
     def _k8s_tenant_slug(self):
         return self.k8s_name or False
 
+    def _api_path(self):
+        # The client itself is the resource: PUT /v1/clients/{client}.
+        self.ensure_one()
+        return "/v1/clients/%s" % self.k8s_name
+
+    def _api_body(self):
+        self.ensure_one()
+
+        body = {"display_name": self.name}
+
+        if self.slug:
+            body["slug"] = self.slug
+
+        if self.organization_id:
+            body["organization"] = self.organization_id.k8s_name
+
+        return body
+
     def _k8s_spec(self):
         self.ensure_one()
 

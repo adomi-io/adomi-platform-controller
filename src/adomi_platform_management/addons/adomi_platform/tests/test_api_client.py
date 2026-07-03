@@ -28,24 +28,29 @@ def _client(session, token="t"):
 
 
 class TestPlatformApiClient(unittest.TestCase):
-    def test_upsert_puts_spec(self):
+    def test_upsert_puts_body(self):
         s = _StubSession()
-        _client(s).upsert("acme", "applications", "erp", {"type": "odoo"}, labels={"env": "prod"})
+        _client(s).upsert(
+            "/v1/clients/acme/workspaces/prod/applications/erp",
+            {"type": "odoo", "host": "erp.acme.example.com"},
+        )
         call = s.calls[0]
         self.assertEqual(call["method"], "PUT")
-        self.assertTrue(call["url"].endswith("/v1/tenants/acme/applications/erp"))
-        self.assertEqual(call["body"], {"spec": {"type": "odoo"}, "labels": {"env": "prod"}})
+        self.assertTrue(
+            call["url"].endswith("/v1/clients/acme/workspaces/prod/applications/erp")
+        )
+        self.assertEqual(call["body"], {"type": "odoo", "host": "erp.acme.example.com"})
         self.assertEqual(call["headers"]["Authorization"], "Bearer t")
 
     def test_delete(self):
         s = _StubSession(status=204)
-        _client(s).delete("acme", "clients", "acme")
+        _client(s).delete("/v1/clients/acme")
         self.assertEqual(s.calls[0]["method"], "DELETE")
-        self.assertTrue(s.calls[0]["url"].endswith("/v1/tenants/acme/clients/acme"))
+        self.assertTrue(s.calls[0]["url"].endswith("/v1/clients/acme"))
 
     def test_non_2xx_raises(self):
         with self.assertRaises(api_client.PlatformApiError):
-            _client(_StubSession(status=400)).upsert("acme", "clients", "acme", {})
+            _client(_StubSession(status=400)).upsert("/v1/clients/acme", {})
 
     def test_missing_url_raises(self):
         with self.assertRaises(api_client.PlatformApiError):
@@ -53,7 +58,7 @@ class TestPlatformApiClient(unittest.TestCase):
 
     def test_no_token_omits_header(self):
         s = _StubSession()
-        api_client.PlatformApiClient("https://x", "", s).upsert("a", "clients", "a", {})
+        api_client.PlatformApiClient("https://x", "", s).upsert("/v1/clients/a", {})
         self.assertNotIn("Authorization", s.calls[0]["headers"])
 
 
