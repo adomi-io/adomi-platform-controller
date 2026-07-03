@@ -6,17 +6,17 @@ from collections.abc import Callable
 
 from fastapi import HTTPException, status
 
-from adomi_platform_schema import SchemaError, tenant_namespace
+from adomi_platform_schema import SchemaError, client_namespace
 
 from ..cluster import ClusterError, ClusterReader
 from ..config import Settings
 from ..git import GitError
 from ..models import ResourceStatus, WriteResult
-from ..service import TenantService
+from ..service import ClientService
 
 
 # --- writes (git) ---------------------------------------------------------------
-def commit(service: TenantService, client, plural, name, spec, labels=None) -> WriteResult:
+def commit(service: ClientService, client, plural, name, spec, labels=None) -> WriteResult:
     try:
         return WriteResult(**service.commit(client, plural, name, spec, labels=labels))
     except SchemaError as exc:
@@ -25,7 +25,7 @@ def commit(service: TenantService, client, plural, name, spec, labels=None) -> W
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
 
 
-def remove(service: TenantService, client, plural, name) -> WriteResult:
+def remove(service: ClientService, client, plural, name) -> WriteResult:
     try:
         return WriteResult(**service.remove(client, plural, name))
     except SchemaError as exc:
@@ -35,14 +35,14 @@ def remove(service: TenantService, client, plural, name) -> WriteResult:
 
 
 # --- reads (cluster status) -----------------------------------------------------
-def tenant_ns(settings: Settings, client: str) -> str:
+def client_ns(settings: Settings, client: str) -> str:
     """The namespace a Client's CRs live in (per settings)."""
-    return tenant_namespace(client, settings.tenant_namespace_prefix)
+    return client_namespace(client, settings.client_namespace_prefix)
 
 
 def get_status(reader: ClusterReader, settings: Settings, client, plural, name) -> ResourceStatus:
     try:
-        obj = reader.get(plural, tenant_ns(settings, client), name)
+        obj = reader.get(plural, client_ns(settings, client), name)
     except ClusterError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
 

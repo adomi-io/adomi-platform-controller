@@ -13,7 +13,7 @@ class Organization(models.Model):
 
     name = fields.Char(required=True, tracking=True)
     base_domain = fields.Char(
-        tracking=True, help="Base domain for generated hostnames (<app>.<workspace>.<client>.<base>)."
+        tracking=True, help="Base domain for generated hostnames (<app>.<environment>.<client>.<base>)."
     )
     odoo_image_repository = fields.Char(help="Default Odoo image repository.")
     ingress_class = fields.Char(default="traefik")

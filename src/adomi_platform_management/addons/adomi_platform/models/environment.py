@@ -1,18 +1,18 @@
 from odoo import fields, models
 
 
-class Workspace(models.Model):
-    _name = "adomi.workspace"
-    _description = "Adomi Workspace"
+class Environment(models.Model):
+    _name = "adomi.environment"
+    _description = "Adomi Environment"
     _inherit = ["adomi.k8s.mixin", "adomi.observability.mixin", "mail.thread"]
     _rec_name = "name"
 
-    _k8s_plural = "workspaces"
-    _k8s_kind = "Workspace"
+    _k8s_plural = "environments"
+    _k8s_kind = "Environment"
 
     name = fields.Char(required=True, tracking=True)
     client_id = fields.Many2one("adomi.client", string="Client", required=True, ondelete="cascade")
-    workspace_class = fields.Selection(
+    environment_class = fields.Selection(
         [
             ("production", "Production"),
             ("development", "Development"),
@@ -26,9 +26,9 @@ class Workspace(models.Model):
         tracking=True,
     )
     namespace = fields.Char(string="Namespace", readonly=True, copy=False)
-    application_ids = fields.One2many("adomi.application", "workspace_id", string="Applications")
+    application_ids = fields.One2many("adomi.application", "environment_id", string="Applications")
 
-    def _k8s_tenant_slug(self):
+    def _k8s_client_slug(self):
         return self.client_id.k8s_name or False
 
     def _api_body(self):
@@ -36,7 +36,7 @@ class Workspace(models.Model):
 
         return {
             "display_name": self.name,
-            "class": self.workspace_class,
+            "class": self.environment_class,
         }
 
     def _k8s_spec(self):
@@ -44,7 +44,7 @@ class Workspace(models.Model):
 
         return {
             "clientRef": {"name": self.client_id.k8s_name},
-            "class": self.workspace_class,
+            "class": self.environment_class,
             "displayName": self.name,
         }
 
@@ -66,5 +66,5 @@ class Workspace(models.Model):
         return {
             "name": spec.get("displayName") or (obj.get("metadata") or {}).get("name"),
             "client_id": client.id,
-            "workspace_class": spec.get("class") or "development",
+            "environment_class": spec.get("class") or "development",
         }

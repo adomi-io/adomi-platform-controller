@@ -18,15 +18,15 @@ class Application(models.Model):
     _k8s_kind = "Application"
 
     name = fields.Char(required=True, tracking=True)
-    workspace_id = fields.Many2one(
-        "adomi.workspace", string="Workspace", required=True, ondelete="cascade"
+    environment_id = fields.Many2one(
+        "adomi.environment", string="Environment", required=True, ondelete="cascade"
     )
     # Stored so Applications can be grouped / filtered / rolled up per customer
-    # without hopping through the workspace each time (Client is the SaaS unit).
+    # without hopping through the environment each time (Client is the SaaS unit).
     client_id = fields.Many2one(
         "adomi.client",
         string="Customer",
-        related="workspace_id.client_id",
+        related="environment_id.client_id",
         store=True,
         index=True,
         readonly=True,
@@ -56,16 +56,16 @@ class Application(models.Model):
     phase = fields.Char(string="Phase", readonly=True)
     namespace = fields.Char(string="Namespace", readonly=True)
 
-    def _k8s_tenant_slug(self):
+    def _k8s_client_slug(self):
         return self.client_id.k8s_name or False
 
     def _api_path(self):
-        # Applications are nested under their workspace:
-        # PUT /v1/clients/{client}/workspaces/{workspace}/applications/{name}.
+        # Applications are nested under their environment:
+        # PUT /v1/clients/{client}/environments/{environment}/applications/{name}.
         self.ensure_one()
-        return "/v1/clients/%s/workspaces/%s/applications/%s" % (
-            self._k8s_tenant_slug(),
-            self.workspace_id.k8s_name,
+        return "/v1/clients/%s/environments/%s/applications/%s" % (
+            self._k8s_client_slug(),
+            self.environment_id.k8s_name,
             self.k8s_name,
         )
 
@@ -126,7 +126,7 @@ class Application(models.Model):
         self.ensure_one()
 
         spec = {
-            "workspaceRef": {"name": self.workspace_id.k8s_name},
+            "environmentRef": {"name": self.environment_id.k8s_name},
             "type": self.type_id.k8s_name,
         }
 
@@ -172,14 +172,14 @@ class Application(models.Model):
     def _k8s_import_vals(self, obj):
         spec = obj.get("spec") or {}
 
-        ws_ref = (spec.get("workspaceRef") or {}).get("name")
-        workspace = (
-            self.env["adomi.workspace"].search([("k8s_name", "=", ws_ref)], limit=1)
+        ws_ref = (spec.get("environmentRef") or {}).get("name")
+        environment = (
+            self.env["adomi.environment"].search([("k8s_name", "=", ws_ref)], limit=1)
             if ws_ref
-            else self.env["adomi.workspace"]
+            else self.env["adomi.environment"]
         )
-        if not workspace:
-            return None  # the workspace must be imported first
+        if not environment:
+            return None  # the environment must be imported first
 
         type_ref = spec.get("type")
         app_type = (
@@ -192,7 +192,7 @@ class Application(models.Model):
 
         vals = {
             "name": (obj.get("metadata") or {}).get("name"),
-            "workspace_id": workspace.id,
+            "environment_id": environment.id,
             "type_id": app_type.id,
             "replicas": spec.get("replicas") or 1,
             "hostname": (spec.get("ingress") or {}).get("host") or False,

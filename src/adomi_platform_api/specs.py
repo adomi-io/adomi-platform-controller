@@ -1,9 +1,9 @@
 """Intent → CR ``.spec`` builders, one per controller object.
 
 These map an API request body to the exact ``.spec`` shape the controller's CRDs
-reconcile (clientRef, workspaceRef, displayName, ...). They are pure functions;
-:class:`~.service.TenantService` wraps them with the schema's manifest scaffolding and
-commits the result to the Client's tenant repo.
+reconcile (clientRef, environmentRef, displayName, ...). They are pure functions;
+:class:`~.service.ClientService` wraps them with the schema's manifest scaffolding and
+commits the result to the Client's client repo.
 """
 
 from __future__ import annotations
@@ -89,11 +89,13 @@ def database_spec(
     return spec
 
 
-def workspace_spec(*, client: str, workspace_class: str, display_name: str | None = None) -> dict:
+def environment_spec(
+    *, client: str, environment_class: str, display_name: str | None = None
+) -> dict:
     return _drop_none(
         {
             "clientRef": _ref(client),
-            "class": workspace_class,
+            "class": environment_class,
             "displayName": display_name,
         }
     )
@@ -101,7 +103,7 @@ def workspace_spec(*, client: str, workspace_class: str, display_name: str | Non
 
 def application_spec(
     *,
-    workspace: str,
+    environment: str,
     type: str,
     display_name: str | None = None,
     databases: list[dict] | None = None,
@@ -113,7 +115,7 @@ def application_spec(
     source: dict | None = None,
 ) -> dict:
     spec: dict = {
-        "workspaceRef": _ref(workspace),
+        "environmentRef": _ref(environment),
         "type": type,
     }
 

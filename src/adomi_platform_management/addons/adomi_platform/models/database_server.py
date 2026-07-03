@@ -22,14 +22,14 @@ class DatabaseServer(models.Model):
         string="Customer",
         ondelete="cascade",
         index=True,
-        help="The customer (tenant) this server belongs to. Customer-owned servers "
+        help="The customer (client) this server belongs to. Customer-owned servers "
         "are committed to that customer's git repo; leave empty for a shared one.",
     )
     environment_id = fields.Many2one(
-        "adomi.workspace",
+        "adomi.environment",
         string="Environment",
         ondelete="set null",
-        help="Optional: scope the server to one environment (workspace).",
+        help="Optional: scope the server to one environment (environment).",
     )
     engine = fields.Selection(
         [("postgres", "PostgreSQL")],
@@ -67,7 +67,7 @@ class DatabaseServer(models.Model):
     # --- status (read from the cluster) ---
     host = fields.Char(string="Resolved host", readonly=True, copy=False)
 
-    def _k8s_tenant_slug(self):
+    def _k8s_client_slug(self):
         return self.client_id.k8s_name or False
 
     def _api_body(self):
@@ -151,9 +151,9 @@ class DatabaseServer(models.Model):
         admin = spec.get("admin") or {}
         env_ref = (spec.get("environmentRef") or {}).get("name")
         environment = (
-            self.env["adomi.workspace"].search([("k8s_name", "=", env_ref)], limit=1)
+            self.env["adomi.environment"].search([("k8s_name", "=", env_ref)], limit=1)
             if env_ref
-            else self.env["adomi.workspace"]
+            else self.env["adomi.environment"]
         )
         return {
             "name": (obj.get("metadata") or {}).get("name"),

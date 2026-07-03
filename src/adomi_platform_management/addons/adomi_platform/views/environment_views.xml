@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="view_adomi_workspace_list" model="ir.ui.view">
-        <field name="name">adomi.workspace.list</field>
-        <field name="model">adomi.workspace</field>
+    <record id="view_adomi_environment_list" model="ir.ui.view">
+        <field name="name">adomi.environment.list</field>
+        <field name="model">adomi.environment</field>
         <field name="arch" type="xml">
             <list>
                 <field name="name"/>
                 <field name="client_id"/>
-                <field name="workspace_class"/>
+                <field name="environment_class"/>
                 <field name="namespace"/>
                 <field name="k8s_state" widget="badge"
                        decoration-success="k8s_state == 'ready'"
@@ -17,9 +17,9 @@
         </field>
     </record>
 
-    <record id="view_adomi_workspace_form" model="ir.ui.view">
-        <field name="name">adomi.workspace.form</field>
-        <field name="model">adomi.workspace</field>
+    <record id="view_adomi_environment_form" model="ir.ui.view">
+        <field name="name">adomi.environment.form</field>
+        <field name="model">adomi.environment</field>
         <field name="arch" type="xml">
             <form>
                 <header>
@@ -46,7 +46,7 @@
                             <field name="name"/>
                             <field name="k8s_name"/>
                             <field name="client_id"/>
-                            <field name="workspace_class"/>
+                            <field name="environment_class"/>
                         </group>
                         <group>
                             <field name="namespace" readonly="1"/>
@@ -78,9 +78,9 @@
         </field>
     </record>
 
-    <record id="action_adomi_workspace" model="ir.actions.act_window">
-        <field name="name">Workspaces</field>
-        <field name="res_model">adomi.workspace</field>
+    <record id="action_adomi_environment" model="ir.actions.act_window">
+        <field name="name">Environments</field>
+        <field name="res_model">adomi.environment</field>
         <field name="view_mode">list,form</field>
     </record>
 </odoo>

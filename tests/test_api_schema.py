@@ -9,9 +9,9 @@ import adomi_platform_schema as schema
 
 def test_plural_kind_catalog():
     assert schema.BY_PLURAL["clients"].kind == "Client"
-    assert schema.BY_PLURAL["workspaces"].kind == "Workspace"
+    assert schema.BY_PLURAL["environments"].kind == "Environment"
     assert schema.BY_PLURAL["applications"].kind == "Application"
-    assert schema.BY_PLURAL["applications"].parent == "workspaces"
+    assert schema.BY_PLURAL["applications"].parent == "environments"
     assert schema.BY_PLURAL["gitrepositories"].kind == "GitRepository"
 
 
@@ -25,20 +25,20 @@ def test_build_manifest():
     )
     assert m["apiVersion"] == "platform.adomi.io/v1alpha1"
     assert m["kind"] == "Application"
-    assert m["metadata"]["namespace"] == "adomi-tenant-acme"
+    assert m["metadata"]["namespace"] == "adomi-client-acme"
     assert m["metadata"]["labels"]["platform.adomi.io/client"] == "acme"
     assert m["spec"] == {"type": "odoo"}
 
 
 def test_repo_path_and_namespace():
-    assert schema.repo_path("workspaces", "dev") == "workspaces/dev.yaml"
-    assert schema.tenant_namespace("acme") == "adomi-tenant-acme"
-    assert schema.tenant_namespace("acme", "t-") == "t-acme"
+    assert schema.repo_path("environments", "dev") == "environments/dev.yaml"
+    assert schema.client_namespace("acme") == "adomi-client-acme"
+    assert schema.client_namespace("acme", "t-") == "t-acme"
 
 
 def test_unknown_plural_rejected():
     with pytest.raises(schema.SchemaError):
-        schema.resource_for_plural("organizations")  # cluster-scoped, not tenant-owned
+        schema.resource_for_plural("organizations")  # cluster-scoped, not client-owned
 
 
 @pytest.mark.parametrize("bad", ["", "Acme", "a_b", "-x", "x-", "x" * 64])

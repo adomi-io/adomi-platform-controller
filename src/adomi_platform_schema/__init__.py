@@ -2,10 +2,10 @@
 
 This is the single source of truth for the ``platform.adomi.io`` resources the
 platform exposes. The API and the operator speak the **same object language** — the
-CRD kinds and plurals (Client, Workspace, Application, ...) — so there is no second
+CRD kinds and plurals (Client, Environment, Application, ...) — so there is no second
 vocabulary to translate.
 
-Only **customer-owned, namespaced** kinds live here — the resources a tenant repo may
+Only **customer-owned, namespaced** kinds live here — the resources a client repo may
 contain and that the API writes to git. Cluster-scoped / platform-owned resources
 (Organization, the base ApplicationType catalog) and ephemeral resources (PR
 previews, which the controller creates in-cluster directly) are intentionally absent.
@@ -20,8 +20,8 @@ GROUP = "platform.adomi.io"
 VERSION = "v1alpha1"
 
 # Default per-customer namespace prefix (a Client's CRs land in <prefix><client>).
-# Must match the provisioner's tenants.tenantNamespacePrefix and the Odoo addon.
-DEFAULT_TENANT_NAMESPACE_PREFIX = "adomi-tenant-"
+# Must match the provisioner's clients.clientNamespacePrefix and the Odoo addon.
+DEFAULT_CLIENT_NAMESPACE_PREFIX = "adomi-client-"
 
 MANAGED_BY = "adomi-platform-api"
 
@@ -30,20 +30,20 @@ MANAGED_BY = "adomi-platform-api"
 class ResourceType:
     """A platform CRD: its plural, kind, and (for nested resources) its parent plural."""
 
-    plural: str  # CRD plural, e.g. "workspaces", "applications"
-    kind: str  # CRD kind, e.g. "Workspace", "Application"
-    parent: str | None = None  # plural this nests under in the URL (applications -> workspaces)
+    plural: str  # CRD plural, e.g. "environments", "applications"
+    kind: str  # CRD kind, e.g. "Environment", "Application"
+    parent: str | None = None  # plural this nests under in the URL (applications -> environments)
 
 
 # The catalog of customer-owned resources, in dependency order. A Client owns its
-# tenant repo; everything else belongs to a Client.
+# client repo; everything else belongs to a Client.
 RESOURCE_TYPES: tuple[ResourceType, ...] = (
     ResourceType(plural="clients", kind="Client"),
     ResourceType(plural="domains", kind="Domain"),
     ResourceType(plural="databaseservers", kind="DatabaseServer"),
     ResourceType(plural="databases", kind="Database"),
-    ResourceType(plural="workspaces", kind="Workspace"),
-    ResourceType(plural="applications", kind="Application", parent="workspaces"),
+    ResourceType(plural="environments", kind="Environment"),
+    ResourceType(plural="applications", kind="Application", parent="environments"),
     ResourceType(plural="gitrepositories", kind="GitRepository"),
     ResourceType(plural="snapshots", kind="Snapshot"),
 )
@@ -72,13 +72,13 @@ def resource_for_plural(plural: str) -> ResourceType:
     return BY_PLURAL[plural]
 
 
-def tenant_namespace(client: str, prefix: str = DEFAULT_TENANT_NAMESPACE_PREFIX) -> str:
+def client_namespace(client: str, prefix: str = DEFAULT_CLIENT_NAMESPACE_PREFIX) -> str:
     """The namespace a Client's committed CRs live in."""
     return f"{prefix}{client}"
 
 
 def repo_path(plural: str, name: str) -> str:
-    """Where a resource's manifest lives in the Client's tenant repo."""
+    """Where a resource's manifest lives in the Client's repo."""
     return f"{plural}/{name}.yaml"
 
 
@@ -88,7 +88,7 @@ def build_manifest(
     spec: dict,
     *,
     client: str,
-    namespace_prefix: str = DEFAULT_TENANT_NAMESPACE_PREFIX,
+    namespace_prefix: str = DEFAULT_CLIENT_NAMESPACE_PREFIX,
     managed_by: str = MANAGED_BY,
     labels: dict[str, str] | None = None,
 ) -> dict:
@@ -107,7 +107,7 @@ def build_manifest(
         "kind": rt.kind,
         "metadata": {
             "name": name,
-            "namespace": tenant_namespace(client, namespace_prefix),
+            "namespace": client_namespace(client, namespace_prefix),
             "labels": meta_labels,
         },
         "spec": spec or {},

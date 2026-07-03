@@ -7,7 +7,7 @@ When ``spec.preview.enabled`` is set, it also provisions the preview pipeline fo
 that repo: it copies the repo token and generates a webhook HMAC secret into the
 argo namespace, then creates an Argo Events github EventSource (which auto-registers
 the GitHub webhook), a Sensor (PR action -> create/patch/delete a preview
-preview Workspace + Application) and a webhook Ingress. The finalizer tears those down.
+preview Environment + Application) and a webhook Ingress. The finalizer tears those down.
 """
 
 from __future__ import annotations

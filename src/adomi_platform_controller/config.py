@@ -92,7 +92,7 @@ class Config:
     odoo_image_repository: str = "ghcr.io/adomi-io/odoo"
 
     # Platform domain. Generated application hostnames are a single DNS label
-    # "<app>-<workspace>-<client>.<baseDomain>" (so a *.<baseDomain> wildcard
+    # "<app>-<environment>-<client>.<baseDomain>" (so a *.<baseDomain> wildcard
     # cert/record covers them) unless the application sets spec.ingress.host. Empty
     # means an application must declare a host or supply an Organization base domain.
     base_domain: str = ""
@@ -127,7 +127,7 @@ class Config:
 
     # Preview environments. When a GitRepository enables previews, the controller
     # generates an Argo Events github EventSource + Sensor + webhook Ingress; PR
-    # events create/rebuild/destroy preview Workspaces and Applications.
+    # events create/rebuild/destroy preview Environments and Applications.
     webhook_host: str = ""  # public webhook host; falls back to hooks.<baseDomain>
     cluster_issuer: str = "letsencrypt-prod"  # cert-manager issuer for the webhook Ingress
     preview_ingress_class: str = "traefik"  # IngressClass for the webhook Ingress

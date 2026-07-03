@@ -8,7 +8,7 @@
                 <field name="name"/>
                 <field name="client_id"/>
                 <field name="type_id"/>
-                <field name="workspace_id"/>
+                <field name="environment_id"/>
                 <field name="phase"/>
                 <field name="url" widget="url"/>
                 <field name="k8s_state" widget="badge"
@@ -28,7 +28,7 @@
                 <field name="k8s_state"/>
                 <field name="client_id"/>
                 <field name="type_id"/>
-                <field name="workspace_id"/>
+                <field name="environment_id"/>
                 <field name="phase"/>
                 <field name="url"/>
                 <templates>
@@ -43,7 +43,7 @@
                             </div>
                             <div class="text-muted small">
                                 <field name="type_id"/>
-                                <t t-if="record.workspace_id.value"> · <t t-esc="record.workspace_id.value"/></t>
+                                <t t-if="record.environment_id.value"> · <t t-esc="record.environment_id.value"/></t>
                                 <t t-if="record.phase.value"> · <t t-esc="record.phase.value"/></t>
                             </div>
                             <div t-if="record.url.value">
@@ -102,7 +102,7 @@
                     <group>
                         <group string="Deployment">
                             <field name="client_id" readonly="1"/>
-                            <field name="workspace_id"/>
+                            <field name="environment_id"/>
                             <field name="type_id"/>
                             <field name="replicas"/>
                             <field name="hostname"/>
@@ -188,7 +188,7 @@
             <search>
                 <field name="name"/>
                 <field name="client_id"/>
-                <field name="workspace_id"/>
+                <field name="environment_id"/>
                 <field name="type_id"/>
                 <filter name="ready" string="Healthy" domain="[('k8s_state', '=', 'ready')]"/>
                 <filter name="not_ready" string="Degraded" domain="[('k8s_state', '=', 'not_ready')]"/>
@@ -196,7 +196,7 @@
                 <separator/>
                 <group>
                     <filter name="group_client" string="Customer" context="{'group_by': 'client_id'}"/>
-                    <filter name="group_workspace" string="Workspace" context="{'group_by': 'workspace_id'}"/>
+                    <filter name="group_environment" string="Environment" context="{'group_by': 'environment_id'}"/>
                     <filter name="group_type" string="Type" context="{'group_by': 'type_id'}"/>
                     <filter name="group_state" string="Status" context="{'group_by': 'k8s_state'}"/>
                 </group>

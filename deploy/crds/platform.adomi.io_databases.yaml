@@ -75,7 +75,7 @@ spec:
                 type: string
               environmentRef:
                 description: |-
-                  environmentRef optionally names the Workspace whose namespace consumes
+                  environmentRef optionally names the Environment whose namespace consumes
                   this database (where the connection Secret is delivered). Informational;
                   the database itself lives on the server.
                 properties:

@@ -12,7 +12,7 @@ from adomi_platform_api import app as app_module  # noqa: E402
 from adomi_platform_api.config import get_settings  # noqa: E402
 from adomi_platform_api.deps import check_backend_ready, get_reader, get_service  # noqa: E402
 from adomi_platform_api.git import Readiness  # noqa: E402
-from adomi_platform_api.service import TenantService  # noqa: E402
+from adomi_platform_api.service import ClientService  # noqa: E402
 
 AUTH = {"Authorization": "Bearer secret"}
 
@@ -56,8 +56,8 @@ class _FakeReader:
 def ctx(monkeypatch):
     writer = _FakeWriter()
     reader = _FakeReader()
-    service = TenantService(
-        writer, namespace_prefix="adomi-tenant-", managed_by="test", git_mode="commit"
+    service = ClientService(
+        writer, namespace_prefix="adomi-client-", managed_by="test", git_mode="commit"
     )
     app_module.app.dependency_overrides[get_service] = lambda: service
     app_module.app.dependency_overrides[get_reader] = lambda: reader
@@ -83,21 +83,21 @@ def test_put_client(ctx):
     assert r.status_code == 200, r.text
     assert writer.applied[0]["path"] == "clients/acme.yaml"
     assert "kind: Client" in writer.applied[0]["content"]
-    assert "namespace: adomi-tenant-acme" in writer.applied[0]["content"]
+    assert "namespace: adomi-client-acme" in writer.applied[0]["content"]
 
 
-def test_put_workspace_class_alias_and_application(ctx):
+def test_put_environment_class_alias_and_application(ctx):
     writer, _ = ctx
     c = _c()
     assert (
         c.put(
-            "/v1/clients/acme/workspaces/prod", json={"class": "production"}, headers=AUTH
+            "/v1/clients/acme/environments/prod", json={"class": "production"}, headers=AUTH
         ).status_code
         == 200
     )
-    assert "kind: Workspace" in writer.applied[-1]["content"]
+    assert "kind: Environment" in writer.applied[-1]["content"]
     r = c.put(
-        "/v1/clients/acme/workspaces/prod/applications/erp",
+        "/v1/clients/acme/environments/prod/applications/erp",
         json={
             "type": "odoo",
             "replicas": 2,
@@ -127,13 +127,13 @@ def test_get_status(ctx):
     reader.add(
         "applications",
         "erp",
-        "adomi-tenant-acme",
+        "adomi-client-acme",
         phase="Deployed",
         url="https://erp.example.com",
         conditions=[{"type": "Ready", "status": "True", "message": "ok"}],
-        spec={"workspaceRef": {"name": "prod"}},
+        spec={"environmentRef": {"name": "prod"}},
     )
-    r = _c().get("/v1/clients/acme/workspaces/prod/applications/erp", headers=AUTH)
+    r = _c().get("/v1/clients/acme/environments/prod/applications/erp", headers=AUTH)
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["ready"] == "True" and body["phase"] == "Deployed"
@@ -144,11 +144,15 @@ def test_get_status_404(ctx):
     assert _c().get("/v1/clients/acme/domains/missing", headers=AUTH).status_code == 404
 
 
-def test_list_applications_filtered_by_workspace(ctx):
+def test_list_applications_filtered_by_environment(ctx):
     _, reader = ctx
-    reader.add("applications", "erp", "adomi-tenant-acme", spec={"workspaceRef": {"name": "prod"}})
-    reader.add("applications", "mail", "adomi-tenant-acme", spec={"workspaceRef": {"name": "dev"}})
-    r = _c().get("/v1/clients/acme/workspaces/prod/applications", headers=AUTH)
+    reader.add(
+        "applications", "erp", "adomi-client-acme", spec={"environmentRef": {"name": "prod"}}
+    )
+    reader.add(
+        "applications", "mail", "adomi-client-acme", spec={"environmentRef": {"name": "dev"}}
+    )
+    r = _c().get("/v1/clients/acme/environments/prod/applications", headers=AUTH)
     assert r.status_code == 200
     names = [a["name"] for a in r.json()]
     assert names == ["erp"]
@@ -156,7 +160,7 @@ def test_list_applications_filtered_by_workspace(ctx):
 
 def test_delete_application(ctx):
     writer, _ = ctx
-    r = _c().delete("/v1/clients/acme/workspaces/prod/applications/erp", headers=AUTH)
+    r = _c().delete("/v1/clients/acme/environments/prod/applications/erp", headers=AUTH)
     assert r.status_code == 200
     assert writer.deleted[0]["path"] == "applications/erp.yaml"
 

@@ -1,8 +1,8 @@
 """The versioned API router: one router per controller object, under /v1, authed.
 
-The API speaks the controller's object language (Client, Workspace, Application,
+The API speaks the controller's object language (Client, Environment, Application,
 Database, Domain, GitRepository, Snapshot); each router writes its CR to the client's
-tenant git repo and reads live status from the cluster.
+client git repo and reads live status from the cluster.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from . import (
     domains,
     gitrepositories,
     snapshots,
-    workspaces,
+    environments,
 )
 
 api_router = APIRouter(prefix="/v1", dependencies=[Depends(require_token)])
@@ -28,7 +28,7 @@ for _module in (
     domains,
     databaseservers,
     databases,
-    workspaces,
+    environments,
     applications,
     gitrepositories,
     snapshots,

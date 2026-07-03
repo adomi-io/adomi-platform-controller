@@ -4,7 +4,7 @@ An Application's settings come from four layers, each overriding the one before:
 
     controller Config defaults -> Organization -> ApplicationType -> Application
 
-This module fetches the referenced Organization / Client / Workspace / ApplicationType
+This module fetches the referenced Organization / Client / Environment / ApplicationType
 objects and folds them, with the controller Config, into a single ``Effective`` value
 the Application engine consumes. The folding logic (``compute``) is pure over plain
 dicts so it can be unit-tested without a cluster.
@@ -25,7 +25,7 @@ VERSION = "v1alpha1"
 
 PLURAL_ORGANIZATIONS = "organizations"
 PLURAL_CLIENTS = "clients"
-PLURAL_WORKSPACES = "workspaces"
+PLURAL_ENVIRONMENTS = "environments"
 PLURAL_APPLICATIONS = "applications"
 PLURAL_APPLICATIONTYPES = "applicationtypes"
 PLURAL_GITREPOSITORIES = "gitrepositories"
@@ -38,7 +38,7 @@ PLURAL_DOMAINS = "domains"
 IDENTITY_GROUP = "identity.adomi.io"
 PLURAL_SSOAPPLICATIONS = "ssoapplications"
 
-# Workspace classes.
+# Environment classes.
 CLASS_PREVIEW = "preview"
 CLASS_DEVELOPMENT = "development"
 CLASS_PDI = "pdi"
@@ -91,8 +91,8 @@ class Effective:
     """The fully-resolved settings used to build an application's resources."""
 
     client_slug: str
-    workspace_name: str
-    workspace_class: str
+    environment_name: str
+    environment_class: str
     app_name: str
     namespace: str
     hostname: str
@@ -126,14 +126,14 @@ def _truncate_label(value: str) -> str:
     return value[:63].rstrip("-")
 
 
-def namespace_name(client_slug: str, workspace_name: str) -> str:
-    """The per-workspace namespace (a single DNS-1123 label)."""
-    return _truncate_label(f"{client_slug}-{workspace_name}")
+def namespace_name(client_slug: str, environment_name: str) -> str:
+    """The per-environment namespace (a single DNS-1123 label)."""
+    return _truncate_label(f"{client_slug}-{environment_name}")
 
 
-def sanitize_default(workspace_class: str) -> bool:
+def sanitize_default(environment_class: str) -> bool:
     """Whether to neutralize a restored DB by default (everything except production)."""
-    return workspace_class != CLASS_PRODUCTION
+    return environment_class != CLASS_PRODUCTION
 
 
 def parse_owner_repo(url: str) -> tuple[str, str]:
@@ -203,8 +203,8 @@ def compute(
     org_spec: dict | None,
     client_name: str,
     client_spec: dict,
-    workspace_name: str,
-    workspace_spec: dict,
+    environment_name: str,
+    environment_spec: dict,
     app_name: str,
     app_spec: dict,
     type_spec: dict,
@@ -227,8 +227,8 @@ def compute(
     type_ingress = type_spec.get("ingress") or {}
 
     client_slug = _slug(client_spec, client_name)
-    workspace_class = workspace_spec.get("class") or CLASS_DEVELOPMENT
-    namespace = namespace_name(client_slug, workspace_name)
+    environment_class = environment_spec.get("class") or CLASS_DEVELOPMENT
+    namespace = namespace_name(client_slug, environment_name)
 
     base_domain = (domain_fqdn or org_domain.get("base") or cfg.base_domain or "").strip()
     host = (app_ingress.get("host") or "").strip()
@@ -236,11 +236,11 @@ def compute(
     if not host and base_domain:
         # Single DNS label under the base domain so a one-level wildcard
         # (*.base_domain) covers both DNS and the TLS cert. A dotted host like
-        # app.workspace.client.base_domain is several levels deep and a wildcard
+        # app.environment.client.base_domain is several levels deep and a wildcard
         # cert/record does not match it (Traefik then serves its default cert and
         # the handshake fails with SSL_ERROR_NO_CYPHER_OVERLAP). Labels are capped
         # at the DNS 63-char limit.
-        label = f"{app_name}-{workspace_name}-{client_slug}"[:63].strip("-")
+        label = f"{app_name}-{environment_name}-{client_slug}"[:63].strip("-")
         host = f"{label}.{base_domain}"
 
     image_repository = org_images.get("odooRepository") or cfg.odoo_image_repository
@@ -248,8 +248,8 @@ def compute(
 
     return Effective(
         client_slug=client_slug,
-        workspace_name=workspace_name,
-        workspace_class=workspace_class,
+        environment_name=environment_name,
+        environment_class=environment_class,
         app_name=app_name,
         namespace=namespace,
         hostname=host,
@@ -318,8 +318,8 @@ def get_client(name: str, namespace: str) -> dict:
     return _get_namespaced(PLURAL_CLIENTS, name, namespace)
 
 
-def get_workspace(name: str, namespace: str) -> dict:
-    return _get_namespaced(PLURAL_WORKSPACES, name, namespace)
+def get_environment(name: str, namespace: str) -> dict:
+    return _get_namespaced(PLURAL_ENVIRONMENTS, name, namespace)
 
 
 def get_application(name: str, namespace: str) -> dict:

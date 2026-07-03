@@ -1,7 +1,7 @@
-"""Guided onboarding: deploy an Application (creating Client / Workspace as needed).
+"""Guided onboarding: deploy an Application (creating Client / Environment as needed).
 
 One dialog instead of hand-creating four records. Pick or name a Client, pick or
-name a Workspace, pick an Application Type, name the app — everything else defaults
+name a Environment, pick an Application Type, name the app — everything else defaults
 from the type. Advanced overrides are tucked away. The wizard creates only the
 records that don't exist yet and drops the user on the new Application.
 """
@@ -23,14 +23,14 @@ class DeployWizard(models.TransientModel):
     new_client_name = fields.Char(string="…or new client")
     new_client_partner_id = fields.Many2one("res.partner", string="Customer")
 
-    # Workspace: pick existing (scoped to the client) or name a new one.
-    workspace_id = fields.Many2one(
-        "adomi.workspace",
-        string="Workspace",
+    # Environment: pick existing (scoped to the client) or name a new one.
+    environment_id = fields.Many2one(
+        "adomi.environment",
+        string="Environment",
         domain="[('client_id', '=', client_id)]",
     )
-    new_workspace_name = fields.Char(string="…or new workspace")
-    new_workspace_class = fields.Selection(
+    new_environment_name = fields.Char(string="…or new environment")
+    new_environment_class = fields.Selection(
         [
             ("production", "Production"),
             ("development", "Development"),
@@ -38,7 +38,7 @@ class DeployWizard(models.TransientModel):
             ("preview", "Preview"),
             ("test", "Test"),
         ],
-        string="Workspace class",
+        string="Environment class",
         default="development",
     )
 
@@ -66,13 +66,13 @@ class DeployWizard(models.TransientModel):
             if self.client_id.organization_id:
                 self.organization_id = self.client_id.organization_id
 
-            if self.workspace_id and self.workspace_id.client_id != self.client_id:
-                self.workspace_id = False
+            if self.environment_id and self.environment_id.client_id != self.client_id:
+                self.environment_id = False
 
-    @api.onchange("workspace_id")
-    def _onchange_workspace_id(self):
-        if self.workspace_id:
-            self.new_workspace_name = False
+    @api.onchange("environment_id")
+    def _onchange_environment_id(self):
+        if self.environment_id:
+            self.new_environment_name = False
 
     def _resolve_client(self):
         if self.client_id:
@@ -90,19 +90,19 @@ class DeployWizard(models.TransientModel):
             }
         )
 
-    def _resolve_workspace(self, client):
-        if self.workspace_id:
-            return self.workspace_id
+    def _resolve_environment(self, client):
+        if self.environment_id:
+            return self.environment_id
 
-        if not self.new_workspace_name:
-            raise UserError(_("Pick an existing workspace or enter a new workspace name."))
+        if not self.new_environment_name:
+            raise UserError(_("Pick an existing environment or enter a new environment name."))
 
-        return self.env["adomi.workspace"].create(
+        return self.env["adomi.environment"].create(
             {
-                "name": self.new_workspace_name,
-                "k8s_name": k8s.slugify(self.new_workspace_name),
+                "name": self.new_environment_name,
+                "k8s_name": k8s.slugify(self.new_environment_name),
                 "client_id": client.id,
-                "workspace_class": self.new_workspace_class or "development",
+                "environment_class": self.new_environment_class or "development",
             }
         )
 
@@ -113,12 +113,12 @@ class DeployWizard(models.TransientModel):
             raise UserError(_("Give the application a name."))
 
         client = self._resolve_client()
-        workspace = self._resolve_workspace(client)
+        environment = self._resolve_environment(client)
         application = self.env["adomi.application"].create(
             {
                 "name": self.app_name,
                 "k8s_name": k8s.slugify(self.app_name),
-                "workspace_id": workspace.id,
+                "environment_id": environment.id,
                 "type_id": self.type_id.id,
                 "hostname": self.hostname or False,
             }

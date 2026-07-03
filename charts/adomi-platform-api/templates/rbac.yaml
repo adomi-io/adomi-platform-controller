@@ -1,6 +1,6 @@
 {{- if .Values.rbac.create }}
 # The API reads live resource status from the cluster (GET endpoints), so its
-# ServiceAccount needs read access to the platform CRDs across tenant namespaces.
+# ServiceAccount needs read access to the platform CRDs across client namespaces.
 # Writes never touch the cluster — they go to git.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

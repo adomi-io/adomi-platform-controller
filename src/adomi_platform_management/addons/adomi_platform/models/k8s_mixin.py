@@ -79,7 +79,7 @@ class K8sMixin(models.AbstractModel):
     @api.model
     def _k8s_write_backend(self):
         """'kubernetes' (apply CRs straight to the cluster API) or 'api' (POST intent
-        to the platform API, which commits the CR to the customer's tenant git repo).
+        to the platform API, which commits the CR to the customer's client git repo).
 
         The ADOMI_WRITE_BACKEND env var (set on the in-cluster deployment) overrides
         the config parameter, so the default stays 'kubernetes' for offline/local dev.
@@ -89,12 +89,12 @@ class K8sMixin(models.AbstractModel):
             or self.env["ir.config_parameter"].sudo().get_param("adomi_platform.write_backend", "kubernetes")
         )
 
-    def _k8s_tenant_slug(self):
-        """Owning customer slug (the tenant repo) for the platform-API path.
+    def _k8s_client_slug(self):
+        """Owning customer slug (the client repo) for the platform-API path.
 
         Returns False for records that are not customer-owned (cluster-scoped
         platform resources), which always take the Kubernetes API path. Concrete
-        customer models (Client/Workspace/Application/Snapshot) override this.
+        customer models (Client/Environment/Application/Snapshot) override this.
         """
         return False
 
@@ -104,11 +104,11 @@ class K8sMixin(models.AbstractModel):
         Default: a resource collection under the owning client
         (``/v1/clients/{client}/{plural}/{name}``). Models with a different shape
         override this — Client (the client IS the resource) and Application
-        (nested under its workspace).
+        (nested under its environment).
         """
         self.ensure_one()
         return "/v1/clients/%s/%s/%s" % (
-            self._k8s_tenant_slug(),
+            self._k8s_client_slug(),
             self._k8s_plural,
             self.k8s_name,
         )
@@ -118,7 +118,7 @@ class K8sMixin(models.AbstractModel):
 
         Distinct from ``_k8s_spec()``: the API takes request-level intent
         (snake_case fields, refs from the URL path) and builds the CR spec itself.
-        Every customer-owned model (``_k8s_tenant_slug`` truthy) must implement it.
+        Every customer-owned model (``_k8s_client_slug`` truthy) must implement it.
         """
         self.ensure_one()
         raise NotImplementedError(
@@ -149,7 +149,7 @@ class K8sMixin(models.AbstractModel):
         self._platform_api().upsert(self._api_path(), self._api_body())
 
     def _k8s_api_delete(self):
-        """Ask the platform API to remove this record's CR from the tenant repo."""
+        """Ask the platform API to remove this record's CR from the client repo."""
         self.ensure_one()
         self._platform_api().delete(self._api_path())
 
@@ -174,7 +174,7 @@ class K8sMixin(models.AbstractModel):
             if not rec.k8s_name:
                 continue
             try:
-                if backend == "api" and rec._k8s_tenant_slug():
+                if backend == "api" and rec._k8s_client_slug():
                     rec._k8s_api_apply()
                 else:
                     k8s.apply(rec._k8s_plural, rec.k8s_name, rec._k8s_body(), rec._k8s_ns())
@@ -313,7 +313,7 @@ class K8sMixin(models.AbstractModel):
             "adomi.organization",
             "adomi.application.type",
             "adomi.client",
-            "adomi.workspace",
+            "adomi.environment",
             "adomi.database.server",
             "adomi.application",
             "adomi.git.repository",
@@ -355,7 +355,7 @@ class K8sMixin(models.AbstractModel):
                 if not rec.k8s_name:
                     continue
                 try:
-                    if backend == "api" and rec._k8s_tenant_slug():
+                    if backend == "api" and rec._k8s_client_slug():
                         rec._k8s_api_delete()
                     else:
                         k8s.delete(rec._k8s_plural, rec.k8s_name, rec._k8s_ns())

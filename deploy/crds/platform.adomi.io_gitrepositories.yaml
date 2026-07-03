@@ -70,14 +70,14 @@ spec:
                 description: |-
                   preview enables automatic preview environments for pull requests. The
                   controller generates an Argo Events github EventSource + Sensor + webhook
-                  Ingress; PR open/sync/close create/rebuild/delete a preview Workspace and
+                  Ingress; PR open/sync/close create/rebuild/delete a preview Environment and
                   Application.
                 properties:
                   enabled:
                     default: false
                     type: boolean
                   clientRef:
-                    description: clientRef names the Client preview workspaces belong to.
+                    description: clientRef names the Client preview environments belong to.
                     properties:
                       name:
                         minLength: 1

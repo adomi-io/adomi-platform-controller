@@ -6,7 +6,7 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from adomi_platform_schema import DEFAULT_TENANT_NAMESPACE_PREFIX, MANAGED_BY
+from adomi_platform_schema import DEFAULT_CLIENT_NAMESPACE_PREFIX, MANAGED_BY
 
 
 class Settings(BaseSettings):
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     # Git backend (Forgejo, in-cluster).
     forgejo_url: str = "http://forgejo-http.forgejo.svc.cluster.local:3000"
     forgejo_token: str = ""
-    forgejo_org: str = "tenants"
+    forgejo_org: str = "clients"
     forgejo_verify_tls: bool = True
     git_default_branch: str = "main"
     # 'commit' (push to the default branch) or 'pr' (commit a branch + open a PR).
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     http_timeout: float = 15.0
 
     # Namespace each customer's committed CRs land in.
-    tenant_namespace_prefix: str = DEFAULT_TENANT_NAMESPACE_PREFIX
+    client_namespace_prefix: str = DEFAULT_CLIENT_NAMESPACE_PREFIX
 
     managed_by: str = MANAGED_BY
 

@@ -48,7 +48,7 @@
                         </div>
                     </div>
                     <div class="col-6 col-lg-3">
-                        <div class="o_adomi_stat card h-100" t-on-click="() => this.open('adomi_platform.action_adomi_workspace')">
+                        <div class="o_adomi_stat card h-100" t-on-click="() => this.open('adomi_platform.action_adomi_environment')">
                             <div class="card-body">
                                 <div class="o_adomi_stat_value"><t t-esc="state.stats.environments"/></div>
                                 <div class="o_adomi_stat_label"><i class="fa fa-layer-group me-1"/>Environments</div>

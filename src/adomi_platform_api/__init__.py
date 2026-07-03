@@ -2,9 +2,9 @@
 
 End users drive the platform through this API (directly, or via the Odoo portal, the
 CLI, or partner UIs). It speaks the **same object language as the operator** — one API
-per controller object (Client, Workspace, Application, Database, Domain, GitRepository,
+per controller object (Client, Environment, Application, Database, Domain, GitRepository,
 Snapshot). Every non-ephemeral resource a user creates is turned into a
-``platform.adomi.io`` custom resource and **committed to that client's tenant git
+``platform.adomi.io`` custom resource and **committed to that client's client git
 repo**, which Argo CD reconciles and the adomi-platform-controller turns into running
 infrastructure; reads return live status from the cluster. Ephemeral resources (PR
 preview environments) are the deliberate exception and are created in-cluster by the

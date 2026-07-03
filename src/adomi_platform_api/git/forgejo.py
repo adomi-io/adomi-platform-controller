@@ -50,7 +50,7 @@ class ForgejoWriter:
 
         self.base_url = base_url.rstrip("/")
         self.token = token
-        self.owner = owner or "tenants"
+        self.owner = owner or "clients"
         self.default_branch = default_branch or "main"
         self.timeout = timeout
         self.verify = verify

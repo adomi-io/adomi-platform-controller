@@ -9,7 +9,7 @@
                 <field name="k8s_name"/>
                 <field name="partner_id"/>
                 <field name="organization_id"/>
-                <field name="workspace_count" string="Workspaces"/>
+                <field name="environment_count" string="Environments"/>
                 <field name="application_count" string="Apps"/>
                 <field name="health" widget="badge"
                        decoration-success="health == 'ok'"
@@ -29,7 +29,7 @@
             <kanban>
                 <field name="name"/>
                 <field name="partner_id"/>
-                <field name="workspace_count"/>
+                <field name="environment_count"/>
                 <field name="application_count"/>
                 <field name="application_ready_count"/>
                 <field name="health"/>
@@ -57,7 +57,7 @@
                                 </span>
                                 <span>
                                     <i class="fa fa-folder-o me-1"/>
-                                    <t t-esc="record.workspace_count.value"/> workspaces
+                                    <t t-esc="record.environment_count.value"/> environments
                                 </span>
                             </div>
                             <div class="d-flex gap-2 mt-1">
@@ -97,8 +97,8 @@
                             <field name="application_count" widget="statinfo" string="Applications"/>
                         </button>
                         <button class="oe_stat_button" icon="fa-folder-o" type="object"
-                                name="action_view_workspaces">
-                            <field name="workspace_count" widget="statinfo" string="Workspaces"/>
+                                name="action_view_environments">
+                            <field name="environment_count" widget="statinfo" string="Environments"/>
                         </button>
                     </div>
                     <div class="oe_title">
@@ -128,7 +128,7 @@
                                 <kanban>
                                     <field name="name"/>
                                     <field name="type_id"/>
-                                    <field name="workspace_id"/>
+                                    <field name="environment_id"/>
                                     <field name="phase"/>
                                     <field name="url"/>
                                     <field name="k8s_state"/>
@@ -158,11 +158,11 @@
                                 </kanban>
                             </field>
                         </page>
-                        <page string="Workspaces" name="workspaces">
-                            <field name="workspace_ids">
+                        <page string="Environments" name="environments">
+                            <field name="environment_ids">
                                 <list>
                                     <field name="name"/>
-                                    <field name="workspace_class"/>
+                                    <field name="environment_class"/>
                                     <field name="namespace"/>
                                     <field name="k8s_state" widget="badge"
                                            decoration-success="k8s_state == 'ready'"
@@ -183,7 +183,7 @@
         <field name="view_mode">kanban,list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Add your first customer</p>
-            <p>A customer groups the workspaces and applications you run for one
+            <p>A customer groups the environments and applications you run for one
                end client. Create one, then use <b>Deploy Application</b> to roll out apps.</p>
         </field>
     </record>

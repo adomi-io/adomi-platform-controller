@@ -769,7 +769,7 @@ spec:
                 type: object
               environmentRef:
                 description: |-
-                  environmentRef names the Workspace whose namespace hosts a cnpg server.
+                  environmentRef names the Environment whose namespace hosts a cnpg server.
                   When omitted a cnpg server lives in the client's shared data namespace.
                 properties:
                   name:
@@ -926,7 +926,7 @@ spec:
                 type: string
               environmentRef:
                 description: |-
-                  environmentRef optionally names the Workspace whose namespace consumes
+                  environmentRef optionally names the Environment whose namespace consumes
                   this database (where the connection Secret is delivered). Informational;
                   the database itself lives on the server.
                 properties:
@@ -1056,16 +1056,16 @@ spec:
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: workspaces.platform.adomi.io
+  name: environments.platform.adomi.io
 spec:
   group: platform.adomi.io
   names:
-    kind: Workspace
-    listKind: WorkspaceList
-    plural: workspaces
+    kind: Environment
+    listKind: EnvironmentList
+    plural: environments
     shortNames:
-    - ws
-    singular: workspace
+    - env
+    singular: environment
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -1084,7 +1084,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Workspace is a named environment for a Client that groups Applications.
+        description: Environment is a named environment for a Client that groups Applications.
         properties:
           apiVersion:
             type: string
@@ -1093,7 +1093,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of Workspace
+            description: spec defines the desired state of Environment
             properties:
               clientRef:
                 description: clientRef names the owning Client (same namespace).
@@ -1107,7 +1107,7 @@ spec:
               class:
                 default: development
                 description: |-
-                  class is the workspace class; it defaults policies such as the
+                  class is the environment class; it defaults policies such as the
                   database mode and sanitize-on-restore for Applications within it.
                 enum:
                 - preview
@@ -1117,16 +1117,16 @@ spec:
                 - test
                 type: string
               displayName:
-                description: displayName is a human-readable name for the workspace.
+                description: displayName is a human-readable name for the environment.
                 type: string
             required:
             - clientRef
             type: object
           status:
-            description: status defines the observed state of Workspace
+            description: status defines the observed state of Environment
             properties:
               namespace:
-                description: namespace is the per-workspace namespace Applications run in.
+                description: namespace is the per-environment namespace Applications run in.
                 type: string
               conditions:
                 description: |-
@@ -1399,7 +1399,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Application runs a catalog app (by type) in a Workspace via Argo CD.
+        description: Application runs a catalog app (by type) in a Environment via Argo CD.
         properties:
           apiVersion:
             type: string
@@ -1410,8 +1410,8 @@ spec:
           spec:
             description: spec defines the desired state of Application
             properties:
-              workspaceRef:
-                description: workspaceRef names the owning Workspace (same namespace).
+              environmentRef:
+                description: environmentRef names the owning Environment (same namespace).
                 properties:
                   name:
                     minLength: 1
@@ -1471,7 +1471,7 @@ spec:
                 description: ingress overrides ingress settings for the app.
                 properties:
                   host:
-                    description: host overrides the generated <app>.<workspace>.<client>.<baseDomain>.
+                    description: host overrides the generated <app>.<environment>.<client>.<baseDomain>.
                     type: string
                   className:
                     type: string
@@ -1562,7 +1562,7 @@ spec:
                 - snapshotRef
                 type: object
             required:
-            - workspaceRef
+            - environmentRef
             - type
             type: object
           status:
@@ -1720,14 +1720,14 @@ spec:
                 description: |-
                   preview enables automatic preview environments for pull requests. The
                   controller generates an Argo Events github EventSource + Sensor + webhook
-                  Ingress; PR open/sync/close create/rebuild/delete a preview Workspace and
+                  Ingress; PR open/sync/close create/rebuild/delete a preview Environment and
                   Application.
                 properties:
                   enabled:
                     default: false
                     type: boolean
                   clientRef:
-                    description: clientRef names the Client preview workspaces belong to.
+                    description: clientRef names the Client preview environments belong to.
                     properties:
                       name:
                         minLength: 1

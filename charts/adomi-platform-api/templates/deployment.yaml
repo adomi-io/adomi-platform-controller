@@ -45,8 +45,8 @@ spec:
               value: {{ .Values.forgejo.defaultBranch | quote }}
             - name: ADOMI_API_GIT_MODE
               value: {{ .Values.forgejo.gitMode | quote }}
-            - name: ADOMI_API_TENANT_NAMESPACE_PREFIX
-              value: {{ .Values.tenantNamespacePrefix | quote }}
+            - name: ADOMI_API_CLIENT_NAMESPACE_PREFIX
+              value: {{ .Values.clientNamespacePrefix | quote }}
             - name: ADOMI_API_AUTH_TOKEN
               valueFrom:
                 secretKeyRef:

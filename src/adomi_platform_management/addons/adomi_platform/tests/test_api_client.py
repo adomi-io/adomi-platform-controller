@@ -31,13 +31,13 @@ class TestPlatformApiClient(unittest.TestCase):
     def test_upsert_puts_body(self):
         s = _StubSession()
         _client(s).upsert(
-            "/v1/clients/acme/workspaces/prod/applications/erp",
+            "/v1/clients/acme/environments/prod/applications/erp",
             {"type": "odoo", "host": "erp.acme.example.com"},
         )
         call = s.calls[0]
         self.assertEqual(call["method"], "PUT")
         self.assertTrue(
-            call["url"].endswith("/v1/clients/acme/workspaces/prod/applications/erp")
+            call["url"].endswith("/v1/clients/acme/environments/prod/applications/erp")
         )
         self.assertEqual(call["body"], {"type": "odoo", "host": "erp.acme.example.com"})
         self.assertEqual(call["headers"]["Authorization"], "Bearer t")

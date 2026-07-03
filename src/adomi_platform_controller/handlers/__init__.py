@@ -17,5 +17,5 @@ from . import (  # noqa: F401
     organization,
     snapshot,
     ssoapplication,
-    workspace,
+    environment,
 )

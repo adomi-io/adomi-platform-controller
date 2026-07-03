@@ -34,20 +34,20 @@ class TestApiWriteDispatch(TransactionCase):
         self.assertEqual(call["path"], "/v1/clients/acme")  # the client IS the resource
         self.assertEqual(call["body"], {"display_name": "Acme"})
 
-    def test_workspace_routes_to_client_tenant(self):
+    def test_environment_routes_to_client_client(self):
         client = self._new_client()
         self.api.upserts.clear()
-        self.env["adomi.workspace"].create(
-            {"name": "Dev", "k8s_name": "dev", "client_id": client.id, "workspace_class": "development"}
+        self.env["adomi.environment"].create(
+            {"name": "Dev", "k8s_name": "dev", "client_id": client.id, "environment_class": "development"}
         )
         call = self.api.upserts[-1]
-        self.assertEqual(call["path"], "/v1/clients/acme/workspaces/dev")
+        self.assertEqual(call["path"], "/v1/clients/acme/environments/dev")
         self.assertEqual(call["body"], {"display_name": "Dev", "class": "development"})
 
-    def test_application_nests_under_workspace(self):
+    def test_application_nests_under_environment(self):
         client = self._new_client()
-        workspace = self.env["adomi.workspace"].create(
-            {"name": "Prod", "k8s_name": "prod", "client_id": client.id, "workspace_class": "production"}
+        environment = self.env["adomi.environment"].create(
+            {"name": "Prod", "k8s_name": "prod", "client_id": client.id, "environment_class": "production"}
         )
         app_type = self.env["adomi.application.type"].search([], limit=1)
         if not app_type:
@@ -59,7 +59,7 @@ class TestApiWriteDispatch(TransactionCase):
             {
                 "name": "ERP",
                 "k8s_name": "erp",
-                "workspace_id": workspace.id,
+                "environment_id": environment.id,
                 "type_id": app_type.id,
                 "hostname": "erp.acme.example.com",
                 "database_ids": [
@@ -68,7 +68,7 @@ class TestApiWriteDispatch(TransactionCase):
             }
         )
         call = self.api.upserts[-1]
-        self.assertEqual(call["path"], "/v1/clients/acme/workspaces/prod/applications/erp")
+        self.assertEqual(call["path"], "/v1/clients/acme/environments/prod/applications/erp")
         self.assertEqual(call["body"]["type"], "odoo")
         self.assertEqual(call["body"]["host"], "erp.acme.example.com")
         self.assertEqual(call["body"]["databases"][0]["server"], "acme-prod-db")
@@ -80,7 +80,7 @@ class TestApiWriteDispatch(TransactionCase):
 
     def test_cluster_scoped_stays_on_kubernetes(self):
         # Organization is cluster-scoped / platform-owned: never routed to the API.
-        self.assertFalse(self.env["adomi.organization"]._k8s_tenant_slug())
+        self.assertFalse(self.env["adomi.organization"]._k8s_client_slug())
 
     def test_kubernetes_backend_does_not_call_api(self):
         self.env["ir.config_parameter"].sudo().set_param("adomi_platform.write_backend", "kubernetes")

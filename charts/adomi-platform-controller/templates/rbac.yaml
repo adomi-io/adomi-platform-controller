@@ -16,7 +16,7 @@ rules:
   - apiGroups: [apiextensions.k8s.io]
     resources: [customresourcedefinitions]
     verbs: [get, list, watch]
-  # The controller creates per-workspace namespaces and the supporting resources, and prunes them on
+  # The controller creates per-environment namespaces and the supporting resources, and prunes them on
   # teardown (which cascades that environment's database / SSO / ExternalSecret).
   - apiGroups: [""]
     resources: [namespaces]
@@ -42,13 +42,13 @@ rules:
     verbs: [update]
   # Platform CRDs reconciled by this controller.
   - apiGroups: [platform.adomi.io]
-    resources: [organizations, clients, workspaces, applications, applicationtypes, gitrepositories, snapshots, databaseservers, databases, domains]
+    resources: [organizations, clients, environments, applications, applicationtypes, gitrepositories, snapshots, databaseservers, databases, domains]
     verbs: [create, delete, get, list, patch, update, watch]
   - apiGroups: [platform.adomi.io]
-    resources: [organizations/status, clients/status, workspaces/status, applications/status, applicationtypes/status, gitrepositories/status, snapshots/status, databaseservers/status, databases/status, domains/status]
+    resources: [organizations/status, clients/status, environments/status, applications/status, applicationtypes/status, gitrepositories/status, snapshots/status, databaseservers/status, databases/status, domains/status]
     verbs: [get, patch, update]
   - apiGroups: [platform.adomi.io]
-    resources: [organizations/finalizers, clients/finalizers, workspaces/finalizers, applications/finalizers, applicationtypes/finalizers, gitrepositories/finalizers, snapshots/finalizers, databaseservers/finalizers, databases/finalizers, domains/finalizers]
+    resources: [organizations/finalizers, clients/finalizers, environments/finalizers, applications/finalizers, applicationtypes/finalizers, gitrepositories/finalizers, snapshots/finalizers, databaseservers/finalizers, databases/finalizers, domains/finalizers]
     verbs: [update]
   # Argo CD Applications: the controller creates one per Application to deploy its
   # chart, and deletes it on teardown.

@@ -2,16 +2,16 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: workspaces.platform.adomi.io
+  name: environments.platform.adomi.io
 spec:
   group: platform.adomi.io
   names:
-    kind: Workspace
-    listKind: WorkspaceList
-    plural: workspaces
+    kind: Environment
+    listKind: EnvironmentList
+    plural: environments
     shortNames:
-    - ws
-    singular: workspace
+    - env
+    singular: environment
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -30,7 +30,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Workspace is a named environment for a Client that groups Applications.
+        description: Environment is a named environment for a Client that groups Applications.
         properties:
           apiVersion:
             type: string
@@ -39,7 +39,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of Workspace
+            description: spec defines the desired state of Environment
             properties:
               clientRef:
                 description: clientRef names the owning Client (same namespace).
@@ -53,7 +53,7 @@ spec:
               class:
                 default: development
                 description: |-
-                  class is the workspace class; it defaults policies such as the
+                  class is the environment class; it defaults policies such as the
                   database mode and sanitize-on-restore for Applications within it.
                 enum:
                 - preview
@@ -63,16 +63,16 @@ spec:
                 - test
                 type: string
               displayName:
-                description: displayName is a human-readable name for the workspace.
+                description: displayName is a human-readable name for the environment.
                 type: string
             required:
             - clientRef
             type: object
           status:
-            description: status defines the observed state of Workspace
+            description: status defines the observed state of Environment
             properties:
               namespace:
-                description: namespace is the per-workspace namespace Applications run in.
+                description: namespace is the per-environment namespace Applications run in.
                 type: string
               conditions:
                 description: |-

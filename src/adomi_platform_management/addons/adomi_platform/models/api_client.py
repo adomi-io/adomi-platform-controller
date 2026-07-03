@@ -2,13 +2,13 @@
 
 When the addon's write backend is ``api`` (see ``adomi_platform.write_backend``),
 creating/editing a customer-owned record sends its intent to the platform API, which
-builds the full custom resource and commits it to that customer's tenant git repo.
+builds the full custom resource and commits it to that customer's client git repo.
 The API owns the Forgejo credentials and the repo / namespace / kind conventions.
 
 Each model supplies its own resource path (``_api_path``) and typed request body
 (``_api_body``) matching the API's OpenAPI contract — e.g.
 ``PUT /v1/clients/{client}`` with ``{"display_name": ...}``, or
-``PUT /v1/clients/{client}/workspaces/{ws}/applications/{name}`` with
+``PUT /v1/clients/{client}/environments/{environment}/applications/{name}`` with
 ``{"type": ..., "databases": [...], ...}`` — so this client is deliberately tiny.
 
 Free of any Odoo import so it can be unit-tested with a stub HTTP session. The mixin
@@ -23,7 +23,7 @@ class PlatformApiError(Exception):
 
 
 class PlatformApiClient:
-    """Calls the platform API's tenant resource endpoints.
+    """Calls the platform API's client resource endpoints.
 
     ``session`` is any object exposing ``request(method, url, headers=, data=,
     timeout=)`` returning a response with ``status_code`` and ``text`` (the
@@ -70,9 +70,9 @@ class PlatformApiClient:
         return resp
 
     def upsert(self, path, body):
-        """Create/update a resource by committing its CR to the tenant repo."""
+        """Create/update a resource by committing its CR to the client repo."""
         return self._request("PUT", path, body or {})
 
     def delete(self, path):
-        """Remove a resource's CR from the tenant repo."""
+        """Remove a resource's CR from the client repo."""
         return self._request("DELETE", path)

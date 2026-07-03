@@ -1,4 +1,4 @@
-"""Application endpoints (under a client's workspace)."""
+"""Application endpoints (under a client's environment)."""
 
 from __future__ import annotations
 
@@ -9,11 +9,11 @@ from ..cluster import ClusterReader
 from ..config import Settings, get_settings
 from ..deps import get_reader, get_service
 from ..models import ApplicationSpec, ResourceStatus, WriteResult
-from ..service import TenantService
-from ._common import commit, get_status, list_status, remove, tenant_ns
+from ..service import ClientService
+from ._common import commit, get_status, list_status, remove, client_ns
 
 router = APIRouter(
-    prefix="/clients/{client}/workspaces/{workspace}/applications",
+    prefix="/clients/{client}/environments/{environment}/applications",
     tags=["applications"],
 )
 
@@ -23,28 +23,28 @@ PLURAL = "applications"
 @router.get("", response_model=list[ResourceStatus])
 def list_applications(
     client: str,
-    workspace: str,
+    environment: str,
     reader: ClusterReader = Depends(get_reader),
     settings: Settings = Depends(get_settings),
 ) -> list[ResourceStatus]:
     return list_status(
         reader,
         PLURAL,
-        namespace=tenant_ns(settings, client),
-        where=lambda s: (s.spec.get("workspaceRef") or {}).get("name") == workspace,
+        namespace=client_ns(settings, client),
+        where=lambda s: (s.spec.get("environmentRef") or {}).get("name") == environment,
     )
 
 
 @router.put("/{name}", response_model=WriteResult)
 def put_application(
     client: str,
-    workspace: str,
+    environment: str,
     name: str,
     body: ApplicationSpec,
-    service: TenantService = Depends(get_service),
+    service: ClientService = Depends(get_service),
 ) -> WriteResult:
     spec = specs.application_spec(
-        workspace=workspace,
+        environment=environment,
         type=body.type,
         display_name=body.display_name,
         databases=body.databases,
@@ -62,7 +62,7 @@ def put_application(
 @router.get("/{name}", response_model=ResourceStatus)
 def get_application(
     client: str,
-    workspace: str,
+    environment: str,
     name: str,
     reader: ClusterReader = Depends(get_reader),
     settings: Settings = Depends(get_settings),
@@ -73,8 +73,8 @@ def get_application(
 @router.delete("/{name}", response_model=WriteResult)
 def delete_application(
     client: str,
-    workspace: str,
+    environment: str,
     name: str,
-    service: TenantService = Depends(get_service),
+    service: ClientService = Depends(get_service),
 ) -> WriteResult:
     return remove(service, client, PLURAL, name)

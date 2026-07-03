@@ -33,7 +33,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Application runs a catalog app (by type) in a Workspace via Argo CD.
+        description: Application runs a catalog app (by type) in a Environment via Argo CD.
         properties:
           apiVersion:
             type: string
@@ -44,8 +44,8 @@ spec:
           spec:
             description: spec defines the desired state of Application
             properties:
-              workspaceRef:
-                description: workspaceRef names the owning Workspace (same namespace).
+              environmentRef:
+                description: environmentRef names the owning Environment (same namespace).
                 properties:
                   name:
                     minLength: 1
@@ -105,7 +105,7 @@ spec:
                 description: ingress overrides ingress settings for the app.
                 properties:
                   host:
-                    description: host overrides the generated <app>.<workspace>.<client>.<baseDomain>.
+                    description: host overrides the generated <app>.<environment>.<client>.<baseDomain>.
                     type: string
                   className:
                     type: string
@@ -196,7 +196,7 @@ spec:
                 - snapshotRef
                 type: object
             required:
-            - workspaceRef
+            - environmentRef
             - type
             type: object
           status:

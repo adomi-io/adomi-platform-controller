@@ -98,7 +98,7 @@ platform:
     # Default Odoo container image (overridable per Application). Each app's chart
     # comes from its ApplicationType (the catalog), not from here.
     imageRepository: ghcr.io/adomi-io/odoo
-  # Base domain for generated hostnames (<app>-<workspace>-<client>.<baseDomain>,
+  # Base domain for generated hostnames (<app>-<environment>-<client>.<baseDomain>,
   # a single label so a *.<baseDomain> wildcard cert/record covers it). Leave empty
   # to require an Organization with a base domain, or per-application spec.ingress.host.
   baseDomain: ""
@@ -141,7 +141,7 @@ platform:
 
   # Preview environments: when a GitRepository enables previews, the controller
   # generates a github EventSource + Sensor + webhook Ingress so pull requests
-  # create/rebuild/destroy preview Workspaces + Applications automatically.
+  # create/rebuild/destroy preview Environments + Applications automatically.
   preview:
     # Install the preview Sensor ServiceAccount + RBAC. Disable to turn the feature
     # off cluster-wide (GitRepository preview.enabled is then inert).

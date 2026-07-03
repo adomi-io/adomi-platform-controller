@@ -20,11 +20,11 @@ class Client(models.Model):
         help="The contact / company this platform client represents.",
     )
     organization_id = fields.Many2one("adomi.organization", string="Organization", ondelete="set null")
-    workspace_ids = fields.One2many("adomi.workspace", "client_id", string="Workspaces")
-    workspace_count = fields.Integer(compute="_compute_workspace_count")
+    environment_ids = fields.One2many("adomi.environment", "client_id", string="Environments")
+    environment_count = fields.Integer(compute="_compute_environment_count")
 
     # Customer-centric rollup: every Application across all of the customer's
-    # workspaces, plus an aggregated health signal for the kanban estate view.
+    # environments, plus an aggregated health signal for the kanban estate view.
     application_ids = fields.One2many("adomi.application", "client_id", string="Applications")
     application_count = fields.Integer(compute="_compute_app_stats")
     application_ready_count = fields.Integer(compute="_compute_app_stats")
@@ -40,9 +40,9 @@ class Client(models.Model):
         help="Aggregated readiness across all of the customer's applications.",
     )
 
-    def _compute_workspace_count(self):
+    def _compute_environment_count(self):
         for rec in self:
-            rec.workspace_count = len(rec.workspace_ids)
+            rec.environment_count = len(rec.environment_ids)
 
     @api.depends("application_ids.k8s_state")
     def _compute_app_stats(self):
@@ -60,7 +60,7 @@ class Client(models.Model):
             else:
                 rec.health = "ok"
 
-    def _k8s_tenant_slug(self):
+    def _k8s_client_slug(self):
         return self.k8s_name or False
 
     def _api_path(self):
@@ -138,13 +138,13 @@ class Client(models.Model):
             "context": {"default_client_id": self.id},
         }
 
-    def action_view_workspaces(self):
+    def action_view_environments(self):
         self.ensure_one()
 
         return {
             "type": "ir.actions.act_window",
-            "name": _("%s · Workspaces") % self.name,
-            "res_model": "adomi.workspace",
+            "name": _("%s · Environments") % self.name,
+            "res_model": "adomi.environment",
             "view_mode": "list,form",
             "domain": [("client_id", "=", self.id)],
             "context": {"default_client_id": self.id},

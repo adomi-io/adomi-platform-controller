@@ -31,7 +31,7 @@ class Readiness:
 
 @runtime_checkable
 class GitWriter(Protocol):
-    """Commits and removes manifest files in a customer's tenant repo."""
+    """Commits and removes manifest files in a customer's client repo."""
 
     def apply_manifest(
         self, repo: str, path: str, content: str, message: str, *, mode: str = MODE_COMMIT

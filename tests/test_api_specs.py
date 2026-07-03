@@ -13,8 +13,8 @@ def test_client_spec():
     }
 
 
-def test_workspace_spec_drops_none():
-    assert specs.workspace_spec(client="acme", workspace_class="production") == {
+def test_environment_spec_drops_none():
+    assert specs.environment_spec(client="acme", environment_class="production") == {
         "clientRef": {"name": "acme"},
         "class": "production",
     }
@@ -22,7 +22,7 @@ def test_workspace_spec_drops_none():
 
 def test_application_spec_explicit_databases_env_ingress():
     spec = specs.application_spec(
-        workspace="prod",
+        environment="prod",
         type="odoo",
         display_name="ERP",
         databases=[
@@ -33,7 +33,7 @@ def test_application_spec_explicit_databases_env_ingress():
         host="erp.acme.example.com",
         values={"odoo": {"workers": 4}},
     )
-    assert spec["workspaceRef"] == {"name": "prod"}
+    assert spec["environmentRef"] == {"name": "prod"}
     assert spec["displayName"] == "ERP"
     assert spec["databases"][0]["server"] == "acme-prod-db"
     assert spec["databases"][0]["credentials"]["secret"] == "odoo-erp-db"
@@ -46,7 +46,7 @@ def test_application_spec_explicit_databases_env_ingress():
 
 def test_application_spec_sso_and_source():
     spec = specs.application_spec(
-        workspace="dev",
+        environment="dev",
         type="odoo",
         sso=[{"name": "web", "protocol": "oauth2", "credentials": {"secret": "odoo-oidc"}}],
         source={"repository": "erp-src", "ref": "main"},
@@ -56,8 +56,8 @@ def test_application_spec_sso_and_source():
 
 
 def test_application_spec_minimal():
-    spec = specs.application_spec(workspace="dev", type="mailpit")
-    assert spec == {"workspaceRef": {"name": "dev"}, "type": "mailpit"}
+    spec = specs.application_spec(environment="dev", type="mailpit")
+    assert spec == {"environmentRef": {"name": "dev"}, "type": "mailpit"}
 
 
 def test_domain_database_gitrepository_snapshot_specs():

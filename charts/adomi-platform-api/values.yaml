@@ -13,7 +13,7 @@ serviceAccount:
   create: true
   name: ""
 
-# Cluster-read RBAC for the GET/status endpoints (read platform CRs across tenants).
+# Cluster-read RBAC for the GET/status endpoints (read platform CRs across clients).
 rbac:
   create: true
 
@@ -38,12 +38,12 @@ service:
 # Secrets (existingSecret below), never values.
 forgejo:
   url: http://forgejo-http.forgejo.svc.cluster.local:3000
-  org: tenants
+  org: clients
   verifyTls: true
   defaultBranch: main
   gitMode: commit
 
-tenantNamespacePrefix: adomi-tenant-
+clientNamespacePrefix: adomi-client-
 
 # Secret holding `api-token` (bearer producers present) and `forgejo-token`.
 auth:

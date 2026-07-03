@@ -16,8 +16,8 @@
               parent="menu_adomi_root" action="action_adomi_deploy_wizard" sequence="15"/>
     <menuitem id="menu_adomi_applications" name="Applications"
               parent="menu_adomi_root" action="action_adomi_application" sequence="20"/>
-    <menuitem id="menu_adomi_workspaces" name="Workspaces"
-              parent="menu_adomi_root" action="action_adomi_workspace" sequence="30"/>
+    <menuitem id="menu_adomi_environments" name="Environments"
+              parent="menu_adomi_root" action="action_adomi_environment" sequence="30"/>
     <menuitem id="menu_adomi_snapshots" name="Snapshots"
               parent="menu_adomi_root" action="action_adomi_snapshot" sequence="40"/>
 

@@ -1,6 +1,6 @@
 """Public request/response schemas (pydantic) — the OpenAPI contract.
 
-Request bodies are the controller objects' ``.spec`` intent (a Client, a Workspace,
+Request bodies are the controller objects' ``.spec`` intent (a Client, an Environment,
 an Application, ...); cross-resource refs are taken from the URL path, so the body
 only carries the fields a user sets. Reads return a uniform :class:`ResourceStatus`.
 """
@@ -32,7 +32,8 @@ class DatabaseServerSpec(BaseModel):
     storage_class: str | None = Field(default=None, description="StorageClass (cnpg).")
     instances: int = Field(default=1, ge=1, description="Replica count (cnpg).")
     environment: str | None = Field(
-        default=None, description="Workspace whose namespace hosts a cnpg server (environmentRef)."
+        default=None,
+        description="Environment whose namespace hosts a cnpg server (environmentRef).",
     )
     host: str | None = Field(default=None, description="Server host (external).")
     port: int = Field(default=5432, description="Server port (external).")
@@ -54,15 +55,16 @@ class DatabaseSpec(BaseModel):
     )
     user: str = Field(description="Login role that owns the database.")
     environment: str | None = Field(
-        default=None, description="Workspace whose namespace consumes the database (informational)."
+        default=None,
+        description="Environment whose namespace consumes the database (informational).",
     )
 
 
-class WorkspaceSpec(BaseModel):
+class EnvironmentSpec(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     display_name: str | None = None
-    workspace_class: str = Field(
+    environment_class: str = Field(
         default="development",
         alias="class",
         description="production | development | pdi | preview | test",

@@ -1,8 +1,8 @@
 """ApplicationReconciler — the generic app engine.
 
-An Application runs a catalog app (by ApplicationType) in a Workspace. The reconciler:
+An Application runs a catalog app (by ApplicationType) in an Environment. The reconciler:
 
-  1. resolves Organization -> Client -> Workspace -> ApplicationType into effective config
+  1. resolves Organization -> Client -> Environment -> ApplicationType into effective config
   2. (when spec.source) builds the image via an Argo Workflow, gating deploy
   3. (when spec.restoreFrom) restores+sanitizes a Snapshot into the app's database
   4. maps the explicit intent (databases / sso / env / ingress) onto the chart's value
@@ -131,11 +131,11 @@ class ApplicationReconciler(Reconciler):
         labels = {
             "app.kubernetes.io/managed-by": self.MANAGED_BY,
             "platform.adomi.io/client": eff.client_slug,
-            "platform.adomi.io/workspace": eff.workspace_name,
+            "platform.adomi.io/environment": eff.environment_name,
             "platform.adomi.io/application": eff.app_name,
         }
 
-        # Ensure the workspace namespace exists (the Workspace also does; idempotent,
+        # Ensure the environment namespace exists (the Environment also does; idempotent,
         # avoids an ordering race for the CNPG/SSO resources created below).
         try:
             namespaces.Namespace(eff.namespace, labels).apply()
@@ -249,15 +249,15 @@ class ApplicationReconciler(Reconciler):
         conditions.mark_ready(patch, status, f"Application {eff.app_name!r} reconciled", generation)
 
     def _resolve(self, cfg, spec, name, namespace, patch, status, generation) -> resolve.Effective:
-        workspace_ref = (spec.get("workspaceRef") or {}).get("name")
+        environment_ref = (spec.get("environmentRef") or {}).get("name")
         type_name = spec.get("type")
 
-        if not workspace_ref:
+        if not environment_ref:
             fail(
                 patch,
                 status,
                 conditions.REASON_INVALID_SPEC,
-                "workspaceRef.name is required",
+                "environmentRef.name is required",
                 generation,
             )
 
@@ -268,8 +268,8 @@ class ApplicationReconciler(Reconciler):
         domain_ref = (spec.get("domainRef") or {}).get("name")
 
         try:
-            workspace = resolve.get_workspace(workspace_ref, namespace)
-            ws_spec = workspace.get("spec") or {}
+            environment = resolve.get_environment(environment_ref, namespace)
+            ws_spec = environment.get("spec") or {}
             client_ref = (ws_spec.get("clientRef") or {}).get("name")
             client_obj = resolve.get_client(client_ref, namespace)
             org_ref = ((client_obj.get("spec") or {}).get("organizationRef") or {}).get("name")
@@ -291,8 +291,8 @@ class ApplicationReconciler(Reconciler):
             org_spec=(org or {}).get("spec") or {},
             client_name=client_ref,
             client_spec=client_obj.get("spec") or {},
-            workspace_name=workspace_ref,
-            workspace_spec=ws_spec,
+            environment_name=environment_ref,
+            environment_spec=ws_spec,
             app_name=name,
             app_spec=spec,
             type_spec=app_type.get("spec") or {},
@@ -523,7 +523,7 @@ class ApplicationReconciler(Reconciler):
         sanitize = (
             bool(restore_from["sanitize"])
             if "sanitize" in restore_from
-            else resolve.sanitize_default(eff.workspace_class)
+            else resolve.sanitize_default(eff.environment_class)
         )
         odoo_image = built_image or f"{eff.image_repository}:{eff.image_tag or 'latest'}"
         wf_name = self._restore_workflow_name(eff.namespace, eff.app_name, snap_ref)
@@ -654,7 +654,7 @@ class ApplicationReconciler(Reconciler):
             logger.warning(f"PR feedback failed: {exc}")
 
     def finalize(self, spec, status, name, namespace, logger, **_) -> None:
-        """Best-effort teardown of the app's own resources (not the shared workspace ns)."""
+        """Best-effort teardown of the app's own resources (not the shared environment ns)."""
         cfg = state.provider().config
 
         app_ref = status.get("argoApplication")

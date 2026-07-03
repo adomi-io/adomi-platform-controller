@@ -8,7 +8,7 @@ from . import oidc_setup
 from . import res_users
 from . import organization
 from . import client
-from . import workspace
+from . import environment
 from . import database_server
 from . import application_type
 from . import application

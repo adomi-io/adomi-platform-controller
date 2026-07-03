@@ -1,6 +1,6 @@
 """The per-environment Namespace the controller owns.
 
-Each Workspace gets its own namespace so an environment's applications, their
+Each Environment gets its own namespace so an environment's applications, their
 databases and its SSO/ExternalSecret resources can be torn down together by deleting
 one namespace (important for ephemeral preview environments).
 """

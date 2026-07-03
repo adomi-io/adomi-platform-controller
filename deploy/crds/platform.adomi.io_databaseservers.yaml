@@ -106,7 +106,7 @@ spec:
                 type: object
               environmentRef:
                 description: |-
-                  environmentRef names the Workspace whose namespace hosts a cnpg server.
+                  environmentRef names the Environment whose namespace hosts a cnpg server.
                   When omitted a cnpg server lives in the client's shared data namespace.
                 properties:
                   name:

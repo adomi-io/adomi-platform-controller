@@ -40,7 +40,7 @@ class _StubSession:
         return best[1] if best else _Resp(500, text=f"no rule for {method} {url}")
 
 
-def _writer(session, owner="tenants"):
+def _writer(session, owner="clients"):
     return ForgejoWriter("https://git.example.com", "tok", owner, session=session)
 
 
@@ -49,7 +49,7 @@ def test_create_when_absent_uses_post():
     # with 422 "[SHA]: Required".
     session = _StubSession(
         [
-            (("GET", "repos/tenants/acme"), _Resp(200, {"name": "acme"})),
+            (("GET", "repos/clients/acme"), _Resp(200, {"name": "acme"})),
             (("GET", "contents/clients/acme.yaml"), _Resp(404)),
             (("POST", "contents/clients/acme.yaml"), _Resp(201, {"content": {"sha": "a"}})),
         ]
@@ -65,7 +65,7 @@ def test_create_when_absent_uses_post():
 def test_update_when_present_uses_put_with_sha():
     session = _StubSession(
         [
-            (("GET", "repos/tenants/acme"), _Resp(200, {"name": "acme"})),
+            (("GET", "repos/clients/acme"), _Resp(200, {"name": "acme"})),
             (("GET", "contents/clients/acme.yaml"), _Resp(200, {"sha": "oldsha"})),
             (("PUT", "contents/clients/acme.yaml"), _Resp(200, {"content": {"sha": "new"}})),
         ]
@@ -79,7 +79,7 @@ def test_update_when_present_uses_put_with_sha():
 def test_pr_mode_opens_pull():
     session = _StubSession(
         [
-            (("GET", "repos/tenants/acme"), _Resp(200, {"name": "acme"})),
+            (("GET", "repos/clients/acme"), _Resp(200, {"name": "acme"})),
             (("GET", "contents/applications/erp.yaml"), _Resp(404)),
             (("POST", "contents/applications/erp.yaml"), _Resp(201, {"content": {"sha": "x"}})),
             (("POST", "pulls"), _Resp(201, {"number": 7})),
@@ -101,23 +101,23 @@ def test_delete_absent_is_noop():
 def test_ensure_repo_creates_on_404():
     session = _StubSession(
         [
-            (("GET", "repos/tenants/new"), _Resp(404)),
-            (("POST", "orgs/tenants/repos"), _Resp(201, {"name": "new"})),
+            (("GET", "repos/clients/new"), _Resp(404)),
+            (("POST", "orgs/clients/repos"), _Resp(201, {"name": "new"})),
         ]
     )
     assert _writer(session).ensure_repo("new") is True
 
 
 def test_check_ready():
-    up = _StubSession([(("GET", "orgs/tenants"), _Resp(200, {"username": "tenants"}))])
+    up = _StubSession([(("GET", "orgs/clients"), _Resp(200, {"username": "clients"}))])
     assert _writer(up).check_ready().ok
-    down = _StubSession([(("GET", "orgs/tenants"), _Resp(403, text="forbidden"))])
+    down = _StubSession([(("GET", "orgs/clients"), _Resp(403, text="forbidden"))])
     r = _writer(down).check_ready()
     assert not r.ok and "403" in r.detail
 
 
 def test_missing_config_raises():
     with pytest.raises(GitError):
-        ForgejoWriter("", "tok", "tenants", session=_StubSession([]))
+        ForgejoWriter("", "tok", "clients", session=_StubSession([]))
     with pytest.raises(GitError):
-        ForgejoWriter("https://x", "", "tenants", session=_StubSession([]))
+        ForgejoWriter("https://x", "", "clients", session=_StubSession([]))

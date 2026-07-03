@@ -54,22 +54,22 @@ def test_sensor_dependencies_and_triggers():
     assert {d["name"] for d in s["dependencies"]} == {"pr-open", "pr-sync", "pr-close"}
     triggers = {t["template"]["name"]: t["template"] for t in s["triggers"]}
     assert set(triggers) == {
-        "create-workspace",
+        "create-environment",
         "create-app",
         "sync-app",
         "delete-app",
-        "delete-workspace",
+        "delete-environment",
     }
     assert triggers["create-app"]["k8s"]["operation"] == "create"
     assert triggers["sync-app"]["k8s"]["operation"] == "patch"
-    assert triggers["delete-workspace"]["k8s"]["operation"] == "delete"
+    assert triggers["delete-environment"]["k8s"]["operation"] == "delete"
 
 
 def test_sensor_create_resources():
     triggers = {t["template"]["name"]: t["template"] for t in _sensor()["spec"]["triggers"]}
 
-    ws = triggers["create-workspace"]["k8s"]["source"]["resource"]
-    assert ws["kind"] == "Workspace"
+    ws = triggers["create-environment"]["k8s"]["source"]["resource"]
+    assert ws["kind"] == "Environment"
     assert ws["spec"]["clientRef"] == {"name": "acme"}
     assert ws["spec"]["class"] == "preview"
 
@@ -81,5 +81,5 @@ def test_sensor_create_resources():
 
     dests = {p["dest"] for p in triggers["create-app"]["k8s"]["parameters"]}
     assert "metadata.name" in dests
-    assert "spec.workspaceRef.name" in dests
+    assert "spec.environmentRef.name" in dests
     assert "spec.source.ref" in dests

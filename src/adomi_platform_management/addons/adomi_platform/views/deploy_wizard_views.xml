@@ -18,11 +18,11 @@
                             <field name="new_client_name" string="…or new customer" invisible="client_id"/>
                             <field name="new_client_partner_id" invisible="client_id"/>
                         </group>
-                        <group string="Workspace">
-                            <field name="workspace_id" placeholder="Existing workspace"
+                        <group string="Environment">
+                            <field name="environment_id" placeholder="Existing environment"
                                    options="{'no_create': True}"/>
-                            <field name="new_workspace_name" invisible="workspace_id"/>
-                            <field name="new_workspace_class" invisible="workspace_id"/>
+                            <field name="new_environment_name" invisible="environment_id"/>
+                            <field name="new_environment_class" invisible="environment_id"/>
                         </group>
                     </group>
                     <separator string="Choose an application"/>

@@ -1,4 +1,4 @@
-"""FastAPI dependencies: the git writer + tenant service, wired from settings."""
+"""FastAPI dependencies: the git writer + client service, wired from settings."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from fastapi import Depends
 from .cluster import ClusterReader
 from .config import Settings, get_settings
 from .git import ForgejoWriter, GitWriter, Readiness
-from .service import TenantService
+from .service import ClientService
 
 
 def get_writer(settings: Settings = Depends(get_settings)) -> GitWriter:
@@ -26,10 +26,10 @@ def get_writer(settings: Settings = Depends(get_settings)) -> GitWriter:
 def get_service(
     settings: Settings = Depends(get_settings),
     writer: GitWriter = Depends(get_writer),
-) -> TenantService:
-    return TenantService(
+) -> ClientService:
+    return ClientService(
         writer,
-        namespace_prefix=settings.tenant_namespace_prefix,
+        namespace_prefix=settings.client_namespace_prefix,
         managed_by=settings.managed_by,
         git_mode=settings.git_mode,
     )

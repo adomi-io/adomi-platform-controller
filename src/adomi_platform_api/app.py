@@ -1,7 +1,7 @@
 """FastAPI application factory — the platform front door.
 
 Resource routers live under ``/v1`` (see :mod:`.routers`); each write builds a
-custom resource and commits it to the customer's tenant git repo. ``/readyz`` checks
+custom resource and commits it to the customer's client git repo. ``/readyz`` checks
 the git backend is reachable so the deployment only takes traffic once it can write.
 """
 
@@ -20,7 +20,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Adomi Platform API",
         version=__version__,
-        summary="Manage platform objects (clients, workspaces, applications, ...) as git-backed intent.",
+        summary="Manage platform objects (clients, environments, applications, ...) as git-backed intent.",
     )
     app.include_router(api_router)
 

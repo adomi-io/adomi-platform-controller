@@ -2,8 +2,8 @@ apiVersion: v2
 name: adomi-platform-api
 description: The Adomi platform producer API (Odoo / CLI / partner UIs → commits in tenant git repos)
 type: application
-version: 0.1.1
-appVersion: "0.1.1"
+version: 0.2.0
+appVersion: "0.2.0"
 maintainers:
   - name: Adomi Software, LLC
     email: github@adomisoftware.com

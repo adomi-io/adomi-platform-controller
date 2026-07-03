@@ -3,11 +3,11 @@ name: adomi-platform-controller
 description: |
   The Kubernetes control plane for the Adomi platform: manages SSO applications
   (Authentik, OpenBao, External Secrets) and the Odoo resource model
-  (Organization, Client, Workspace, Application) deployed via Argo CD and
+  (Organization, Client, Environment, Application) deployed via Argo CD and
   CloudNativePG. Drops into the kubernetes-provisioner platform.
 type: application
-version: 0.5.8
-appVersion: "0.5.8"
+version: 0.6.0
+appVersion: "0.6.0"
 keywords:
   - sso
   - authentik

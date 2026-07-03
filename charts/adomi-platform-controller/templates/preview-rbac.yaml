@@ -3,7 +3,7 @@
 {{- $sa := .Values.platform.preview.sensorServiceAccount }}
 {{- $fullname := include "adomi-platform-controller.fullname" . }}
 # ServiceAccount the preview Sensors run as, plus permission to create/patch/delete
-# preview Workspaces + Applications in the management namespaces. Installed by this chart so
+# preview Environments + Applications in the management namespaces. Installed by this chart so
 # the preview feature is self-contained.
 apiVersion: v1
 kind: ServiceAccount
@@ -21,7 +21,7 @@ metadata:
     {{- include "adomi-platform-controller.labels" . | nindent 4 }}
 rules:
   - apiGroups: [platform.adomi.io]
-    resources: [workspaces, applications]
+    resources: [environments, applications]
     verbs: [create, get, list, patch, update, delete]
   # The Argo Events sensor reports trigger outcomes as Events.
   - apiGroups: [""]

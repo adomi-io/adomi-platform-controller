@@ -4,7 +4,7 @@ When a GitRepository enables previews, the controller generates, in the argo
 namespace:
   - a github EventSource that auto-registers the GitHub webhook and validates the
     HMAC signature, emitting an event per pull_request action, and
-  - a Sensor whose triggers create / patch / delete a preview Workspace and an Odoo
+  - a Sensor whose triggers create / patch / delete a preview Environment and an Odoo
     Application (built from the PR) in the management namespace.
 
 The Application then builds-from-source and deploys via the engine. We use the
@@ -126,7 +126,7 @@ class SensorSpec:
     service_account: str
     owner: str
     repo: str
-    mgmt_namespace: str  # namespace the Workspace/Application CRs are created in
+    mgmt_namespace: str  # namespace the Environment/Application CRs are created in
     client_ref: str  # Client the preview belongs to
     application_type: str  # the ApplicationType to run (e.g. "odoo")
     repository_ref: str  # GitRepository CR name (for Application.source)
@@ -138,10 +138,10 @@ def _esc(key: str) -> str:
     return key.replace(".", "\\.")
 
 
-def _workspace_resource(s: SensorSpec) -> dict:
+def _environment_resource(s: SensorSpec) -> dict:
     return {
         "apiVersion": PLATFORM_API,
-        "kind": "Workspace",
+        "kind": "Environment",
         "metadata": {
             "name": "pr-0",  # overwritten -> pr-<number>
             "namespace": s.mgmt_namespace,
@@ -186,7 +186,7 @@ def _app_resource(s: SensorSpec) -> dict:
             },
         },
         "spec": {
-            "workspaceRef": {
+            "environmentRef": {
                 "name": "pr-0",
             },  # overwritten
             "type": s.application_type,
@@ -249,7 +249,7 @@ def build_sensor(s: SensorSpec) -> dict:
                 "dependencyName": "pr-open",
                 "dataTemplate": "pr-{{ .Input.body.pull_request.number }}",
             },
-            "dest": "spec.workspaceRef.name",
+            "dest": "spec.environmentRef.name",
         },
         {
             "src": {
@@ -308,9 +308,9 @@ def build_sensor(s: SensorSpec) -> dict:
     triggers = [
         {
             "template": {
-                "name": "create-workspace",
+                "name": "create-environment",
                 "conditions": "pr-open",
-                "k8s": k8s("create", _workspace_resource(s), [_tpl_ws_name("pr-open")]),
+                "k8s": k8s("create", _environment_resource(s), [_tpl_ws_name("pr-open")]),
             }
         },
         {
@@ -340,9 +340,9 @@ def build_sensor(s: SensorSpec) -> dict:
         },
         {
             "template": {
-                "name": "delete-workspace",
+                "name": "delete-environment",
                 "conditions": "pr-close",
-                "k8s": k8s("delete", _workspace_resource(s), [_tpl_ws_name("pr-close")]),
+                "k8s": k8s("delete", _environment_resource(s), [_tpl_ws_name("pr-close")]),
             }
         },
     ]

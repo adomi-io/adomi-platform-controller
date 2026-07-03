@@ -1,4 +1,4 @@
-"""TenantService: turn a resource spec into a CR and commit it to the tenant repo."""
+"""ClientService: turn a resource spec into a CR and commit it to the client repo."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from adomi_platform_schema import build_manifest, repo_path, resource_for_plural
 from .git import GitWriter
 
 
-class TenantService:
-    """Commits/removes platform CRs in a customer's tenant repo (one repo per client)."""
+class ClientService:
+    """Commits/removes platform CRs in a customer's client repo (one repo per client)."""
 
     def __init__(self, writer: GitWriter, *, namespace_prefix: str, managed_by: str, git_mode: str):
         self.writer = writer
@@ -47,7 +47,7 @@ class TenantService:
         }
 
     def remove(self, client: str, plural: str, name: str) -> dict:
-        """Remove a resource's CR from the tenant repo."""
+        """Remove a resource's CR from the client repo."""
         rt = resource_for_plural(plural)
         validate_name(client, "customer")
         validate_name(name, "name")

@@ -17,7 +17,7 @@ class Snapshot(models.Model):
     location = fields.Char(string="Location", readonly=True, help="Object-store URI of the dump.")
     phase = fields.Char(string="Phase", readonly=True)
 
-    def _k8s_tenant_slug(self):
+    def _k8s_client_slug(self):
         return self.application_id.client_id.k8s_name or False
 
     def _api_body(self):

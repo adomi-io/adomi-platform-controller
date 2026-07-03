@@ -36,7 +36,7 @@ export class AdomiDashboard extends Component {
                 this.orm.searchCount("adomi.client", []),
                 this.orm.searchRead("adomi.application", [], ["k8s_state"]),
                 this.orm.searchCount("adomi.database.server", []),
-                this.orm.searchCount("adomi.workspace", []),
+                this.orm.searchCount("adomi.environment", []),
                 this.orm.searchCount("adomi.organization", []),
                 this.orm.searchCount("adomi.github.installation", []),
             ]);
@@ -73,7 +73,7 @@ export class AdomiDashboard extends Component {
                     key: "customer",
                     title: "Add your first customer",
                     icon: "fa-user-plus",
-                    desc: "Create a customer (tenant). Apps, databases and environments are all organized under a customer.",
+                    desc: "Create a customer (client). Apps, databases and environments are all organized under a customer.",
                     done: customers > 0,
                     action: "adomi_platform.action_adomi_client",
                     cta: "Add customer",
@@ -102,7 +102,7 @@ export class AdomiDashboard extends Component {
         return [
             {
                 title: "Customers",
-                desc: "Your tenants and their estates",
+                desc: "Your clients and their estates",
                 icon: "fa-users",
                 color: "primary",
                 action: "adomi_platform.action_adomi_client",

@@ -27,8 +27,8 @@ def _eff(*, org=None, client=None, ws=None, app=None, type_=None, app_name="odoo
         org_spec=org,
         client_name="acme",
         client_spec=client or {},
-        workspace_name="production",
-        workspace_spec=ws or {"class": "production"},
+        environment_name="production",
+        environment_spec=ws or {"class": "production"},
         app_name=app_name,
         app_spec=app or {},
         type_spec=type_ if type_ is not None else _TYPE,
@@ -38,7 +38,7 @@ def _eff(*, org=None, client=None, ws=None, app=None, type_=None, app_name="odoo
 def test_compute_defaults():
     eff = _eff()
     assert eff.client_slug == "acme"
-    assert eff.workspace_name == "production"
+    assert eff.environment_name == "production"
     assert eff.namespace == "acme-production"
     assert eff.hostname == "odoo-production-acme.adomi.io"
     assert eff.url == "https://odoo-production-acme.adomi.io"
@@ -83,8 +83,8 @@ def test_compute_domain_fqdn_overrides_base_domain():
         org_spec={"domain": {"base": "org.example.com"}},
         client_name="acme",
         client_spec={},
-        workspace_name="prod",
-        workspace_spec={"class": "production"},
+        environment_name="prod",
+        environment_spec={"class": "production"},
         app_name="erp",
         app_spec={},
         type_spec=_TYPE,

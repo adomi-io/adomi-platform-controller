@@ -25,7 +25,7 @@ _logger = logging.getLogger(__name__)
 ALLOWED_MODELS = {
     "adomi.organization",
     "adomi.client",
-    "adomi.workspace",
+    "adomi.environment",
     "adomi.database.server",
     "adomi.application.type",
     "adomi.application",
