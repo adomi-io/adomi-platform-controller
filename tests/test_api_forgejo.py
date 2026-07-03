@@ -44,19 +44,36 @@ def _writer(session, owner="tenants"):
     return ForgejoWriter("https://git.example.com", "tok", owner, session=session)
 
 
-def test_create_when_absent():
+def test_create_when_absent_uses_post():
+    # A new file must be created with POST — Forgejo rejects a sha-less PUT
+    # with 422 "[SHA]: Required".
     session = _StubSession(
         [
             (("GET", "repos/tenants/acme"), _Resp(200, {"name": "acme"})),
             (("GET", "contents/clients/acme.yaml"), _Resp(404)),
-            (("PUT", "contents/clients/acme.yaml"), _Resp(201, {"content": {"sha": "a"}})),
+            (("POST", "contents/clients/acme.yaml"), _Resp(201, {"content": {"sha": "a"}})),
+        ]
+    )
+    res = _writer(session).apply_manifest("acme", "clients/acme.yaml", "kind: Client\n", "m")
+    post = [c for c in session.calls if "contents/" in c["url"] and c["method"] == "POST"][0]
+    assert "sha" not in post["body"]
+    assert base64.b64decode(post["body"]["content"]).decode() == "kind: Client\n"
+    assert res["committed"] and post["headers"]["Authorization"] == "token tok"
+    assert not [c for c in session.calls if c["method"] == "PUT"]
+
+
+def test_update_when_present_uses_put_with_sha():
+    session = _StubSession(
+        [
+            (("GET", "repos/tenants/acme"), _Resp(200, {"name": "acme"})),
+            (("GET", "contents/clients/acme.yaml"), _Resp(200, {"sha": "oldsha"})),
+            (("PUT", "contents/clients/acme.yaml"), _Resp(200, {"content": {"sha": "new"}})),
         ]
     )
     res = _writer(session).apply_manifest("acme", "clients/acme.yaml", "kind: Client\n", "m")
     put = [c for c in session.calls if c["method"] == "PUT"][0]
-    assert "sha" not in put["body"]
-    assert base64.b64decode(put["body"]["content"]).decode() == "kind: Client\n"
-    assert res["committed"] and put["headers"]["Authorization"] == "token tok"
+    assert put["body"]["sha"] == "oldsha"
+    assert res["committed"]
 
 
 def test_pr_mode_opens_pull():
@@ -64,13 +81,13 @@ def test_pr_mode_opens_pull():
         [
             (("GET", "repos/tenants/acme"), _Resp(200, {"name": "acme"})),
             (("GET", "contents/applications/erp.yaml"), _Resp(404)),
-            (("PUT", "contents/applications/erp.yaml"), _Resp(201, {"content": {"sha": "x"}})),
+            (("POST", "contents/applications/erp.yaml"), _Resp(201, {"content": {"sha": "x"}})),
             (("POST", "pulls"), _Resp(201, {"number": 7})),
         ]
     )
     res = _writer(session).apply_manifest("acme", "applications/erp.yaml", "x\n", "m", mode=MODE_PR)
-    put = [c for c in session.calls if c["method"] == "PUT"][0]
-    assert put["body"]["new_branch"] == "adomi/applications-erp"
+    post = [c for c in session.calls if "contents/" in c["url"] and c["method"] == "POST"][0]
+    assert post["body"]["new_branch"] == "adomi/applications-erp"
     assert res["pr"] == {"number": 7}
 
 

@@ -7,7 +7,8 @@ unit-testable without a network. In the running service the default session is a
 
 Contents API used here:
   GET    /api/v1/repos/{owner}/{repo}/contents/{path}?ref={branch}   -> file (sha)
-  PUT    /api/v1/repos/{owner}/{repo}/contents/{path}                 -> create/update
+  POST   /api/v1/repos/{owner}/{repo}/contents/{path}                 -> create (no sha)
+  PUT    /api/v1/repos/{owner}/{repo}/contents/{path}                 -> update (sha required)
   DELETE /api/v1/repos/{owner}/{repo}/contents/{path}                 -> delete
   POST   /api/v1/orgs/{owner}/repos                                   -> create repo
   POST   /api/v1/repos/{owner}/{repo}/pulls                           -> open PR
@@ -151,7 +152,10 @@ class ForgejoWriter:
         if new_branch:
             payload["new_branch"] = new_branch
 
-        resp = self._request("PUT", f"repos/{self.owner}/{repo}/contents/{path}", payload)
+        # The contents API distinguishes create (POST, no sha) from update (PUT,
+        # sha required) — a PUT without a sha is rejected with 422 "[SHA]: Required".
+        method = "PUT" if sha else "POST"
+        resp = self._request(method, f"repos/{self.owner}/{repo}/contents/{path}", payload)
 
         if resp.status_code not in (200, 201):
             raise GitError(f"Writing {path} failed: {resp.status_code} {resp.text}")
