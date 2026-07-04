@@ -302,10 +302,12 @@ class Application(models.Model):
 
     # --- observability hooks ---
     def _obs_pod_regex(self):
-        # This application's pods only (release fullname prefixes the pod name),
-        # not everything sharing the environment namespace.
+        # This application's pods only, not everything sharing the environment
+        # namespace. The Helm release is the Argo app (<namespace>-<app>) and its
+        # fullname prefixes every pod, across all the release's components.
         self.ensure_one()
-        return "%s-.*" % self.k8s_name if self.k8s_name else ""
+        release = self._obs_argocd_app()
+        return "%s-.*" % release if release else ""
 
     def _obs_argocd_app(self):
         self.ensure_one()

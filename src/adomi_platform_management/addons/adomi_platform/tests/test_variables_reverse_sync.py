@@ -128,33 +128,34 @@ class TestAppScopedObservability(TransactionCase):
             }
         )
         self.application.with_context(adomi_no_push=True).write(
-            {"namespace": "adomi-client-acme-production"}
+            {"namespace": "acme-production"}
         )
         self.environment = environment
 
     def test_application_queries_are_pod_scoped(self):
+        # The release is <namespace>-<app>; its pods are acme-production-status-*.
         self.assertEqual(
             self.application._obs_label_filters(),
-            'namespace="adomi-client-acme-production",pod=~"status-.*"',
+            'namespace="acme-production",pod=~"acme-production-status-.*"',
         )
         self.assertEqual(
             self.application._obs_log_query(),
-            '{namespace="adomi-client-acme-production",pod=~"status-.*"}',
+            '{namespace="acme-production",pod=~"acme-production-status-.*"}',
         )
 
     def test_environment_queries_stay_namespace_wide(self):
         self.environment.with_context(adomi_no_push=True).write(
-            {"namespace": "adomi-client-acme-production"}
+            {"namespace": "acme-production"}
         )
         self.assertEqual(
             self.environment._obs_label_filters(),
-            'namespace="adomi-client-acme-production"',
+            'namespace="acme-production"',
         )
 
     def test_search_is_escaped_into_the_line_filter(self):
         query = self.application._obs_log_query('error "500"')
         self.assertEqual(
             query,
-            '{namespace="adomi-client-acme-production",pod=~"status-.*"}'
+            '{namespace="acme-production",pod=~"acme-production-status-.*"}'
             ' |= "error \\"500\\""',
         )
