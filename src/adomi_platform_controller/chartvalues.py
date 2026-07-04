@@ -24,6 +24,7 @@ def build_chart_values(
     sso: list,
     env: list,
     oidc: dict | None = None,
+    env_from_secret: str = "",
 ) -> dict:
     """Map the explicit intent onto the per-app chart's value contract (pure).
 
@@ -44,6 +45,11 @@ def build_chart_values(
         "sso": list(sso or []),
         "env": list(env or []),
     }
+
+    if env_from_secret:
+        # Scoped Secrets (org/client/environment/app) delivered by the controller
+        # as one merged Secret; wired through the charts' existing extraEnvFrom.
+        values["extraEnvFrom"] = [{"secretRef": {"name": env_from_secret}}]
 
     if oidc:
         values["oidc"] = dict(oidc)

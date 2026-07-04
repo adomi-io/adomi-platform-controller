@@ -97,6 +97,10 @@ class Config:
     # means an application must declare a host or supply an Organization base domain.
     base_domain: str = ""
 
+    # OpenBao KV prefix for scoped Variables/Secrets (org/client/environment/app).
+    # Secret VALUES live only under this prefix; git carries no secret material.
+    scoped_secrets_prefix: str = "scoped"
+
     # Build pipeline. When an Application declares a source, the controller
     # submits an Argo Workflow (from the shipped WorkflowTemplate) that builds the
     # repository image and pushes it to Harbor.
@@ -197,6 +201,7 @@ class Config:
             argocd_project=_env("ARGOCD_PROJECT", d.argocd_project),
             odoo_image_repository=_env("ODOO_IMAGE_REPOSITORY", d.odoo_image_repository),
             base_domain=_env("PLATFORM_BASE_DOMAIN", d.base_domain),
+            scoped_secrets_prefix=_env("SCOPED_SECRETS_PREFIX", d.scoped_secrets_prefix),
             argo_namespace=_env("ARGO_NAMESPACE", d.argo_namespace),
             build_workflow_template=_env("BUILD_WORKFLOW_TEMPLATE", d.build_workflow_template),
             build_service_account=_env("BUILD_SERVICE_ACCOUNT", d.build_service_account),

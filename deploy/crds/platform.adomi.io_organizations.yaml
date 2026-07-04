@@ -55,6 +55,23 @@ spec:
                     description: odooRepository is the default Odoo image repository.
                     type: string
                 type: object
+              variables:
+                description: |-
+                  variables are plain (non-secret) environment values contributed to
+                  every workload in this scope; nearer scopes override (organization <
+                  client < environment < application). Secret VALUES never appear in
+                  git - they live in OpenBao via the platform API.
+                items:
+                  properties:
+                    name:
+                      minLength: 1
+                      type: string
+                    value:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
               ingress:
                 description: ingress configures default ingress behaviour.
                 properties:

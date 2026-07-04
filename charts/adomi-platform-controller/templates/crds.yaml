@@ -360,6 +360,23 @@ spec:
                     description: odooRepository is the default Odoo image repository.
                     type: string
                 type: object
+              variables:
+                description: |-
+                  variables are plain (non-secret) environment values contributed to
+                  every workload in this scope; nearer scopes override (organization <
+                  client < environment < application). Secret VALUES never appear in
+                  git - they live in OpenBao via the platform API.
+                items:
+                  properties:
+                    name:
+                      minLength: 1
+                      type: string
+                    value:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
               ingress:
                 description: ingress configures default ingress behaviour.
                 properties:
@@ -479,6 +496,23 @@ spec:
               displayName:
                 description: displayName is a human-readable name for the client.
                 type: string
+              variables:
+                description: |-
+                  variables are plain (non-secret) environment values contributed to
+                  every workload in this scope; nearer scopes override (organization <
+                  client < environment < application). Secret VALUES never appear in
+                  git - they live in OpenBao via the platform API.
+                items:
+                  properties:
+                    name:
+                      minLength: 1
+                      type: string
+                    value:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
               organizationRef:
                 description: |-
                   organizationRef names the Organization whose defaults this client
@@ -1116,6 +1150,23 @@ spec:
                 - production
                 - test
                 type: string
+              variables:
+                description: |-
+                  variables are plain (non-secret) environment values contributed to
+                  every workload in this scope; nearer scopes override (organization <
+                  client < environment < application). Secret VALUES never appear in
+                  git - they live in OpenBao via the platform API.
+                items:
+                  properties:
+                    name:
+                      minLength: 1
+                      type: string
+                    value:
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
               displayName:
                 description: displayName is a human-readable name for the environment.
                 type: string
@@ -1508,6 +1559,23 @@ spec:
                   password, etc.). Nothing is inferred; passed to the chart verbatim.
                 items:
                   x-kubernetes-preserve-unknown-fields: true
+                type: array
+              variables:
+                description: |-
+                  variables are plain (non-secret) environment values contributed to
+                  every workload in this scope; nearer scopes override (organization <
+                  client < environment < application). Secret VALUES never appear in
+                  git - they live in OpenBao via the platform API.
+                items:
+                  properties:
+                    name:
+                      minLength: 1
+                      type: string
+                    value:
+                      type: string
+                  required:
+                  - name
+                  type: object
                 type: array
               source:
                 description: |-

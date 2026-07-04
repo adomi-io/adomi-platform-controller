@@ -22,6 +22,7 @@ from .. import (
     chartvalues,
     conditions,
     dbjobs,
+    externalsecrets,
     github,
     namespaces,
     oidc,
@@ -182,6 +183,7 @@ class ApplicationReconciler(Reconciler):
         # published status). Injected as .Values.oidc so charts can wire runtime SSO
         # config from values; sso_ready is False until Authentik has minted the client.
         oidc_values, sso_ready = self._resolve_oidc(cfg, spec, eff.namespace)
+        env_from_secret = self._reconcile_scoped_secrets(eff, labels, logger)
         values = resolve.deep_merge(
             eff.type_defaults,
             chartvalues.build_chart_values(
@@ -194,8 +196,9 @@ class ApplicationReconciler(Reconciler):
                 ingress_annotations=(spec.get("ingress") or {}).get("annotations") or None,
                 databases=spec.get("databases") or [],
                 sso=spec.get("sso") or [],
-                env=spec.get("env") or [],
+                env=eff.env,
                 oidc=oidc_values,
+                env_from_secret=env_from_secret,
             ),
             spec.get("values") or {},
         )
@@ -248,6 +251,45 @@ class ApplicationReconciler(Reconciler):
 
         conditions.mark_ready(patch, status, f"Application {eff.app_name!r} reconciled", generation)
 
+    def _scoped_secret_name(self, app_name: str) -> str:
+        return f"{app_name}-scoped-secrets"[:253]
+
+    def _reconcile_scoped_secrets(self, eff, labels, logger) -> str:
+        """Deliver scoped Secrets (org/client/environment/app) into the workload.
+
+        One ExternalSecret pulls every key from each scope's OpenBao path that
+        exists, in least->most specific order (ESO's merge makes later keys win).
+        Returns the delivered Secret name for the chart's ``envFrom``, or "" when
+        no scope holds any secrets (the ExternalSecret is removed then, so a
+        deleted last secret revokes cleanly). Best-effort: a delivery failure
+        must not block the deploy of an app that doesn't use scoped secrets.
+        """
+        cfg = state.provider().config
+        name = self._scoped_secret_name(eff.app_name)
+
+        try:
+            bao = state.provider().openbao()
+            paths = [p for p in eff.scoped_secret_paths if bao.read(p)]
+
+            if not paths:
+                externalsecrets.ExternalSecret.delete(name, eff.namespace)
+                return ""
+
+            externalsecrets.ExternalSecret(
+                name=name,
+                namespace=eff.namespace,
+                store_name=cfg.cluster_secret_store,
+                remote_path="",
+                data_from_paths=paths,
+                refresh_interval="1m",
+                labels=labels,
+            ).apply()
+
+            return name
+        except Exception as exc:  # noqa: BLE001 - scoped secrets are additive
+            logger.warning("scoped secrets for %s not delivered: %s", eff.app_name, exc)
+            return ""
+
     def _resolve(self, cfg, spec, name, namespace, patch, status, generation) -> resolve.Effective:
         environment_ref = (spec.get("environmentRef") or {}).get("name")
         type_name = spec.get("type")
@@ -297,6 +339,7 @@ class ApplicationReconciler(Reconciler):
             app_spec=spec,
             type_spec=app_type.get("spec") or {},
             domain_fqdn=domain_fqdn,
+            org_name=((org or {}).get("metadata") or {}).get("name") or "",
         )
 
     def _reconcile_build(

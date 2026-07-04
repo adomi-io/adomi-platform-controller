@@ -93,6 +93,14 @@ class Effective:
     # Base image for source builds / restore jobs (org images.odooRepository).
     image_repository: str
 
+    # The workload's effective env: scope-contributed variables (org -> client ->
+    # environment -> application, nearest wins) with the app's explicit spec.env
+    # entries overriding everything by name.
+    env: list = field(default_factory=list)
+    # OpenBao KV paths contributing scoped secrets, least -> most specific (the
+    # order IS the precedence: ESO's dataFrom merge lets later keys win).
+    scoped_secret_paths: list = field(default_factory=list)
+
     extra: dict = field(default_factory=dict)
 
 
@@ -151,6 +159,50 @@ def snapshot_object_key(namespace: str, name: str) -> str:
     return f"snapshots/{namespace}/{name}.pgdump"
 
 
+def merged_env(*, org_spec, client_spec, environment_spec, app_spec) -> list[dict]:
+    """The workload's effective env from the scope chain (pure).
+
+    Plain ``variables`` declared at each scope merge by name, nearest scope
+    winning (org < client < environment < application). The application's
+    explicit ``env`` entries (connection wiring, valueFrom refs) override any
+    same-named variable and always come through verbatim.
+    """
+    merged: dict[str, dict] = {}
+
+    for spec in (org_spec or {}, client_spec or {}, environment_spec or {}, app_spec or {}):
+        for var in spec.get("variables") or []:
+            name = (var.get("name") or "").strip()
+            if name:
+                merged[name] = {"name": name, "value": var.get("value") or ""}
+
+    for entry in (app_spec or {}).get("env") or []:
+        name = (entry.get("name") or "").strip()
+        if name:
+            merged[name] = entry
+
+    return list(merged.values())
+
+
+def scoped_secret_paths(
+    prefix: str, org_name: str, client_slug: str, environment_name: str, app_name: str
+) -> list[str]:
+    """OpenBao KV paths contributing scoped secrets, least -> most specific (pure).
+
+    Secret VALUES live only in OpenBao at these paths (one KV map per scope);
+    git carries no secret material. The order is the precedence order.
+    """
+    prefix = prefix.strip("/")
+    paths = []
+    if org_name:
+        paths.append(f"{prefix}/org/{org_name}")
+    paths.append(f"{prefix}/clients/{client_slug}")
+    paths.append(f"{prefix}/clients/{client_slug}/environments/{environment_name}")
+    paths.append(
+        f"{prefix}/clients/{client_slug}/environments/{environment_name}/applications/{app_name}"
+    )
+    return paths
+
+
 def database_url(user: str, password_key: str, host: str, port: int | str, dbname: str) -> str:
     """The DATABASE_URL Go-template for a delivered credential Secret (pure).
 
@@ -194,6 +246,7 @@ def compute(
     app_spec: dict,
     type_spec: dict,
     domain_fqdn: str = "",
+    org_name: str = "",
 ) -> Effective:
     """Fold the layers into the effective settings for an application (pure).
 
@@ -245,6 +298,19 @@ def compute(
         ),
         type_defaults=type_spec.get("defaultValues") or {},
         image_repository=image_repository,
+        env=merged_env(
+            org_spec=org,
+            client_spec=client_spec,
+            environment_spec=environment_spec,
+            app_spec=app_spec,
+        ),
+        scoped_secret_paths=scoped_secret_paths(
+            cfg.scoped_secrets_prefix,
+            org_name,
+            client_slug,
+            environment_name,
+            app_name,
+        ),
     )
 
 

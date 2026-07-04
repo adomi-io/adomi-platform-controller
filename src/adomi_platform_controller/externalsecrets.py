@@ -40,6 +40,10 @@ class ExternalSecret(CustomResource):
     # consumer can wire every connection field from one Secret — the fetched secret
     # values are carried through automatically.
     template_data: dict[str, str] = field(default_factory=dict)
+    # When set, pull EVERY key from each of these OpenBao paths instead of named
+    # properties (spec.dataFrom). ESO merges the maps in order - later paths
+    # override earlier keys - which is exactly the scoped-secrets precedence.
+    data_from_paths: list[str] = field(default_factory=list)
     refresh_interval: str = "1h"
     labels: dict[str, str] = field(default_factory=dict)
     owner_references: list[dict] = field(default_factory=list)
@@ -91,14 +95,20 @@ class ExternalSecret(CustomResource):
                 template.setdefault(key, '{{ index . "%s" }}' % key)
             target["template"] = {"engine": "v2", "data": template}
 
+        spec: dict = {
+            "refreshInterval": self.refresh_interval,
+            "secretStoreRef": {"kind": "ClusterSecretStore", "name": self.store_name},
+            "target": target,
+        }
+
+        if self.data_from_paths:
+            spec["dataFrom"] = [{"extract": {"key": p}} for p in self.data_from_paths]
+        else:
+            spec["data"] = self._data()
+
         return {
             "apiVersion": f"{self.group}/{self.version}",
             "kind": "ExternalSecret",
             "metadata": metadata,
-            "spec": {
-                "refreshInterval": self.refresh_interval,
-                "secretStoreRef": {"kind": "ClusterSecretStore", "name": self.store_name},
-                "target": target,
-                "data": self._data(),
-            },
+            "spec": spec,
         }
