@@ -86,3 +86,26 @@ class TestApiWriteDispatch(TransactionCase):
         self.env["ir.config_parameter"].sudo().set_param("adomi_platform.write_backend", "kubernetes")
         self._new_client()
         self.assertEqual(self.api.upserts, [])
+
+    def test_missing_cr_is_pending_on_api_backend(self):
+        # After a write the CR is committed to git but GitOps hasn't applied it
+        # yet: that's provisioning in flight, not "Not found in cluster".
+        from odoo.addons.adomi_platform.models import k8s as k8s_mod
+
+        self.patch(k8s_mod, "get", lambda *a, **kw: None)
+        client = self._new_client()
+        client.action_k8s_sync()
+        self.assertEqual(client.k8s_state, "pending")
+        self.assertIn("Committed to the client repo", client.k8s_message)
+
+    def test_missing_cr_is_unknown_for_platform_records(self):
+        # Platform-scoped records (no client owner) keep the hard "not found".
+        from odoo.addons.adomi_platform.models import k8s as k8s_mod
+
+        self.patch(k8s_mod, "get", lambda *a, **kw: None)
+        org = self.env["adomi.organization"].with_context(adomi_no_push=True).create(
+            {"name": "Adomi", "k8s_name": "adomi"}
+        )
+        org.action_k8s_sync()
+        self.assertEqual(org.k8s_state, "unknown")
+        self.assertIn("Not found in cluster", org.k8s_message)

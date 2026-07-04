@@ -35,12 +35,14 @@ class K8sMixin(models.AbstractModel):
         index=True,
         help="metadata.name of the Kubernetes custom resource (DNS-1123 label).",
     )
+    # Selection order IS the statusbar display order (left -> right): the happy
+    # path reads Pending -> Ready, with the exceptional states in between.
     k8s_state = fields.Selection(
         [
-            ("ready", "Ready"),
-            ("not_ready", "Not ready"),
             ("pending", "Pending"),
             ("unknown", "Unknown"),
+            ("not_ready", "Not ready"),
+            ("ready", "Ready"),
         ],
         string="Status",
         default="pending",
@@ -256,13 +258,23 @@ class K8sMixin(models.AbstractModel):
         for rec in self:
             obj = k8s.get(rec._k8s_plural, rec.k8s_name, rec._k8s_ns())
             if obj is None:
-                rec.with_context(adomi_no_push=True).write(
-                    {
+                # On the api backend git is the source of truth: right after a
+                # write the CR is committed but GitOps hasn't applied it to the
+                # cluster yet — that's in-flight provisioning, not an error.
+                if self._k8s_write_backend() == "api" and rec._k8s_client_slug():
+                    vals = {
+                        "k8s_state": "pending",
+                        "k8s_message": _(
+                            "Committed to the client repo; waiting for the platform to apply it."
+                        ),
+                    }
+                else:
+                    vals = {
                         "k8s_state": "unknown",
                         "k8s_message": _("Not found in cluster."),
-                        "k8s_last_sync": fields.Datetime.now(),
                     }
-                )
+                vals["k8s_last_sync"] = fields.Datetime.now()
+                rec.with_context(adomi_no_push=True).write(vals)
                 continue
             rec._k8s_apply_obj(obj)
         return True
