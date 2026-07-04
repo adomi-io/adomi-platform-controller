@@ -14,20 +14,18 @@
                         <h2><field name="step_label" readonly="1" nolabel="1" class="fw-bold"/></h2>
                     </div>
 
-                    <!-- Step: customer & environment -->
+                    <!-- Step: customer & environment (cascading; quick-create inline) -->
                     <group invisible="state != 'target'">
                         <group string="Customer">
                             <field name="organization_id" options="{'no_create': True}"/>
-                            <field name="client_id" string="Customer" placeholder="Existing customer"
-                                   options="{'no_create': True}"/>
-                            <field name="new_client_name" invisible="client_id"/>
-                            <field name="new_client_partner_id" invisible="client_id"/>
+                            <field name="client_id" string="Customer"
+                                   placeholder="Select or create a customer"
+                                   context="{'default_organization_id': organization_id}"/>
                         </group>
                         <group string="Environment">
-                            <field name="environment_id" placeholder="Existing environment"
-                                   options="{'no_create': True}"/>
-                            <field name="new_environment_name" invisible="environment_id"/>
-                            <field name="new_environment_class" invisible="environment_id"/>
+                            <field name="environment_id"
+                                   placeholder="Select or create an environment"
+                                   context="{'default_client_id': client_id}"/>
                         </group>
                     </group>
 

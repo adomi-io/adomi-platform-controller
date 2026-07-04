@@ -1,6 +1,6 @@
 {
     "name": "Adomi Platform — Odoo Pipeline",
-    "version": "19.0.1.0.0",
+    "version": "19.0.2.0.0",
     "summary": "Guided setup for a customer's Odoo pipeline (boilerplate repo, edition, launch)",
     "description": """
 Extends the platform launch wizard with an Odoo product step: pick Community or

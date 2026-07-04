@@ -3,3 +3,5 @@ from . import test_api_write_dispatch
 from . import test_reverse_sync_scoping
 from . import test_provisioning_flow
 from . import test_scoped_config
+from . import test_deploy_wizard
+from . import test_variables_reverse_sync

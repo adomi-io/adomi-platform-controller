@@ -26,17 +26,28 @@ class DeployWizard(models.TransientModel):
         string="Edition",
         default="community",
     )
-    odoo_create_repo = fields.Boolean(
-        string="Create pipeline repository",
-        default=True,
-        help="Generate the customer's Odoo pipeline repo from %s on their GitHub."
-        % BOILERPLATE_TEMPLATE,
+    odoo_repo_mode = fields.Selection(
+        [
+            ("generate", "Create a new repository from our boilerplate"),
+            ("existing", "Use an existing repository"),
+            ("none", "Skip for now"),
+        ],
+        string="Pipeline repository",
+        default="generate",
+        required=True,
+        help="Generate the customer's Odoo pipeline repo from %s on their GitHub, "
+        "or pick one they already have." % BOILERPLATE_TEMPLATE,
     )
     odoo_github_installation_id = fields.Many2one(
         "adomi.github.installation", string="GitHub account"
     )
     odoo_repo_name = fields.Char(
         string="Repository name", help="Defaults to <customer>-odoo."
+    )
+    odoo_existing_repo_id = fields.Many2one(
+        "adomi.github.repository",
+        string="Repository",
+        domain="[('installation_id', '=', odoo_github_installation_id)]",
     )
     odoo_enterprise_repo = fields.Char(
         string="Enterprise repository",
@@ -47,6 +58,18 @@ class DeployWizard(models.TransientModel):
     def _compute_is_odoo_type(self):
         for rec in self:
             rec.is_odoo_type = rec.type_id.k8s_name == "odoo"
+
+    @api.onchange("odoo_github_installation_id", "odoo_repo_mode")
+    def _onchange_odoo_repo_source(self):
+        if self.odoo_existing_repo_id.installation_id != self.odoo_github_installation_id:
+            self.odoo_existing_repo_id = False
+        # Refresh the picker so it offers the account's current repositories.
+        # Best-effort: a GitHub hiccup leaves the last-synced list in place.
+        if self.odoo_repo_mode == "existing" and self.odoo_github_installation_id:
+            try:
+                self.odoo_github_installation_id.action_sync_repos()
+            except Exception:  # noqa: BLE001
+                pass
 
     # --- step injection ---------------------------------------------------------
     def _wizard_steps(self):
@@ -63,11 +86,13 @@ class DeployWizard(models.TransientModel):
     def _validate_step(self, step):
         super()._validate_step(step)
         if step == "odoo" and self.is_odoo_type:
-            if self.odoo_create_repo and not self.odoo_github_installation_id:
+            if self.odoo_repo_mode != "none" and not self.odoo_github_installation_id:
                 raise UserError(
-                    _("Pick the GitHub account to create the pipeline repository on, "
-                      "or untick repository creation.")
+                    _("Pick the GitHub account for the pipeline repository, "
+                      "or skip the repository for now.")
                 )
+            if self.odoo_repo_mode == "existing" and not self.odoo_existing_repo_id:
+                raise UserError(_("Pick the existing repository to use."))
             if self.odoo_edition == "enterprise" and not self.odoo_enterprise_repo:
                 raise UserError(
                     _("Enterprise needs your enterprise repository (a private mirror "
@@ -93,7 +118,7 @@ class DeployWizard(models.TransientModel):
             lines.append((_("Odoo edition"), dict(
                 self._fields["odoo_edition"].selection
             )[self.odoo_edition]))
-            if self.odoo_create_repo and self.odoo_github_installation_id:
+            if self.odoo_repo_mode == "generate" and self.odoo_github_installation_id:
                 lines.append((
                     _("Pipeline repository"),
                     "%s/%s (from %s)" % (
@@ -102,18 +127,60 @@ class DeployWizard(models.TransientModel):
                         BOILERPLATE_TEMPLATE,
                     ),
                 ))
+            elif self.odoo_repo_mode == "existing" and self.odoo_existing_repo_id:
+                lines.append((
+                    _("Pipeline repository"),
+                    self.odoo_existing_repo_id.full_name,
+                ))
         return lines
 
-    # --- post-launch: the boilerplate repo -------------------------------------------
+    # --- post-launch: the pipeline repo ----------------------------------------------
     def _odoo_repo_name(self):
-        client_name = self.client_id.k8s_name or self.new_client_name or "customer"
+        client_name = self.client_id.k8s_name or "customer"
         from odoo.addons.adomi_platform.models import k8s
 
         return self.odoo_repo_name or "%s-odoo" % k8s.slugify(client_name)
 
+    def _link_pipeline_repo(self, application, full_name, repo_url, default_branch, note):
+        """Register the repo as a platform GitRepository and wire it to the app."""
+        from odoo.addons.adomi_platform.models import k8s
+
+        git_repo = self.env["adomi.git.repository"].create(
+            {
+                "name": full_name,
+                "k8s_name": k8s.slugify(full_name.rsplit("/", 1)[-1]),
+                "url": repo_url,
+                "default_branch": default_branch or "main",
+            }
+        )
+        application.with_context(adomi_no_push=False).write(
+            {"git_repository_id": git_repo.id}
+        )
+        application.message_post(
+            body=_(
+                "Pipeline repository <a href='%(url)s' target='_blank'>%(full)s</a> %(note)s."
+            )
+            % {"url": repo_url, "full": full_name, "note": note}
+        )
+        return git_repo
+
     def _after_launch(self, application):
         super()._after_launch(application)
-        if not (self.is_odoo_type and self.odoo_create_repo and self.odoo_github_installation_id):
+        if not self.is_odoo_type:
+            return
+
+        if self.odoo_repo_mode == "existing" and self.odoo_existing_repo_id:
+            repo = self.odoo_existing_repo_id
+            self._link_pipeline_repo(
+                application,
+                repo.full_name,
+                repo.html_url or "https://github.com/%s" % repo.full_name,
+                repo.default_branch,
+                _("linked (%s edition)") % self.odoo_edition,
+            )
+            return
+
+        if not (self.odoo_repo_mode == "generate" and self.odoo_github_installation_id):
             return
 
         installation = self.odoo_github_installation_id
@@ -129,26 +196,11 @@ class DeployWizard(models.TransientModel):
             % application.client_id.name,
         )
         repo_url = repo.get("html_url") or "https://github.com/%s/%s" % (owner, repo_name)
-
-        git_repo = self.env["adomi.git.repository"].create(
-            {
-                "name": "%s/%s" % (owner, repo_name),
-                "k8s_name": repo_name,
-                "url": repo_url,
-            }
-        )
-        application.with_context(adomi_no_push=False).write(
-            {"git_repository_id": git_repo.id}
-        )
-        application.message_post(
-            body=_(
-                "Pipeline repository <a href='%(url)s' target='_blank'>%(full)s</a> "
-                "generated from %(template)s (%(edition)s edition)."
-            )
-            % {
-                "url": repo_url,
-                "full": "%s/%s" % (owner, repo_name),
-                "template": BOILERPLATE_TEMPLATE,
-                "edition": self.odoo_edition,
-            }
+        self._link_pipeline_repo(
+            application,
+            "%s/%s" % (owner, repo_name),
+            repo_url,
+            repo.get("default_branch"),
+            _("generated from %(template)s (%(edition)s edition)")
+            % {"template": BOILERPLATE_TEMPLATE, "edition": self.odoo_edition},
         )

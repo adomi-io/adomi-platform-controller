@@ -239,6 +239,10 @@ class GithubInstallation(models.Model):
     state = fields.Selection(
         [("active", "Active"), ("suspended", "Suspended")], string="Status", default="active"
     )
+    repository_ids = fields.One2many(
+        "adomi.github.repository", "installation_id", string="Repositories"
+    )
+    repository_count = fields.Integer(compute="_compute_repository_count")
 
     # short-lived installation-token cache (admin-only)
     cached_token = fields.Char(copy=False, groups="base.group_system")
@@ -247,6 +251,11 @@ class GithubInstallation(models.Model):
     _sql_constraints = [
         ("installation_uniq", "unique(installation_id)", "This installation is already linked."),
     ]
+
+    @api.depends("repository_ids")
+    def _compute_repository_count(self):
+        for rec in self:
+            rec.repository_count = len(rec.repository_ids)
 
     @api.model
     def _upsert_from_github(self, app, obj):
@@ -294,12 +303,100 @@ class GithubInstallation(models.Model):
 
         return github_client.GitHubClient(self._installation_token(), requests)
 
+    def action_sync_repos(self):
+        """Mirror the repos this installation can see into Odoo — they back the
+        repository pickers (wizards) and the per-customer git views."""
+        Repo = self.env["adomi.github.repository"]
+        for rec in self:
+            try:
+                data = rec._client().installation_repos()
+            except Exception as exc:  # noqa: BLE001
+                raise UserError(_("Could not list repositories: %s") % exc)
+            seen = Repo
+            for obj in data.get("repositories") or []:
+                seen |= Repo._upsert_from_github(rec, obj)
+            # Repos the installation lost access to disappear from the picker.
+            (rec.repository_ids - seen).unlink()
+        return True
+
     def action_view_repos(self):
         self.ensure_one()
-        try:
-            data = self._client().installation_repos()
-        except Exception as exc:  # noqa: BLE001
-            raise UserError(_("Could not list repositories: %s") % exc)
-        repos = data.get("repositories") or []
-        names = "\n".join("• %s" % r.get("full_name") for r in repos[:50])
-        raise UserError(_("Repositories (%s):\n%s") % (data.get("total_count", len(repos)), names or "(none)"))
+        self.action_sync_repos()
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("%s · Repositories") % (self.account_login or ""),
+            "res_model": "adomi.github.repository",
+            "view_mode": "list",
+            "domain": [("installation_id", "=", self.id)],
+        }
+
+
+class GithubRepository(models.Model):
+    """A repository visible to a GitHub App installation, mirrored into Odoo.
+
+    Kept in sync by ``action_sync_repos`` (button + wizard onchange) so pickers
+    offer real repositories instead of free-text names. Not a platform CR — the
+    deployable source repos become ``adomi.git.repository`` records when linked
+    to an application.
+    """
+
+    _name = "adomi.github.repository"
+    _description = "Adomi GitHub Repository"
+    _rec_name = "full_name"
+    _order = "pushed_at desc, full_name"
+
+    installation_id = fields.Many2one(
+        "adomi.github.installation",
+        string="Installation",
+        required=True,
+        ondelete="cascade",
+        index=True,
+    )
+    name = fields.Char(required=True)
+    full_name = fields.Char(string="Full name", required=True, index=True)
+    owner_login = fields.Char(string="Owner")
+    html_url = fields.Char(string="URL")
+    private = fields.Boolean(string="Private")
+    default_branch = fields.Char(string="Default branch")
+    description = fields.Char()
+    pushed_at = fields.Datetime(string="Last push")
+
+    _sql_constraints = [
+        (
+            "installation_repo_uniq",
+            "unique(installation_id, full_name)",
+            "This repository is already mirrored for this installation.",
+        ),
+    ]
+
+    @api.model
+    def _upsert_from_github(self, installation, obj):
+        pushed_at = False
+        if obj.get("pushed_at"):
+            try:
+                pushed_at = datetime.fromisoformat(obj["pushed_at"].replace("Z", ""))
+            except ValueError:
+                pushed_at = False
+        vals = {
+            "installation_id": installation.id,
+            "name": obj.get("name"),
+            "full_name": obj.get("full_name"),
+            "owner_login": (obj.get("owner") or {}).get("login"),
+            "html_url": obj.get("html_url"),
+            "private": bool(obj.get("private")),
+            "default_branch": obj.get("default_branch"),
+            "description": obj.get("description") or False,
+            "pushed_at": pushed_at,
+        }
+        rec = self.search(
+            [
+                ("installation_id", "=", installation.id),
+                ("full_name", "=", obj.get("full_name")),
+            ],
+            limit=1,
+        )
+        if rec:
+            rec.write(vals)
+        else:
+            rec = self.create(vals)
+        return rec

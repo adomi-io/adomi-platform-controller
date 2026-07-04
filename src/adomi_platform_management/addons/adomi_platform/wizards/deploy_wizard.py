@@ -40,28 +40,21 @@ class DeployWizard(models.TransientModel):
     is_first_step = fields.Boolean(compute="_compute_step_meta")
     is_last_step = fields.Boolean(compute="_compute_step_meta")
 
-    organization_id = fields.Many2one("adomi.organization", string="Organization")
-
     # --- step: target (who + where) ---
-    client_id = fields.Many2one("adomi.client", string="Customer")
-    new_client_name = fields.Char(string="…or new customer")
-    new_client_partner_id = fields.Many2one("res.partner", string="Contact")
+    # Cascading: organization narrows the customers, customer narrows the
+    # environments. New records are made inline with Odoo's native quick-create
+    # ("Create ..." / "Create and edit") on the same fields — no parallel
+    # "…or new" inputs.
+    organization_id = fields.Many2one("adomi.organization", string="Organization")
+    client_id = fields.Many2one(
+        "adomi.client",
+        string="Customer",
+        domain="[('organization_id', '=?', organization_id)]",
+    )
     environment_id = fields.Many2one(
         "adomi.environment",
         string="Environment",
         domain="[('client_id', '=', client_id)]",
-    )
-    new_environment_name = fields.Char(string="…or new environment")
-    new_environment_class = fields.Selection(
-        [
-            ("production", "Production"),
-            ("development", "Development"),
-            ("pdi", "PDI"),
-            ("preview", "Preview"),
-            ("test", "Test"),
-        ],
-        string="Environment class",
-        default="development",
     )
 
     # --- step: app (what) ---
@@ -138,10 +131,10 @@ class DeployWizard(models.TransientModel):
 
     def _validate_step(self, step):
         if step == "target":
-            if not (self.client_id or self.new_client_name):
-                raise UserError(_("Pick an existing customer or enter a new customer name."))
-            if not (self.environment_id or self.new_environment_name):
-                raise UserError(_("Pick an existing environment or enter a new one."))
+            if not self.client_id:
+                raise UserError(_("Pick a customer (or create one right in the field)."))
+            if not self.environment_id:
+                raise UserError(_("Pick an environment (or create one right in the field)."))
         if step == "app":
             if not self.type_id:
                 raise UserError(_("Choose an application from the catalog."))
@@ -168,29 +161,30 @@ class DeployWizard(models.TransientModel):
 
         return vals
 
+    @api.onchange("organization_id")
+    def _onchange_organization_id(self):
+        if (
+            self.organization_id
+            and self.client_id.organization_id
+            and self.client_id.organization_id != self.organization_id
+        ):
+            self.client_id = False
+
     @api.onchange("client_id")
     def _onchange_client_id(self):
         if self.client_id:
-            self.new_client_name = False
             if self.client_id.organization_id:
                 self.organization_id = self.client_id.organization_id
             if self.environment_id and self.environment_id.client_id != self.client_id:
                 self.environment_id = False
 
-    @api.onchange("environment_id")
-    def _onchange_environment_id(self):
-        if self.environment_id:
-            self.new_environment_name = False
-
     # ------------------------------------------------------------------ review
     def _review_lines(self):
         """(label, value) pairs for the review step; addons append theirs."""
         self.ensure_one()
-        client = self.client_id.name or self.new_client_name or ""
-        environment = self.environment_id.name or self.new_environment_name or ""
         lines = [
-            (_("Customer"), client),
-            (_("Environment"), environment),
+            (_("Customer"), self.client_id.name or ""),
+            (_("Environment"), self.environment_id.name or ""),
             (_("Application"), "%s (%s)" % (self.app_name or "", self.type_id.name or "")),
         ]
         if self.hostname:
@@ -217,32 +211,6 @@ class DeployWizard(models.TransientModel):
             rec.review_summary = "<table class='table table-sm mb-0'>%s</table>" % rows
 
     # ------------------------------------------------------------------ launch
-    def _resolve_client(self):
-        if self.client_id:
-            return self.client_id
-
-        return self.env["adomi.client"].create(
-            {
-                "name": self.new_client_name,
-                "k8s_name": k8s.slugify(self.new_client_name),
-                "organization_id": self.organization_id.id or False,
-                "partner_id": self.new_client_partner_id.id or False,
-            }
-        )
-
-    def _resolve_environment(self, client):
-        if self.environment_id:
-            return self.environment_id
-
-        return self.env["adomi.environment"].create(
-            {
-                "name": self.new_environment_name,
-                "k8s_name": k8s.slugify(self.new_environment_name),
-                "client_id": client.id,
-                "environment_class": self.new_environment_class or "development",
-            }
-        )
-
     def _prepare_application_vals(self, client, environment):
         """The Application record. Product addons extend (edition, values, …)."""
         slug = k8s.slugify(self.app_name)
@@ -282,10 +250,8 @@ class DeployWizard(models.TransientModel):
         self._validate_step("target")
         self._validate_step("app")
 
-        client = self._resolve_client()
-        environment = self._resolve_environment(client)
         application = self.env["adomi.application"].create(
-            self._prepare_application_vals(client, environment)
+            self._prepare_application_vals(self.client_id, self.environment_id)
         )
         self._after_launch(application)
 

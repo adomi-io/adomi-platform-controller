@@ -301,6 +301,12 @@ class Application(models.Model):
         return vals
 
     # --- observability hooks ---
+    def _obs_pod_regex(self):
+        # This application's pods only (release fullname prefixes the pod name),
+        # not everything sharing the environment namespace.
+        self.ensure_one()
+        return "%s-.*" % self.k8s_name if self.k8s_name else ""
+
     def _obs_argocd_app(self):
         self.ensure_one()
 

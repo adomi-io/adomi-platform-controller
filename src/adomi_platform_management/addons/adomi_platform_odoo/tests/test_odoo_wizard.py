@@ -49,28 +49,31 @@ class TestOdooWizard(TransactionCase):
 
     def test_edition_lands_in_application_values(self):
         wiz = self._wizard(self.odoo_type, odoo_edition="enterprise",
-                           odoo_enterprise_repo="acme/enterprise", odoo_create_repo=False)
+                           odoo_enterprise_repo="acme/enterprise", odoo_repo_mode="none")
         vals = wiz._prepare_application_vals(self.client, self.environment)
         values = json.loads(vals["values"])
         self.assertEqual(values["odoo"]["edition"], "enterprise")
         self.assertEqual(values["odoo"]["enterpriseRepository"], "acme/enterprise")
 
     def test_enterprise_requires_enterprise_repo(self):
-        wiz = self._wizard(self.odoo_type, odoo_edition="enterprise", odoo_create_repo=False)
+        wiz = self._wizard(self.odoo_type, odoo_edition="enterprise", odoo_repo_mode="none")
         with self.assertRaises(UserError):
             wiz._validate_step("odoo")
 
-    def test_after_launch_generates_boilerplate_repo(self):
+    def _installation(self):
         app_record = self.env["adomi.github.app"].create({"name": "Adomi"})
-        installation = self.env["adomi.github.installation"].create(
+        return self.env["adomi.github.installation"].create(
             {"app_id": app_record.id, "installation_id": "1", "account_login": "acme-org"}
         )
+
+    def test_after_launch_generates_boilerplate_repo(self):
+        installation = self._installation()
         fake = _FakeGitHub()
         self.patch(type(installation), "_client", lambda s: fake)
 
         wiz = self._wizard(
             self.odoo_type,
-            odoo_create_repo=True,
+            odoo_repo_mode="generate",
             odoo_github_installation_id=installation.id,
         )
         application = (
@@ -85,3 +88,47 @@ class TestOdooWizard(TransactionCase):
         self.assertEqual(fake.generated[0]["name"], "acme-odoo")
         self.assertTrue(application.git_repository_id)
         self.assertIn("github.com/acme-org/acme-odoo", application.git_repository_id.url)
+
+    def test_after_launch_links_existing_repo(self):
+        installation = self._installation()
+        fake = _FakeGitHub()
+        self.patch(type(installation), "_client", lambda s: fake)
+        repo = self.env["adomi.github.repository"].create(
+            {
+                "installation_id": installation.id,
+                "name": "acme-erp",
+                "full_name": "acme-org/acme-erp",
+                "html_url": "https://github.com/acme-org/acme-erp",
+                "default_branch": "main",
+            }
+        )
+
+        wiz = self._wizard(
+            self.odoo_type,
+            odoo_repo_mode="existing",
+            odoo_github_installation_id=installation.id,
+            odoo_existing_repo_id=repo.id,
+        )
+        wiz._validate_step("odoo")
+        application = (
+            self.env["adomi.application"]
+            .with_context(adomi_no_push=True)
+            .create(wiz._prepare_application_vals(self.client, self.environment))
+        )
+        wiz.with_context(adomi_no_push=True)._after_launch(application)
+
+        self.assertFalse(fake.generated)  # nothing generated: the repo already exists
+        self.assertTrue(application.git_repository_id)
+        self.assertEqual(
+            application.git_repository_id.url, "https://github.com/acme-org/acme-erp"
+        )
+
+    def test_existing_mode_requires_a_repo(self):
+        installation = self._installation()
+        wiz = self._wizard(
+            self.odoo_type,
+            odoo_repo_mode="existing",
+            odoo_github_installation_id=installation.id,
+        )
+        with self.assertRaises(UserError):
+            wiz._validate_step("odoo")

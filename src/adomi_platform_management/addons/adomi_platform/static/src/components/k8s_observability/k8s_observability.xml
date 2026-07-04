@@ -2,17 +2,42 @@
 <templates xml:space="preserve">
     <t t-name="adomi_platform.K8sObservability" owl="1">
         <div class="o_adomi_observability w-100">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="text-muted small">
+            <!-- Toolbar: range presets · search · window chip · refresh -->
+            <div class="o_adomi_obs_toolbar d-flex flex-wrap align-items-center gap-2 mb-2">
+                <div class="btn-group btn-group-sm" role="group" aria-label="Time range">
+                    <t t-foreach="ranges" t-as="range" t-key="range.minutes">
+                        <button type="button"
+                                t-att-class="'btn ' + (!state.drill and state.rangeMinutes === range.minutes ? 'btn-primary' : 'btn-outline-secondary')"
+                                t-on-click="() => this.setRange(range.minutes)">
+                            <t t-esc="range.label"/>
+                        </button>
+                    </t>
+                </div>
+                <div class="input-group input-group-sm" style="max-width: 320px;">
+                    <input type="text" class="form-control" placeholder="Search log lines…"
+                           t-att-value="state.search" t-on-keydown="onSearchKeydown"/>
+                    <button type="button" class="btn btn-outline-secondary" t-on-click="applySearch">
+                        <i class="fa fa-search"/>
+                    </button>
+                </div>
+                <span t-if="state.drill" class="badge text-bg-info">
+                    <t t-esc="windowLabel"/>
+                    <button type="button" class="btn btn-sm btn-link p-0 ms-1 text-white"
+                            title="Back to live range" t-on-click="() => this.clearDrill()">
+                        <i class="fa fa-times"/>
+                    </button>
+                </span>
+                <span class="text-muted small ms-auto">
                     <t t-if="state.loading">Loading…</t>
                     <t t-elif="state.error" t-esc="state.error"/>
-                    <t t-else="">Last hour · namespace <t t-esc="state.metrics and state.metrics.namespace"/></t>
+                    <t t-else="" t-esc="windowLabel"/>
                 </span>
                 <button type="button" class="btn btn-sm btn-secondary" t-on-click="() => this.load()">
-                    Refresh
+                    <i class="fa fa-refresh"/>
                 </button>
             </div>
 
+            <!-- Metrics -->
             <div t-if="hasMetrics" class="row g-3 mb-3">
                 <div class="col-12 col-md-6">
                     <div class="text-muted small">CPU</div>
@@ -36,20 +61,46 @@
                 </div>
             </div>
             <div t-elif="!state.loading and !state.error" class="text-muted small mb-3">
-                No metrics yet (namespace not deployed, or monitoring unavailable).
+                No metrics yet (not deployed, or monitoring unavailable).
             </div>
 
-            <div class="text-muted small mb-1">Recent logs</div>
-            <div class="o_adomi_logs w-100 border rounded p-2 bg-dark text-light" style="max-height: 320px; overflow:auto; font-family: monospace; font-size: 12px;">
+            <!-- Log volume histogram: click a bar to drill into that slice -->
+            <div t-if="histBuckets.length" class="mb-1">
+                <div class="d-flex align-items-end gap-1 border-bottom pb-1"
+                     t-att-style="'height: ' + (histHeight + 8) + 'px;'">
+                    <t t-foreach="histBuckets" t-as="bucket" t-key="bucket[0]">
+                        <div class="o_adomi_hist_bar bg-primary flex-grow-1"
+                             t-att-style="'height: ' + barHeight(bucket) + 'px; min-width: 3px; cursor: pointer; opacity: .7;'"
+                             t-att-title="bucket[1] + ' lines around ' + formatClock(bucket[0] * 1e9)"
+                             t-on-click="() => this.drillInto(bucket)"/>
+                    </t>
+                </div>
+            </div>
+
+            <!-- Log lines (click to expand/wrap) -->
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-muted small">Logs</span>
+                <span class="text-muted small" t-if="state.logs.length">
+                    <t t-esc="state.logs.length"/> lines
+                </span>
+            </div>
+            <div class="o_adomi_logs w-100 border rounded p-2 bg-dark text-light"
+                 style="max-height: 420px; overflow:auto; font-family: monospace; font-size: 12px;">
                 <t t-if="state.logs.length">
-                    <div t-foreach="state.logs" t-as="entry" t-key="entry_index" class="text-nowrap">
+                    <div t-foreach="state.logs" t-as="entry" t-key="entry_index"
+                         t-att-class="state.expanded[entry_index] ? '' : 'text-nowrap text-truncate'"
+                         style="cursor: pointer;"
+                         t-on-click="() => this.toggleExpand(entry_index)">
                         <span class="text-info" t-esc="formatTs(entry.ts)"/>
                         <span class="text-warning ms-1" t-if="entry.pod" t-esc="entry.pod"/>
-                        <span class="ms-2" t-esc="entry.line"/>
+                        <span class="ms-2" t-att-style="state.expanded[entry_index] ? 'white-space: pre-wrap; word-break: break-all;' : ''"
+                              t-esc="entry.line"/>
                     </div>
                 </t>
                 <t t-else="">
-                    <span class="text-muted">No log lines.</span>
+                    <span class="text-muted">
+                        No log lines in this window<t t-if="state.search"> matching "<t t-esc="state.search"/>"</t>.
+                    </span>
                 </t>
             </div>
         </div>

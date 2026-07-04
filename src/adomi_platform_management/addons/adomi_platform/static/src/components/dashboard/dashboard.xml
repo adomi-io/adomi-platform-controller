@@ -58,31 +58,6 @@
                 </div>
 
 
-                <!-- Guided setup: product pipelines contributed by addons -->
-                <div t-if="state.guides.length" class="card mb-4">
-                    <div class="card-body">
-                        <h4 class="mb-0">Guided setup</h4>
-                        <p class="text-muted">Launch a product with a walkthrough that sets everything up for you.</p>
-                        <div class="row g-2">
-                            <t t-foreach="state.guides" t-as="guide" t-key="guide.id">
-                                <div class="col-12 col-md-6 col-lg-4">
-                                    <div class="border rounded p-3 h-100 d-flex flex-column">
-                                        <div class="d-flex align-items-center gap-2 mb-1">
-                                            <i class="fa fa-lg text-primary" t-att-class="guide.icon"/>
-                                            <span class="fw-bold" t-esc="guide.name"/>
-                                        </div>
-                                        <div class="text-muted small flex-grow-1" t-esc="guide.description"/>
-                                        <button class="btn btn-sm btn-primary mt-2 align-self-start"
-                                                t-on-click="() => this.openGuide(guide)">
-                                            Start
-                                        </button>
-                                    </div>
-                                </div>
-                            </t>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Getting started (shown until every step is done) -->
                 <t t-if="!state.allDone">
                     <div class="card o_adomi_getstarted mb-4">
@@ -122,6 +97,31 @@
                         <div><strong>You're all set!</strong> Your platform is configured — jump into a customer or deploy a new app.</div>
                     </div>
                 </t>
+
+                <!-- Guided setup: product pipelines contributed by addons -->
+                <div t-if="state.guides.length" class="card mb-4">
+                    <div class="card-body">
+                        <h4 class="mb-0">Guided setup</h4>
+                        <p class="text-muted">Launch a product with a walkthrough that sets everything up for you.</p>
+                        <div class="row g-2">
+                            <t t-foreach="state.guides" t-as="guide" t-key="guide.id">
+                                <div class="col-12 col-md-6 col-lg-4">
+                                    <div class="border rounded p-3 h-100 d-flex flex-column">
+                                        <div class="d-flex align-items-center gap-2 mb-1">
+                                            <i class="fa fa-lg text-primary" t-att-class="guide.icon"/>
+                                            <span class="fw-bold" t-esc="guide.name"/>
+                                        </div>
+                                        <div class="text-muted small flex-grow-1" t-esc="guide.description"/>
+                                        <button class="btn btn-sm btn-primary mt-2 align-self-start"
+                                                t-on-click="() => this.openGuide(guide)">
+                                            Start
+                                        </button>
+                                    </div>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Quick links -->
                 <h5 class="mb-3">Quick links</h5>

@@ -11,6 +11,7 @@ cluster is briefly unreachable. The manual Sync button raises so users see error
 
 import logging
 import os
+from datetime import timedelta
 
 from odoo import _, api, fields, models
 
@@ -252,6 +253,49 @@ class K8sMixin(models.AbstractModel):
         }
         vals.update(self._k8s_status_vals(obj))
         self.with_context(adomi_no_push=True).write(vals)
+        self._adomi_sync_variables(obj)
+
+    # How long a portal-side Variable edit is protected from being reverted by a
+    # stale cluster CR (git leads; the cluster catches up within a sync cycle).
+    _adomi_variable_sync_quiet = timedelta(minutes=10)
+
+    def _adomi_sync_variables(self, obj):
+        """Mirror the CR's ``spec.variables`` into this scope's Variable records.
+
+        Variables edited straight in git (or kubectl) show up in the portal on the
+        next status push/sync — the reverse of the portal's API write. Records the
+        user touched within the quiet period are left alone: the cluster CR lags
+        the git commit, and a stale spec must not revert or resurrect what was
+        just changed here. Any divergence self-heals on a later sync.
+        """
+        if "scoped_config_ids" not in self._fields:
+            return
+        self.ensure_one()
+
+        desired = {}
+        for var in (obj.get("spec") or {}).get("variables") or []:
+            if var.get("name"):
+                desired[var["name"]] = var.get("value") or ""
+
+        cutoff = fields.Datetime.now() - self._adomi_variable_sync_quiet
+        existing = {
+            rec.name: rec for rec in self.scoped_config_ids if rec.kind == "variable"
+        }
+        no_push = self.env["adomi.scoped.config"].with_context(adomi_config_no_push=True)
+        inverse = self._fields["scoped_config_ids"].inverse_name
+
+        for name, value in desired.items():
+            rec = existing.get(name)
+            if rec is None:
+                no_push.create(
+                    {"name": name, "kind": "variable", "value": value, inverse: self.id}
+                )
+            elif rec.value != value and (rec.write_date or rec.create_date) < cutoff:
+                rec.with_context(adomi_config_no_push=True).write({"value": value})
+
+        for name, rec in existing.items():
+            if name not in desired and (rec.write_date or rec.create_date) < cutoff:
+                rec.with_context(adomi_config_no_push=True).unlink()
 
     def action_k8s_sync(self):
         """Read the CR and update status fields. Raises on cluster errors (manual use)."""
@@ -384,6 +428,11 @@ class K8sMixin(models.AbstractModel):
     # --- ORM overrides ---
     @api.model_create_multi
     def create(self, vals_list):
+        # Quick-create (name_create from a many2one) bypasses the form onchange,
+        # so derive the required resource name from the display name here.
+        for vals in vals_list:
+            if not vals.get("k8s_name") and vals.get("name"):
+                vals["k8s_name"] = k8s.slugify(vals["name"])
         records = super().create(vals_list)
         if self._k8s_sync_enabled() and not self.env.context.get("adomi_no_push"):
             records._k8s_push()

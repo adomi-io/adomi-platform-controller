@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Dialog form the effective-config roll-up opens to add/edit one entry. -->
+    <record id="view_adomi_scoped_config_form" model="ir.ui.view">
+        <field name="name">adomi.scoped.config.form</field>
+        <field name="model">adomi.scoped.config</field>
+        <field name="arch" type="xml">
+            <form string="Variable / Secret">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="kind" widget="radio" options="{'horizontal': true}"/>
+                            <field name="name" placeholder="e.g. SMTP_HOST"/>
+                            <field name="value" invisible="kind == 'secret'"/>
+                            <field name="secret_value" password="True"
+                                   invisible="kind == 'variable'"
+                                   placeholder="Sent straight to the platform vault"/>
+                            <field name="secret_set" invisible="kind == 'variable'"/>
+                        </group>
+                        <group string="Scope">
+                            <field name="organization_id"
+                                   invisible="client_id or environment_id or application_id"
+                                   options="{'no_create': True}"/>
+                            <field name="client_id" string="Customer"
+                                   invisible="organization_id or environment_id or application_id"
+                                   options="{'no_create': True}"/>
+                            <field name="environment_id"
+                                   invisible="organization_id or client_id or application_id"
+                                   options="{'no_create': True}"/>
+                            <field name="application_id"
+                                   invisible="organization_id or client_id or environment_id"
+                                   options="{'no_create': True}"/>
+                        </group>
+                    </group>
+                </sheet>
+                <footer>
+                    <button string="Save" special="save" class="btn-primary"/>
+                    <button name="action_remove" type="object" string="Remove"
+                            class="btn-secondary" invisible="not id"
+                            confirm="Remove this entry from its scope?"/>
+                    <button string="Discard" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

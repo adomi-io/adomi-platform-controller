@@ -2,10 +2,18 @@
 <templates xml:space="preserve">
     <t t-name="adomi_platform.EffectiveConfig" owl="1">
         <div class="o_adomi_effective_config w-100">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted small" t-if="state.entries.length">
+                    What the workload receives — nearest scope wins.
+                </span>
+                <span t-else=""/>
+                <button type="button" class="btn btn-sm btn-primary" t-on-click="() => this.addEntry()">
+                    <i class="fa fa-plus me-1"/>Add
+                </button>
+            </div>
             <div t-if="state.loading" class="text-muted small">Loading…</div>
             <div t-elif="!state.entries.length" class="text-muted small">
-                No variables or secrets apply to this application yet. Add them here, or on
-                the environment, customer, or organization to share them more widely.
+                No variables or secrets yet.
             </div>
             <table t-else="" class="table table-sm align-middle mb-0">
                 <thead>
@@ -13,6 +21,7 @@
                         <th>Name</th>
                         <th>Value</th>
                         <th>Defined at</th>
+                        <th class="text-end"/>
                     </tr>
                 </thead>
                 <tbody>
@@ -31,6 +40,12 @@
                         <td>
                             <span class="badge text-bg-light border" t-esc="scopeLabel(entry)"/>
                             <span t-if="entry.overridden" class="text-muted small ms-1">overridden</span>
+                        </td>
+                        <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-link p-0"
+                                    title="Edit" t-on-click="() => this.editEntry(entry)">
+                                <i class="fa fa-pencil"/>
+                            </button>
                         </td>
                     </tr>
                 </tbody>

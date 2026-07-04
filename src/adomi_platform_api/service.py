@@ -43,8 +43,19 @@ class ClientService:
             managed_by=self.managed_by,
             labels=labels,
         )
-        content = yaml.safe_dump(manifest, sort_keys=False, default_flow_style=False)
         path = repo_path(plural, name)
+
+        # Scoped variables ride the same CR but are mutated through their own
+        # endpoints — a plain resource upsert must carry them over, not wipe them.
+        if "variables" not in manifest.get("spec", {}):
+            current = self.writer.read_manifest(client, path)
+            if current:
+                committed = yaml.safe_load(current) or {}
+                variables = (committed.get("spec") or {}).get("variables")
+                if variables:
+                    manifest.setdefault("spec", {})["variables"] = variables
+
+        content = yaml.safe_dump(manifest, sort_keys=False, default_flow_style=False)
         message = f"Upsert {manifest['kind']} {name}"
 
         result = self.writer.apply_manifest(client, path, content, message, mode=self.git_mode)

@@ -97,6 +97,11 @@ class ScopedConfig(models.Model):
                 # pushed by the organization record itself, not the client API.
                 continue
 
+    def action_remove(self):
+        """Delete from the roll-up dialog (form dialogs have no delete button)."""
+        self.unlink()
+        return {"type": "ir.actions.act_window_close"}
+
     # --- API routing ---------------------------------------------------------------
     def _api_base(self):
         self.ensure_one()

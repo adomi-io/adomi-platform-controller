@@ -17,19 +17,24 @@
                                    placeholder="your-org/enterprise"/>
                         </group>
                         <group string="Pipeline repository">
-                            <field name="odoo_create_repo"/>
+                            <field name="odoo_repo_mode" widget="radio" nolabel="1" colspan="2"/>
                             <field name="odoo_github_installation_id"
-                                   invisible="not odoo_create_repo"
+                                   invisible="odoo_repo_mode == 'none'"
                                    options="{'no_create': True}"/>
                             <field name="odoo_repo_name"
-                                   invisible="not odoo_create_repo"
+                                   invisible="odoo_repo_mode != 'generate'"
                                    placeholder="customer-odoo"/>
+                            <field name="odoo_existing_repo_id"
+                                   invisible="odoo_repo_mode != 'existing'"
+                                   options="{'no_create': True}"/>
                         </group>
                     </group>
                     <p class="text-muted">
-                        The pipeline repository is generated on the customer's GitHub from
-                        <code>adomi-io/odoo-boilerplate</code> — their addons, config, and
-                        CI live there, and the platform builds and deploys from it.
+                        The pipeline repository holds the customer's addons, config and CI —
+                        the platform builds and deploys from it. New repositories are
+                        generated on their GitHub from <code>adomi-io/odoo-boilerplate</code>;
+                        picking an existing one lists the repositories the GitHub connection
+                        can reach.
                     </p>
                 </div>
             </xpath>

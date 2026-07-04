@@ -21,6 +21,9 @@ class _FakeWriter:
     def __init__(self):
         self.applied, self.deleted = [], []
 
+    def read_manifest(self, repo, path):
+        return None  # nothing committed yet: upserts always write fresh
+
     def apply_manifest(self, repo, path, content, message, mode="commit"):
         self.applied.append({"repo": repo, "path": path, "content": content})
         return {"committed": True, "branch": "main"}

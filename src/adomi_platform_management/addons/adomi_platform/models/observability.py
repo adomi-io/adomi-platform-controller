@@ -45,6 +45,28 @@ class ObservabilityMixin(models.AbstractModel):
         self.ensure_one()
         return getattr(self, "namespace", "") or ""
 
+    def _obs_pod_regex(self):
+        """Regex matching this resource's pods within the namespace.
+
+        Empty means the whole namespace (right for an Environment); models that
+        are ONE workload (Application) override so metrics/logs are scoped to
+        that app, not everything sharing its namespace.
+        """
+        return ""
+
+    def _obs_label_filters(self, extra=""):
+        """The Prom/Loki label filter list for this resource ('' when unscoped)."""
+        ns = self._obs_namespace()
+        if not ns:
+            return ""
+        filters = ['namespace="%s"' % ns]
+        pod = self._obs_pod_regex()
+        if pod:
+            filters.append('pod=~"%s"' % pod)
+        if extra:
+            filters.append(extra)
+        return ",".join(filters)
+
     def _obs_app_url(self):
         self.ensure_one()
         return getattr(self, "url", "") or ""
@@ -102,11 +124,11 @@ class ObservabilityMixin(models.AbstractModel):
             rec.link_argocd_url = (
                 "https://%s/applications/%s/%s" % (argocd, argocd_ns, app) if argocd and app else ""
             )
-            # Grafana Explore, pre-filtered to this namespace's logs (Loki datasource).
+            # Grafana Explore, pre-filtered to this resource's logs (Loki datasource).
             if grafana and ns:
                 explore = {
                     "datasource": "loki",
-                    "queries": [{"expr": '{namespace="%s"}' % ns}],
+                    "queries": [{"expr": "{%s}" % rec._obs_label_filters()}],
                     "range": {"from": "now-1h", "to": "now"},
                 }
                 qs = urllib.parse.quote(json.dumps(explore))
@@ -154,35 +176,41 @@ class ObservabilityMixin(models.AbstractModel):
             _logger.warning("Adomi observability query failed (%s): %s", url, exc)
             return {}
 
+    # --- time windows ---
+    def _obs_window(self, minutes, start_s=0, end_s=0):
+        """(start, end) epoch seconds: an explicit window (drill-down) or now-N."""
+        if start_s and end_s and end_s > start_s:
+            return int(start_s), int(end_s)
+        end = int(time.time())
+        return end - int(minutes) * 60, end
+
     # --- metrics (Prometheus) ---
-    def get_metrics(self, minutes=60):
-        """Return CPU + memory time series for this resource's namespace.
+    def get_metrics(self, minutes=60, start_s=0, end_s=0):
+        """Return CPU + memory time series for this resource's workload.
 
         Shape: {"namespace", "start", "end", "series": {"cpu": [[ts, v], ...],
         "memory": [[ts, v], ...]}}. Empty when no namespace / monitoring down.
         """
         self.ensure_one()
 
-        ns = self._obs_namespace()
+        selector = self._obs_label_filters('container!=""')
 
-        if not ns:
+        if not selector:
             return {}
 
         prom = self._obs_prometheus_url()
-        end = int(time.time())
-        start = end - minutes * 60
-        step = max(15, (minutes * 60) // 60)
+        start, end = self._obs_window(minutes, start_s, end_s)
+        step = max(15, (end - start) // 60)
 
         queries = {
-            "cpu": 'sum(rate(container_cpu_usage_seconds_total{namespace="%s",container!=""}[5m]))'
-            % ns,
-            "memory": 'sum(container_memory_working_set_bytes{namespace="%s",container!=""})' % ns,
+            "cpu": "sum(rate(container_cpu_usage_seconds_total{%s}[5m]))" % selector,
+            "memory": "sum(container_memory_working_set_bytes{%s})" % selector,
         }
 
         series = {key: self._prom_range(prom, q, start, end, step) for key, q in queries.items()}
 
         return {
-            "namespace": ns,
+            "namespace": self._obs_namespace(),
             "start": start,
             "end": end,
             "series": series,
@@ -208,24 +236,39 @@ class ObservabilityMixin(models.AbstractModel):
         return [[int(float(ts)), float(val)] for ts, val in result[0].get("values", [])]
 
     # --- logs (Loki) ---
-    def get_logs(self, limit=100, minutes=60):
-        """Return recent log lines for this resource's namespace (newest first)."""
+    def _obs_log_query(self, search=""):
+        """The LogQL stream selector (+ optional line filter) for this resource."""
+        selector = self._obs_label_filters()
+        if not selector:
+            return ""
+        query = "{%s}" % selector
+        search = (search or "").strip()
+        if search:
+            query += ' |= "%s"' % search.replace("\\", "\\\\").replace('"', '\\"')
+        return query
+
+    def get_logs(self, limit=200, minutes=60, search="", start_s=0, end_s=0):
+        """Log lines for this resource's workload, newest first.
+
+        ``search`` becomes a Loki line filter (server-side, so it searches the
+        full window, not just the fetched page); ``start_s``/``end_s`` pin an
+        explicit window for time drill-down.
+        """
         self.ensure_one()
 
-        ns = self._obs_namespace()
+        query = self._obs_log_query(search)
 
-        if not ns:
+        if not query:
             return []
 
         loki = self._obs_loki_url()
-        now_ns = int(time.time() * 1e9)
-        start_ns = now_ns - int(minutes * 60 * 1e9)
+        start, end = self._obs_window(minutes, start_s, end_s)
         params = urllib.parse.urlencode(
             {
-                "query": '{namespace="%s"}' % ns,
+                "query": query,
                 "limit": limit,
-                "start": start_ns,
-                "end": now_ns,
+                "start": int(start * 1e9),
+                "end": int(end * 1e9),
                 "direction": "backward",
             }
         )
@@ -243,3 +286,40 @@ class ObservabilityMixin(models.AbstractModel):
         lines.sort(key=lambda x: x["ts"], reverse=True)
 
         return lines[:limit]
+
+    def get_log_histogram(self, minutes=60, search="", start_s=0, end_s=0, buckets=40):
+        """Log volume over time (the ECS-style bar strip above the log list).
+
+        Returns {"start", "end", "step", "buckets": [[ts, count], ...]} — counts
+        come from Loki's count_over_time so they reflect the FULL volume, not
+        just the fetched page. Clicking a bucket drills into (ts, ts + step).
+        """
+        self.ensure_one()
+
+        query = self._obs_log_query(search)
+
+        if not query:
+            return {}
+
+        loki = self._obs_loki_url()
+        start, end = self._obs_window(minutes, start_s, end_s)
+        step = max(5, (end - start) // max(1, buckets))
+        params = urllib.parse.urlencode(
+            {
+                "query": "sum(count_over_time(%s [%ss]))" % (query, step),
+                "start": int(start * 1e9),
+                "end": int(end * 1e9),
+                "step": step,
+            }
+        )
+
+        data = self._obs_get_json("%s/loki/api/v1/query_range?%s" % (loki, params))
+        result = (data.get("data") or {}).get("result") or []
+        values = result[0].get("values", []) if result else []
+
+        return {
+            "start": start,
+            "end": end,
+            "step": step,
+            "buckets": [[int(float(ts)), int(float(val))] for ts, val in values],
+        }

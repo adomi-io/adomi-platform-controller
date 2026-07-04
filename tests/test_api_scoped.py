@@ -101,6 +101,21 @@ def test_variable_roundtrip_on_client(api):
     assert "variables" not in writer.files[("acme", "clients/acme.yaml")]
 
 
+def test_resource_upsert_preserves_committed_variables(api):
+    """A plain resource PUT must not clobber the variables RMW'd onto the CR."""
+    client, writer, _, _ = api
+
+    r = client.put("/v1/clients/acme/variables/TZ", json={"value": "UTC"}, headers=AUTH)
+    assert r.status_code == 200, r.text
+
+    # Re-upsert the client itself (e.g. renaming it in the portal).
+    r = client.put("/v1/clients/acme", json={"display_name": "Acme Corp"}, headers=AUTH)
+    assert r.status_code == 200, r.text
+
+    r = client.get("/v1/clients/acme/variables", headers=AUTH)
+    assert r.json() == [{"name": "TZ", "value": "UTC"}]
+
+
 def test_variable_on_missing_cr_is_404(api):
     client, _, _, _ = api
     r = client.put(
