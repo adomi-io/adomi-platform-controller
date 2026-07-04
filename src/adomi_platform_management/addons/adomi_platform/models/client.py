@@ -1,3 +1,5 @@
+import os
+
 from odoo import _, api, fields, models
 
 
@@ -39,6 +41,48 @@ class Client(models.Model):
         string="Estate health",
         help="Aggregated readiness across all of the customer's applications.",
     )
+
+    # --- infrastructure repository (the visible face of the GitOps flow) ---
+    # Every customer gets an infrastructure repo holding their committed intent;
+    # the form shows it as a provisioning journey (committed -> applied -> ready)
+    # with a deep link, so a non-technical user SEES what creating a customer did.
+    infra_repo_url = fields.Char(compute="_compute_infra_repo", string="Infrastructure repository")
+    provisioning_stage = fields.Selection(
+        [
+            ("committed", "Committed to repository"),
+            ("applied", "Applied to the platform"),
+            ("ready", "Ready"),
+            ("failed", "Attention needed"),
+        ],
+        compute="_compute_infra_repo",
+        string="Provisioning",
+    )
+
+    @api.model
+    def _git_public_base(self):
+        """Public web URL of the org holding customer infra repos (deep links)."""
+        return (
+            os.environ.get("ADOMI_GIT_PUBLIC_BASE")
+            or self.env["ir.config_parameter"].sudo().get_param("adomi_platform.git_public_base")
+            or ""
+        ).rstrip("/")
+
+    @api.depends("k8s_name", "k8s_state", "k8s_message")
+    def _compute_infra_repo(self):
+        base = self._git_public_base()
+        for rec in self:
+            rec.infra_repo_url = "%s/%s" % (base, rec.k8s_name) if base and rec.k8s_name else False
+            message = (rec.k8s_message or "").lower()
+            if rec.k8s_state == "ready":
+                rec.provisioning_stage = "ready"
+            elif rec.k8s_state == "not_ready" or "failed" in message:
+                rec.provisioning_stage = "failed"
+            elif rec.k8s_state == "pending" and message.startswith("committed"):
+                # In git, GitOps hasn't applied it to the cluster yet.
+                rec.provisioning_stage = "committed"
+            else:
+                # The CR exists in the cluster; the controller is reconciling.
+                rec.provisioning_stage = "applied"
 
     def _compute_environment_count(self):
         for rec in self:

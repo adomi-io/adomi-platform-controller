@@ -7,14 +7,18 @@ import {standardFieldProps} from "@web/views/fields/standard_field_props";
 
 const fieldRegistry = registry.category("fields");
 
-// A friendly glyph per controller adapter so the catalog reads like an app store
-// rather than a dropdown. Unknown adapters fall back to a generic cube.
-const ADAPTER_ICONS = {
+// A friendly glyph per catalog entry (keyed by the type's k8s name) so the catalog
+// reads like an app store rather than a dropdown. Unknown types get a generic cube.
+const TYPE_ICONS = {
     odoo: "fa-cubes",
     superset: "fa-bar-chart",
     mailpit: "fa-envelope-o",
-    generic: "fa-cube",
+    vaultwarden: "fa-shield",
+    windmill: "fa-cogs",
+    "uptime-kuma": "fa-heartbeat",
+    "open-webui": "fa-comments-o",
 };
+const GENERIC_ICON = "fa-cube";
 
 /**
  * Visual application-type picker for the deploy wizard. Renders the cluster's
@@ -37,7 +41,7 @@ export class AppCatalog extends Component {
                 this.state.types = await this.orm.searchRead(
                     "adomi.application.type",
                     [],
-                    ["id", "name", "adapter", "database_required", "sso_protocol", "provides"],
+                    ["id", "name", "k8s_name", "database_required", "sso_protocol"],
                     {order: "name"}
                 );
             } finally {
@@ -52,14 +56,7 @@ export class AppCatalog extends Component {
     }
 
     iconFor(type) {
-        return ADAPTER_ICONS[type.adapter] || ADAPTER_ICONS.generic;
-    }
-
-    providesFor(type) {
-        return (type.provides || "")
-            .split(",")
-            .map((p) => p.trim())
-            .filter(Boolean);
+        return TYPE_ICONS[type.k8s_name] || GENERIC_ICON;
     }
 
     isSelected(type) {

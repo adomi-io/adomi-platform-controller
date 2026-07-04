@@ -104,6 +104,11 @@
                     <div class="oe_title">
                         <h1><field name="name" placeholder="Customer name"/></h1>
                     </div>
+                    <!-- The visible face of the GitOps flow: what creating this
+                         customer actually did, with a link to their infra repo. -->
+                    <field name="infra_repo_url" invisible="1"/>
+                    <field name="k8s_message" invisible="1"/>
+                    <field name="provisioning_stage" widget="adomi_provisioning_flow" nolabel="1"/>
                     <group>
                         <group>
                             <field name="partner_id"/>

@@ -7,10 +7,9 @@
             <list>
                 <field name="name"/>
                 <field name="k8s_name"/>
-                <field name="adapter"/>
                 <field name="database_required"/>
                 <field name="sso_protocol"/>
-                <field name="provides"/>
+                <field name="chart_path"/>
             </list>
         </field>
     </record>
@@ -30,10 +29,8 @@
                         <group>
                             <field name="name"/>
                             <field name="k8s_name"/>
-                            <field name="adapter"/>
                             <field name="database_required"/>
                             <field name="sso_protocol"/>
-                            <field name="provides"/>
                         </group>
                         <group string="Chart">
                             <field name="chart_repo_url"/>

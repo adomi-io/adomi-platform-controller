@@ -16,7 +16,7 @@
                             <i class="fa fa-2x text-primary" t-att-class="iconFor(type)"/>
                             <div class="flex-grow-1">
                                 <div class="fw-bold text-truncate" t-esc="type.name"/>
-                                <div class="text-muted small text-truncate" t-esc="type.adapter"/>
+                                <div class="text-muted small text-truncate" t-esc="type.k8s_name"/>
                             </div>
                             <i t-if="isSelected(type)" class="fa fa-check-circle text-primary"/>
                         </div>
@@ -27,8 +27,6 @@
                             <span t-if="type.sso_protocol" class="badge text-bg-light border">
                                 <i class="fa fa-lock me-1"/>SSO
                             </span>
-                            <span t-foreach="providesFor(type)" t-as="cap" t-key="cap"
-                                  class="badge text-bg-light border" t-esc="cap"/>
                         </div>
                     </div>
                 </div>

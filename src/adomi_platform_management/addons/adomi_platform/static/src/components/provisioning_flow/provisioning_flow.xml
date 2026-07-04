@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="adomi_platform.ProvisioningFlow" owl="1">
+        <div class="o_adomi_provisioning border rounded p-3 w-100">
+            <div class="d-flex align-items-center flex-wrap gap-3">
+                <t t-foreach="steps" t-as="step" t-key="step.key">
+                    <div class="d-flex align-items-center gap-2">
+                        <i t-att-class="step.iconClass"/>
+                        <span t-att-class="step.labelClass" t-esc="step.label"/>
+                        <i t-if="step.done" class="fa fa-check text-success small"/>
+                        <i t-elif="step.spinning" class="fa fa-spinner fa-pulse text-primary small"/>
+                    </div>
+                    <i t-if="!step_last" class="fa fa-angle-right text-muted"/>
+                </t>
+                <div class="ms-auto">
+                    <a t-if="repoUrl" t-att-href="repoUrl" target="_blank" rel="noopener"
+                       class="btn btn-sm btn-secondary">
+                        <i class="fa fa-external-link me-1"/>View repository
+                    </a>
+                </div>
+            </div>
+            <div t-if="failed and message" class="text-danger small mt-2" t-esc="message"/>
+        </div>
+    </t>
+</templates>
