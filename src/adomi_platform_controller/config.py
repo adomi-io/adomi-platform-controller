@@ -97,12 +97,6 @@ class Config:
     # means an application must declare a host or supply an Organization base domain.
     base_domain: str = ""
 
-    # Forward-auth. The Traefik middleware (in "<namespace>-<name>@kubernetescrd"
-    # form) added to an Odoo Ingress to gate it behind the Authentik outpost when
-    # SSO is enabled. Empty disables ingress wiring (the SSOApplication is still
-    # created).
-    forward_auth_middleware: str = "authentik-authentik@kubernetescrd"
-
     # Build pipeline. When an Application declares a source, the controller
     # submits an Argo Workflow (from the shipped WorkflowTemplate) that builds the
     # repository image and pushes it to Harbor.
@@ -203,7 +197,6 @@ class Config:
             argocd_project=_env("ARGOCD_PROJECT", d.argocd_project),
             odoo_image_repository=_env("ODOO_IMAGE_REPOSITORY", d.odoo_image_repository),
             base_domain=_env("PLATFORM_BASE_DOMAIN", d.base_domain),
-            forward_auth_middleware=_env("FORWARD_AUTH_MIDDLEWARE", d.forward_auth_middleware),
             argo_namespace=_env("ARGO_NAMESPACE", d.argo_namespace),
             build_workflow_template=_env("BUILD_WORKFLOW_TEMPLATE", d.build_workflow_template),
             build_service_account=_env("BUILD_SERVICE_ACCOUNT", d.build_service_account),

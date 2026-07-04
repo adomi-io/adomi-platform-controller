@@ -102,10 +102,6 @@ platform:
   # a single label so a *.<baseDomain> wildcard cert/record covers it). Leave empty
   # to require an Organization with a base domain, or per-application spec.ingress.host.
   baseDomain: ""
-  # Traefik forward-auth middleware (in "<namespace>-<name>@kubernetescrd" form)
-  # added to an app Ingress to gate it behind the Authentik outpost when SSO is
-  # enabled. Empty disables Ingress wiring (the SSOApplication is still created).
-  forwardAuthMiddleware: authentik-authentik@kubernetescrd
 
   # Odoo management portal push. On every status change the controller POSTs the
   # resource to the portal's ingest endpoint so it reflects live state without

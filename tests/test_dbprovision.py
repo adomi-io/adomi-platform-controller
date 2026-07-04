@@ -146,28 +146,7 @@ def test_db_credentials_path_keyed_by_server_and_user():
     assert path == "databases/acme-prod-server/acme_app_odoo_production_user"
 
 
-def test_database_endpoint_requires_published_connection():
-    with pytest.raises(resolve.NotFound):
-        resolve.database_endpoint({"metadata": {"name": "db"}, "status": {}})
-
-
-def test_database_endpoint_reads_status_connection():
-    endpoint = resolve.database_endpoint(
-        {
-            "metadata": {"name": "acme-odoo"},
-            "status": {
-                "connection": {
-                    "host": "acme-server-rw.acme-data.svc.cluster.local",
-                    "port": 5432,
-                    "name": "acme_app_odoo_production",
-                    "user": "acme_app_odoo_production_user",
-                    "openbaoPath": "databases/acme-prod-server/acme_app_odoo_production_user",
-                    "passwordKey": "password",
-                },
-            },
-        }
-    )
-    assert endpoint.host == "acme-server-rw.acme-data.svc.cluster.local"
-    assert endpoint.name == "acme_app_odoo_production"
-    assert endpoint.openbao_path.endswith("acme_app_odoo_production_user")
-    assert endpoint.password_key == "password"
+def test_database_url_survives_hyphenated_password_key():
+    # `.key` is not a valid Go-template selector for hyphenated keys - must use index.
+    url = resolve.database_url("erp_user", "db-password", "server-rw.ns.svc", 5432, "erp")
+    assert url == 'postgresql://erp_user:{{ index . "db-password" }}@server-rw.ns.svc:5432/erp'

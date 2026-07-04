@@ -83,8 +83,6 @@ spec:
               value: {{ .Values.platform.odoo.imageRepository | quote }}
             - name: PLATFORM_BASE_DOMAIN
               value: {{ .Values.platform.baseDomain | quote }}
-            - name: FORWARD_AUTH_MIDDLEWARE
-              value: {{ .Values.platform.forwardAuthMiddleware | quote }}
             # Odoo management portal push (status changes -> portal ingest endpoint).
             - name: ODOO_NOTIFY_URL
               value: {{ .Values.platform.odooNotify.url | quote }}

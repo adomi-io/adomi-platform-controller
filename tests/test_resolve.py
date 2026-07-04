@@ -43,7 +43,6 @@ def test_compute_defaults():
     assert eff.hostname == "odoo-production-acme.adomi.io"
     assert eff.url == "https://odoo-production-acme.adomi.io"
     assert eff.chart_path == "charts/odoo"
-    assert eff.longpolling is True
     assert eff.type_defaults == {"odoo": {"logLevel": "info"}}
 
 
@@ -62,7 +61,6 @@ def test_helpers():
     assert resolve.sanitize_default("production") is False
     assert resolve.sanitize_default("pdi") is True
     assert resolve.snapshot_object_key("ns", "snap") == "snapshots/ns/snap.pgdump"
-    assert resolve.cnpg_cluster_name("odoo") == "odoo-db"
 
 
 def test_deep_merge():
@@ -92,31 +90,3 @@ def test_compute_domain_fqdn_overrides_base_domain():
     )
     assert eff.hostname == "erp-prod-acme.acme.example.com"
     assert eff.url == "https://erp-prod-acme.acme.example.com"
-
-
-def test_database_endpoint():
-    db = {
-        "metadata": {"name": "erp-db"},
-        "status": {
-            "connection": {
-                "host": "acme-prod-server-rw.acme-prod.svc.cluster.local",
-                "port": 5432,
-                "name": "acme_app_odoo_production",
-                "user": "acme_app_odoo_production_user",
-                "openbaoPath": "databases/acme-prod-server/acme_app_odoo_production_user",
-                "passwordKey": "password",
-            },
-        },
-    }
-    endpoint = resolve.database_endpoint(db)
-    assert endpoint.host == "acme-prod-server-rw.acme-prod.svc.cluster.local"
-    assert endpoint.name == "acme_app_odoo_production"
-    assert endpoint.user == "acme_app_odoo_production_user"
-    assert endpoint.openbao_path.endswith("acme_app_odoo_production_user")
-
-
-def test_database_endpoint_not_ready():
-    import pytest
-
-    with pytest.raises(resolve.NotFound):
-        resolve.database_endpoint({"metadata": {"name": "x"}, "status": {}})

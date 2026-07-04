@@ -219,14 +219,6 @@ spec:
                 type: string
               restoreWorkflow:
                 type: string
-              ssoSlug:
-                type: string
-              connection:
-                description: |-
-                  connection is the contract this app publishes for integrations
-                  (url / db / smtp / oidc, per the type's "provides").
-                type: object
-                x-kubernetes-preserve-unknown-fields: true
               conditions:
                 description: |-
                   conditions represent the current state of the resource.

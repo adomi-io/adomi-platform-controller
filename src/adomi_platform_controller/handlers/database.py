@@ -223,8 +223,9 @@ class DatabaseReconciler(Reconciler):
                         "port": str(server_port),
                         "dbname": database_name,
                         "user": user,
-                        "url": "postgresql://%s:{{ .%s }}@%s:%s/%s"
-                        % (user, password_key, server_host, server_port, database_name),
+                        "url": resolve.database_url(
+                            user, password_key, server_host, server_port, database_name
+                        ),
                     },
                     labels=labels,
                 ).apply()

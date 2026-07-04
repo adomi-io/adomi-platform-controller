@@ -70,23 +70,6 @@ class DbConnection:
 
 
 @dataclass
-class DatabaseEndpoint:
-    """A managed Database's published coordinates (server + OpenBao credential path).
-
-    The role's password is not a Secret reference yet: the consuming Application
-    delivers it into its own namespace from ``openbao_path`` via an ExternalSecret,
-    then wires a :class:`DbConnection` pointing at that Secret.
-    """
-
-    host: str
-    port: int
-    name: str
-    user: str
-    openbao_path: str
-    password_key: str
-
-
-@dataclass
 class Effective:
     """The fully-resolved settings used to build an application's resources."""
 
@@ -104,13 +87,11 @@ class Effective:
     chart_target_revision: str
 
     ingress_class_name: str
-    longpolling: bool
 
     type_defaults: dict
 
-    # Odoo image resolution (used by the odoo adapter / build pipeline).
+    # Base image for source builds / restore jobs (org images.odooRepository).
     image_repository: str
-    image_tag: str
 
     extra: dict = field(default_factory=dict)
 
@@ -170,9 +151,13 @@ def snapshot_object_key(namespace: str, name: str) -> str:
     return f"snapshots/{namespace}/{name}.pgdump"
 
 
-def cnpg_cluster_name(app_name: str) -> str:
-    """The CloudNativePG Cluster name for an application's in-cluster database."""
-    return f"{app_name}-db"
+def database_url(user: str, password_key: str, host: str, port: int | str, dbname: str) -> str:
+    """The DATABASE_URL Go-template for a delivered credential Secret (pure).
+
+    ESO renders the password in; ``index`` instead of ``.key`` because passwordKey
+    may be hyphenated, which is not a valid Go-template field selector.
+    """
+    return 'postgresql://%s:{{ index . "%s" }}@%s:%s/%s' % (user, password_key, host, port, dbname)
 
 
 def db_credentials_path(prefix: str, server: str, user: str) -> str:
@@ -221,10 +206,8 @@ def compute(
     org_ingress = org.get("ingress") or {}
 
     app_ingress = app_spec.get("ingress") or {}
-    odoo = app_spec.get("odoo") or {}
 
     type_chart = type_spec.get("chart") or {}
-    type_ingress = type_spec.get("ingress") or {}
 
     client_slug = _slug(client_spec, client_name)
     environment_class = environment_spec.get("class") or CLASS_DEVELOPMENT
@@ -244,7 +227,6 @@ def compute(
         host = f"{label}.{base_domain}"
 
     image_repository = org_images.get("odooRepository") or cfg.odoo_image_repository
-    image_tag = (odoo.get("version") or "").strip()
 
     return Effective(
         client_slug=client_slug,
@@ -261,10 +243,8 @@ def compute(
         ingress_class_name=(
             app_ingress.get("className") or org_ingress.get("className") or DEFAULT_INGRESS_CLASS
         ),
-        longpolling=bool(type_ingress.get("longpolling")),
         type_defaults=type_spec.get("defaultValues") or {},
         image_repository=image_repository,
-        image_tag=image_tag,
     )
 
 
@@ -359,29 +339,6 @@ def get_sso_application(name: str, namespace: str) -> dict:
             raise NotFound(f"SSOApplication {namespace}/{name!r} not found") from exc
 
         raise
-
-
-def database_endpoint(db_obj: dict) -> DatabaseEndpoint:
-    """Resolve a managed Database's published coordinates from status.connection.
-
-    Raises NotFound until the Database reconciler has provisioned the database and
-    role on its server (so the consuming Application requeues).
-    """
-    name = (db_obj.get("metadata") or {}).get("name") or ""
-    status = db_obj.get("status") or {}
-    conn = status.get("connection") or {}
-
-    if not conn.get("host") or not conn.get("openbaoPath"):
-        raise NotFound(f"Database {name!r} not ready (no status.connection yet)")
-
-    return DatabaseEndpoint(
-        host=conn["host"],
-        port=int(conn.get("port") or DB_PORT),
-        name=conn.get("name") or name,
-        user=conn.get("user") or CNPG_DB_USER,
-        openbao_path=conn["openbaoPath"],
-        password_key=conn.get("passwordKey") or "password",
-    )
 
 
 def get_application_type(name: str) -> dict:

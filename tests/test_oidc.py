@@ -19,7 +19,8 @@ def test_descriptor_builds_standard_authentik_endpoints():
     assert d["userinfo-endpoint"] == "https://auth.example.com/application/o/userinfo/"
     # JWKS + end-session are per-application.
     assert d["jwks-uri"] == "https://auth.example.com/application/o/windmill-adomi/jwks/"
-    assert d["scopes"] == "openid email profile"
+    # Default scopes match the provider grant (ssoapplication handler) exactly.
+    assert d["scopes"] == "openid profile email groups"
 
 
 def test_descriptor_strips_trailing_slash_and_takes_custom_scopes():

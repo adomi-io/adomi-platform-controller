@@ -18,10 +18,8 @@ import kopf
 
 from .. import conditions, externalsecrets, oidc, secretgen, state
 from ..authentik import ApplicationSpec, OAuth2ProviderSpec, ProxyProviderSpec
+from ..oidc import DEFAULT_SCOPES
 from ._common import Reconciler, fail
-
-# Requested when an SSOApplication does not declare any scopes.
-DEFAULT_SCOPES = ["openid", "profile", "email", "groups"]
 
 PROTOCOL_OAUTH2 = "oauth2"
 PROTOCOL_PROXY = "proxy"

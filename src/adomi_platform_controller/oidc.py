@@ -13,7 +13,10 @@ Authentik URL and the application slug, so the descriptor needs no live lookup.
 
 from __future__ import annotations
 
-DEFAULT_SCOPES = ["openid", "email", "profile"]
+# Requested when an SSOApplication does not declare any scopes. Single source of
+# truth: the provider grant (ssoapplication handler) and the published descriptor
+# must always advertise the same set.
+DEFAULT_SCOPES = ["openid", "profile", "email", "groups"]
 
 
 def descriptor(authority: str, slug: str, scopes: list[str] | None = None) -> dict[str, str]:

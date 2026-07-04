@@ -6,8 +6,8 @@ description: |
   (Organization, Client, Environment, Application) deployed via Argo CD and
   CloudNativePG. Drops into the kubernetes-provisioner platform.
 type: application
-version: 0.6.0
-appVersion: "0.6.0"
+version: 0.6.1
+appVersion: "0.6.1"
 keywords:
   - sso
   - authentik

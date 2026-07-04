@@ -15,9 +15,6 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.adapter
-      name: Adapter
-      type: string
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
@@ -29,8 +26,8 @@ spec:
       openAPIV3Schema:
         description: |-
           ApplicationType is a catalog entry: the chart an Application of this type
-          deploys, the code adapter that maps platform inputs into that chart's values,
-          and its capabilities (database/SSO/ingress/integration).
+          deploys and its capabilities (database/SSO/ingress/integration). The chart
+          owns all value-shaping; the controller stays app-agnostic.
         properties:
           apiVersion:
             type: string
@@ -42,12 +39,6 @@ spec:
             description: spec defines the desired state of ApplicationType
             properties:
               displayName:
-                type: string
-              adapter:
-                description: |-
-                  adapter selects the controller code that maps platform inputs into the
-                  chart's value shape (e.g. odoo, superset, mailpit, generic).
-                minLength: 1
                 type: string
               chart:
                 description: chart is the Helm chart this type deploys via Argo CD.
@@ -118,7 +109,6 @@ spec:
                   type: string
                 type: array
             required:
-            - adapter
             - chart
             type: object
           status:
