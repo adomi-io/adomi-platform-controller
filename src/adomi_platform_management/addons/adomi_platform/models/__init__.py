@@ -15,3 +15,4 @@ from . import application
 from . import git_repository
 from . import snapshot
 from . import scoped_config
+from . import setup_guide

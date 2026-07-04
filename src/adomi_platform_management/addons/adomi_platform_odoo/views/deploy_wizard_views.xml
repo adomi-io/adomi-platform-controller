@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The Odoo pipeline step, spliced into the core launch wizard form. -->
+    <record id="view_adomi_deploy_wizard_form_odoo" model="ir.ui.view">
+        <field name="name">adomi.deploy.wizard.form.odoo</field>
+        <field name="model">adomi.deploy.wizard</field>
+        <field name="inherit_id" ref="adomi_platform.view_adomi_deploy_wizard_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@invisible=&quot;state != 'config'&quot;]" position="before">
+                <field name="is_odoo_type" invisible="1"/>
+                <div invisible="state != 'odoo'">
+                    <group>
+                        <group string="Edition">
+                            <field name="odoo_edition" widget="radio"/>
+                            <field name="odoo_enterprise_repo"
+                                   invisible="odoo_edition != 'enterprise'"
+                                   placeholder="your-org/enterprise"/>
+                        </group>
+                        <group string="Pipeline repository">
+                            <field name="odoo_create_repo"/>
+                            <field name="odoo_github_installation_id"
+                                   invisible="not odoo_create_repo"
+                                   options="{'no_create': True}"/>
+                            <field name="odoo_repo_name"
+                                   invisible="not odoo_create_repo"
+                                   placeholder="customer-odoo"/>
+                        </group>
+                    </group>
+                    <p class="text-muted">
+                        The pipeline repository is generated on the customer's GitHub from
+                        <code>adomi-io/odoo-boilerplate</code> — their addons, config, and
+                        CI live there, and the platform builds and deploys from it.
+                    </p>
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Guide card that opens the launch wizard preset to Odoo. -->
+    <record id="action_adomi_odoo_pipeline_wizard" model="ir.actions.act_window">
+        <field name="name">Set up an Odoo pipeline</field>
+        <field name="res_model">adomi.deploy.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{'default_type_k8s_name': 'odoo'}</field>
+    </record>
+</odoo>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The core guided-setup card. Product addons add their own guides. -->
+    <record id="setup_guide_launch_app" model="adomi.setup.guide">
+        <field name="name">Launch an application</field>
+        <field name="description">Pick a customer, choose an app from the catalog, wire its database and secrets, launch.</field>
+        <field name="icon">fa-rocket</field>
+        <field name="sequence">10</field>
+        <field name="action_id" ref="action_adomi_deploy_wizard"/>
+    </record>
+</odoo>

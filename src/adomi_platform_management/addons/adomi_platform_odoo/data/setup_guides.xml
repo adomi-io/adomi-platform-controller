@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="setup_guide_odoo_pipeline" model="adomi.setup.guide">
+        <field name="name">Set up an Odoo pipeline</field>
+        <field name="description">Community or Enterprise, a pipeline repository on your GitHub from our boilerplate, database and secrets — launched in one flow.</field>
+        <field name="icon">fa-cubes</field>
+        <field name="sequence">5</field>
+        <field name="action_id" ref="action_adomi_odoo_pipeline_wizard"/>
+    </record>
+</odoo>

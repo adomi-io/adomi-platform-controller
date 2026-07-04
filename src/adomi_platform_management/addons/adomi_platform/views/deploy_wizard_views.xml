@@ -4,18 +4,23 @@
         <field name="name">adomi.deploy.wizard.form</field>
         <field name="model">adomi.deploy.wizard</field>
         <field name="arch" type="xml">
-            <form string="Deploy Application">
+            <form string="Launch Application">
                 <sheet>
-                    <div class="oe_title">
-                        <label for="app_name" string="Deploy a new application"/>
-                        <h1><field name="app_name" placeholder="e.g. ERP, Reporting, Mail…"/></h1>
+                    <field name="state" invisible="1"/>
+                    <field name="is_first_step" invisible="1"/>
+                    <field name="is_last_step" invisible="1"/>
+                    <field name="type_needs_database" invisible="1"/>
+                    <div class="oe_title mb-3">
+                        <h2><field name="step_label" readonly="1" nolabel="1" class="fw-bold"/></h2>
                     </div>
-                    <group>
+
+                    <!-- Step: customer & environment -->
+                    <group invisible="state != 'target'">
                         <group string="Customer">
                             <field name="organization_id" options="{'no_create': True}"/>
                             <field name="client_id" string="Customer" placeholder="Existing customer"
                                    options="{'no_create': True}"/>
-                            <field name="new_client_name" string="…or new customer" invisible="client_id"/>
+                            <field name="new_client_name" invisible="client_id"/>
                             <field name="new_client_partner_id" invisible="client_id"/>
                         </group>
                         <group string="Environment">
@@ -25,17 +30,60 @@
                             <field name="new_environment_class" invisible="environment_id"/>
                         </group>
                     </group>
-                    <separator string="Choose an application"/>
-                    <field name="type_id" widget="adomi_app_catalog" nolabel="1"/>
-                    <notebook>
-                        <page string="Advanced">
-                            <group>
-                                <field name="hostname"/>
-                            </group>
-                        </page>
-                    </notebook>
+
+                    <!-- Step: application -->
+                    <div invisible="state != 'app'">
+                        <group>
+                            <field name="app_name" placeholder="e.g. ERP, Reporting, Mail…"/>
+                            <field name="hostname"/>
+                        </group>
+                        <separator string="Choose an application"/>
+                        <field name="type_id" widget="adomi_app_catalog" nolabel="1"/>
+                    </div>
+
+                    <!-- Step: database -->
+                    <group invisible="state != 'database'">
+                        <group>
+                            <field name="database_server_id"/>
+                            <field name="database_name" placeholder="Defaults to the app name"/>
+                        </group>
+                        <group>
+                            <p class="text-muted" colspan="2">
+                                This application stores data in a database. Pick the customer's
+                                database server (or leave empty to wire it later on the
+                                application form).
+                            </p>
+                        </group>
+                    </group>
+
+                    <!-- Step: variables & secrets -->
+                    <div invisible="state != 'config'">
+                        <p class="text-muted">
+                            Applied to this application only. Secret values go straight to the
+                            platform vault. Shared values are better placed on the customer,
+                            environment, or organization afterwards.
+                        </p>
+                        <field name="config_line_ids" nolabel="1">
+                            <list editable="bottom">
+                                <field name="kind"/>
+                                <field name="name"/>
+                                <field name="value" password="True"/>
+                            </list>
+                        </field>
+                    </div>
+
+                    <!-- Step: review -->
+                    <div invisible="state != 'review'">
+                        <field name="review_summary" readonly="1" nolabel="1"/>
+                    </div>
+
                     <footer>
-                        <button name="action_deploy" type="object" string="Deploy" class="btn-primary"/>
+                        <button name="action_back" type="object" string="Back"
+                                class="btn-secondary" invisible="is_first_step"/>
+                        <button name="action_next" type="object" string="Next"
+                                class="btn-primary" invisible="is_last_step"/>
+                        <button name="action_launch" type="object" string="Launch"
+                                class="btn-primary" invisible="not is_last_step"/>
                         <button string="Cancel" class="btn-secondary" special="cancel"/>
                     </footer>
                 </sheet>
@@ -44,7 +92,7 @@
     </record>
 
     <record id="action_adomi_deploy_wizard" model="ir.actions.act_window">
-        <field name="name">Deploy Application</field>
+        <field name="name">Launch Application</field>
         <field name="res_model">adomi.deploy.wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>

@@ -24,22 +24,30 @@ export class AdomiDashboard extends Component {
             syncing: false,
             stats: {customers: 0, appsTotal: 0, appsReady: 0, dbServers: 0, environments: 0},
             steps: [],
+            guides: [],
             allDone: false,
         });
 
         onWillStart(() => this.load());
     }
 
+    openGuide(guide) {
+        this.action.doAction(guide.action_id);
+    }
+
     async load() {
         try {
-            const [customers, apps, dbServers, environments, orgs, ghInstalls] = await Promise.all([
-                this.orm.searchCount("adomi.client", []),
-                this.orm.searchRead("adomi.application", [], ["k8s_state"]),
-                this.orm.searchCount("adomi.database.server", []),
-                this.orm.searchCount("adomi.environment", []),
-                this.orm.searchCount("adomi.organization", []),
-                this.orm.searchCount("adomi.github.installation", []),
-            ]);
+            const [customers, apps, dbServers, environments, orgs, ghInstalls, guides] =
+                await Promise.all([
+                    this.orm.searchCount("adomi.client", []),
+                    this.orm.searchRead("adomi.application", [], ["k8s_state"]),
+                    this.orm.searchCount("adomi.database.server", []),
+                    this.orm.searchCount("adomi.environment", []),
+                    this.orm.searchCount("adomi.organization", []),
+                    this.orm.searchCount("adomi.github.installation", []),
+                    this.orm.call("adomi.setup.guide", "get_guides", []),
+                ]);
+            this.state.guides = guides;
 
             const appsReady = apps.filter((a) => a.k8s_state === "ready").length;
             this.state.stats = {

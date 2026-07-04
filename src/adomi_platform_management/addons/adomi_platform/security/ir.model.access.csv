@@ -16,3 +16,6 @@ access_adomi_git_repository,adomi.git.repository,model_adomi_git_repository,base
 access_adomi_snapshot,adomi.snapshot,model_adomi_snapshot,base.group_user,1,1,1,1
 access_adomi_deploy_wizard,adomi.deploy.wizard,model_adomi_deploy_wizard,base.group_user,1,1,1,1
 access_adomi_scoped_config,adomi.scoped.config,model_adomi_scoped_config,base.group_user,1,1,1,1
+access_adomi_deploy_wizard_config,adomi.deploy.wizard.config,model_adomi_deploy_wizard_config,base.group_user,1,1,1,1
+access_adomi_setup_guide,adomi.setup.guide,model_adomi_setup_guide,base.group_user,1,0,0,0
+access_adomi_setup_guide_admin,adomi.setup.guide.admin,model_adomi_setup_guide,base.group_system,1,1,1,1

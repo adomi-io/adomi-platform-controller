@@ -97,6 +97,18 @@ class GitHubClient:
             return self._request("POST", "/orgs/%s/repos" % owner, payload)
         return self._request("POST", "/user/repos", payload)
 
+    def generate_from_template(self, template_full_name, name, owner=None, private=True, description=""):
+        """Create a new repository from a template repo (the boilerplate flow)."""
+        payload = {
+            "name": name,
+            "private": private,
+            "description": description,
+            "include_all_branches": False,
+        }
+        if owner:
+            payload["owner"] = owner
+        return self._request("POST", "/repos/%s/generate" % template_full_name, payload)
+
     # --- branches / refs ---
     def get_ref(self, full_name, ref):
         return self._request("GET", "/repos/%s/git/ref/%s" % (full_name, ref))
