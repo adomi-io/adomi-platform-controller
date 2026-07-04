@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Lowest root sequence (Discuss ships at 5) so Adomi Platform is the first
+         app and the post-login landing page. -->
     <menuitem id="menu_adomi_root" name="Adomi Platform"
-              groups="base.group_user" sequence="20"/>
+              groups="base.group_user" sequence="1"/>
 
     <!-- Home dashboard is the landing page: the root menu auto-opens its first
          leaf, so this must have the lowest sequence. -->

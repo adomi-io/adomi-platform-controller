@@ -72,8 +72,27 @@ class K8sMixin(models.AbstractModel):
             self.env["ir.config_parameter"].sudo().get_param("adomi_platform.sync_enabled", "1") == "1"
         )
 
+    @api.model
+    def _k8s_client_namespace_prefix(self):
+        return (
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_param("adomi_platform.client_namespace_prefix", "adomi-client-")
+        )
+
     def _k8s_ns(self):
-        return None if self._k8s_cluster_scoped else self._k8s_namespace()
+        """The namespace this record's CR lives in.
+
+        Client-owned intent lives in the per-client namespace
+        (``<prefix><slug>``, e.g. adomi-client-acme); platform-scoped resources
+        stay in the flat platform namespace; cluster-scoped kinds have none.
+        """
+        if self._k8s_cluster_scoped:
+            return None
+        slug = self._k8s_client_slug()
+        if slug:
+            return self._k8s_client_namespace_prefix() + slug
+        return self._k8s_namespace()
 
     # --- write backend: kubernetes API vs platform API (git source of truth) ---
     @api.model
@@ -158,7 +177,7 @@ class K8sMixin(models.AbstractModel):
         self.ensure_one()
         meta = {"name": self.k8s_name}
         if not self._k8s_cluster_scoped:
-            meta["namespace"] = self._k8s_namespace()
+            meta["namespace"] = self._k8s_ns()
         meta["labels"] = {"app.kubernetes.io/managed-by": "adomi-platform-management"}
         return {
             "apiVersion": "%s/%s" % (k8s.GROUP, k8s.VERSION),
@@ -267,11 +286,7 @@ class K8sMixin(models.AbstractModel):
         namespace (platform-scoped resources, or the legacy single-namespace mode).
         """
         ns = (obj.get("metadata") or {}).get("namespace") or ""
-        prefix = (
-            self.env["ir.config_parameter"]
-            .sudo()
-            .get_param("adomi_platform.client_namespace_prefix", "adomi-client-")
-        )
+        prefix = self._k8s_client_namespace_prefix()
         return ns[len(prefix) :] if prefix and ns.startswith(prefix) else False
 
     @api.model

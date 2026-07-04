@@ -111,6 +111,18 @@ class TestReverseSyncScoping(TransactionCase):
         self.assertNotEqual(rec, self.acme_app)
         self.assertEqual(rec.environment_id, self.globex_prod)
 
+    def test_records_read_and_write_in_their_client_namespace(self):
+        # Client intent lives in adomi-client-<slug>; the flat platform namespace
+        # is only for platform-scoped resources. A wrong namespace here makes the
+        # Sync button report "Not found in cluster" for perfectly healthy CRs.
+        self.assertEqual(self.acme._k8s_ns(), "adomi-client-acme")
+        self.assertEqual(self.globex_prod._k8s_ns(), "adomi-client-globex")
+        self.assertEqual(self.acme_app._k8s_ns(), "adomi-client-acme")
+        self.assertEqual(self.acme_app._k8s_body()["metadata"]["namespace"], "adomi-client-acme")
+        # No client owner -> the flat platform namespace; cluster-scoped -> none.
+        self.assertEqual(self.env["adomi.git.repository"]._k8s_ns(), "adomi-system")
+        self.assertIsNone(self.env["adomi.organization"]._k8s_ns())
+
     def test_non_client_namespace_still_matches_by_name(self):
         # Platform-scoped / legacy single-namespace CRs keep the old behaviour.
         obj = _cr(
