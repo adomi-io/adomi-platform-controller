@@ -153,6 +153,23 @@
                                 </list>
                             </field>
                         </page>
+                        <page string="Variables &amp; Secrets" name="scoped_config">
+                            <group string="Effective configuration (what the workload receives)">
+                                <field name="id" widget="adomi_effective_config" nolabel="1" colspan="2"/>
+                            </group>
+                            <group string="Defined on this application">
+                                <field name="scoped_config_ids" nolabel="1" colspan="2">
+                                    <list editable="bottom">
+                                        <field name="kind"/>
+                                        <field name="name"/>
+                                        <field name="value" readonly="kind == 'secret'"/>
+                                        <field name="secret_value" password="True"
+                                               readonly="kind == 'variable'"/>
+                                        <field name="secret_set" string="Stored"/>
+                                    </list>
+                                </field>
+                            </group>
+                        </page>
                         <page string="Observability">
                             <field name="namespace" widget="adomi_observability" nolabel="1" class="w-100"/>
                         </page>

@@ -39,6 +39,10 @@ class GitWriter(Protocol):
         """Create or update ``path`` in ``repo`` with ``content`` (idempotent)."""
         ...
 
+    def read_manifest(self, repo: str, path: str) -> str | None:
+        """Return the file's current content, or None when it doesn't exist."""
+        ...
+
     def delete_manifest(
         self, repo: str, path: str, message: str, *, mode: str = MODE_COMMIT
     ) -> dict:

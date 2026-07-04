@@ -7,7 +7,10 @@ the git backend is reachable so the deployment only takes traffic once it can wr
 
 from __future__ import annotations
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.responses import JSONResponse
+
+from adomi_platform_schema import SchemaError
 
 from . import __version__
 from .deps import check_backend_ready
@@ -23,6 +26,11 @@ def create_app() -> FastAPI:
         summary="Manage platform objects (clients, environments, applications, ...) as git-backed intent.",
     )
     app.include_router(api_router)
+
+    @app.exception_handler(SchemaError)
+    def schema_error(_request: Request, exc: SchemaError) -> JSONResponse:
+        # Name/shape validation failures are the caller's problem, not a 500.
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"detail": str(exc)})
 
     @app.get("/healthz", response_model=Health, tags=["meta"])
     def healthz() -> Health:

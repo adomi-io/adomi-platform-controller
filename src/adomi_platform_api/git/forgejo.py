@@ -205,6 +205,22 @@ class ForgejoWriter:
 
         return {"committed": True, "branch": base_branch}
 
+    def read_manifest(self, repo, path) -> str | None:
+        resp = self._request(
+            "GET", f"repos/{self.owner}/{repo}/contents/{path}", params={"ref": self.default_branch}
+        )
+
+        if resp.status_code == 404:
+            return None
+        if resp.status_code != 200:
+            raise GitError(f"Reading {path} failed: {resp.status_code} {resp.text}")
+
+        payload = self._json(resp)
+        try:
+            return base64.b64decode(payload.get("content") or "").decode("utf-8")
+        except Exception as exc:  # noqa: BLE001
+            raise GitError(f"Decoding {path} failed: {exc}") from exc
+
     def delete_manifest(self, repo, path, message, *, mode=MODE_COMMIT) -> dict:
         base_branch = self.default_branch
         sha = self._file_sha(repo, path, base_branch)

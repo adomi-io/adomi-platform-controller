@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="adomi_platform.EffectiveConfig" owl="1">
+        <div class="o_adomi_effective_config w-100">
+            <div t-if="state.loading" class="text-muted small">Loading…</div>
+            <div t-elif="!state.entries.length" class="text-muted small">
+                No variables or secrets apply to this application yet. Add them here, or on
+                the environment, customer, or organization to share them more widely.
+            </div>
+            <table t-else="" class="table table-sm align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Value</th>
+                        <th>Defined at</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr t-foreach="state.entries" t-as="entry" t-key="entry.id"
+                        t-att-class="entry.overridden ? 'opacity-50' : ''">
+                        <td>
+                            <i t-if="entry.kind === 'secret'" class="fa fa-lock text-muted me-1"
+                               title="Secret — the value is stored in the platform vault"/>
+                            <span t-att-class="entry.overridden ? 'text-decoration-line-through' : 'fw-bold'"
+                                  t-esc="entry.name"/>
+                        </td>
+                        <td>
+                            <code t-if="entry.kind === 'variable'" t-esc="entry.value or ''"/>
+                            <span t-else="" class="text-muted small">••••••••</span>
+                        </td>
+                        <td>
+                            <span class="badge text-bg-light border" t-esc="scopeLabel(entry)"/>
+                            <span t-if="entry.overridden" class="text-muted small ms-1">overridden</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </t>
+</templates>

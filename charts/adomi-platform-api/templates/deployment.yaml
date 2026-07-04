@@ -47,6 +47,20 @@ spec:
               value: {{ .Values.forgejo.gitMode | quote }}
             - name: ADOMI_API_CLIENT_NAMESPACE_PREFIX
               value: {{ .Values.clientNamespacePrefix | quote }}
+            {{- if .Values.openbao.addr }}
+            # Scoped Secrets: values go straight to OpenBao (kubernetes auth with
+            # this pod's ServiceAccount); git carries only variable/secret names.
+            - name: ADOMI_API_OPENBAO_ADDR
+              value: {{ .Values.openbao.addr | quote }}
+            - name: ADOMI_API_OPENBAO_MOUNT
+              value: {{ .Values.openbao.mount | quote }}
+            - name: ADOMI_API_OPENBAO_AUTH_MOUNT
+              value: {{ .Values.openbao.authMount | quote }}
+            - name: ADOMI_API_OPENBAO_ROLE
+              value: {{ .Values.openbao.role | quote }}
+            - name: ADOMI_API_SCOPED_SECRETS_PREFIX
+              value: {{ .Values.openbao.scopedSecretsPrefix | quote }}
+            {{- end }}
             - name: ADOMI_API_AUTH_TOKEN
               valueFrom:
                 secretKeyRef:

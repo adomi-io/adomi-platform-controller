@@ -165,6 +165,24 @@
                                 </kanban>
                             </field>
                         </page>
+                        <page string="Variables &amp; Secrets" name="scoped_config">
+                            <p class="text-muted">
+                                Variables are plain values committed to the infrastructure
+                                repository; secret values go straight to the platform vault
+                                and are never shown again. Nearer scopes override:
+                                organization &lt; customer &lt; environment &lt; application.
+                            </p>
+                            <field name="scoped_config_ids">
+                                <list editable="bottom">
+                                    <field name="kind"/>
+                                    <field name="name"/>
+                                    <field name="value" readonly="kind == 'secret'"/>
+                                    <field name="secret_value" password="True"
+                                           readonly="kind == 'variable'"/>
+                                    <field name="secret_set" string="Stored"/>
+                                </list>
+                            </field>
+                        </page>
                         <page string="Environments" name="environments">
                             <field name="environment_ids">
                                 <list>

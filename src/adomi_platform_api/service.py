@@ -4,9 +4,19 @@ from __future__ import annotations
 
 import yaml
 
-from adomi_platform_schema import build_manifest, repo_path, resource_for_plural, validate_name
+from adomi_platform_schema import (
+    SchemaError,
+    build_manifest,
+    repo_path,
+    resource_for_plural,
+    validate_name,
+)
 
 from .git import GitWriter
+
+
+class NotFoundError(LookupError):
+    """The addressed CR has no committed manifest in the client repo."""
 
 
 class ClientService:
@@ -45,6 +55,63 @@ class ClientService:
             "namespace": manifest["metadata"]["namespace"],
             **result,
         }
+
+    def set_variable(self, client: str, plural: str, name: str, var: str, value: str) -> dict:
+        """Set a plain scoped variable on an existing CR (read-modify-write)."""
+        return self._mutate_variables(client, plural, name, var, value=value, remove=False)
+
+    def remove_variable(self, client: str, plural: str, name: str, var: str) -> dict:
+        """Remove a scoped variable from an existing CR (read-modify-write)."""
+        return self._mutate_variables(client, plural, name, var, value="", remove=True)
+
+    def _mutate_variables(self, client, plural, name, var, *, value, remove) -> dict:
+        rt = resource_for_plural(plural)
+        validate_name(client, "customer")
+        validate_name(name, "name")
+        if not var or not var.strip():
+            raise SchemaError("variable name is required")
+        var = var.strip()
+
+        path = repo_path(plural, name)
+        current = self.writer.read_manifest(client, path)
+
+        if current is None:
+            raise NotFoundError(f"{rt.kind} {name!r} has no committed manifest")
+
+        manifest = yaml.safe_load(current) or {}
+        spec = manifest.setdefault("spec", {})
+        entries = [v for v in (spec.get("variables") or []) if v.get("name") != var]
+
+        if remove:
+            action = f"Remove variable {var} from {rt.kind} {name}"
+        else:
+            entries.append({"name": var, "value": value})
+            action = f"Set variable {var} on {rt.kind} {name}"
+
+        if entries:
+            spec["variables"] = entries
+        else:
+            spec.pop("variables", None)
+
+        content = yaml.safe_dump(manifest, sort_keys=False, default_flow_style=False)
+        result = self.writer.apply_manifest(client, path, content, action, mode=self.git_mode)
+
+        return {"repo": client, "path": path, **result}
+
+    def variables(self, client: str, plural: str, name: str) -> list[dict]:
+        """The plain variables currently committed on a CR (empty when none)."""
+        resource_for_plural(plural)
+        validate_name(client, "customer")
+        validate_name(name, "name")
+
+        current = self.writer.read_manifest(client, repo_path(plural, name))
+
+        if current is None:
+            raise NotFoundError(f"{plural}/{name} has no committed manifest")
+
+        manifest = yaml.safe_load(current) or {}
+
+        return list((manifest.get("spec") or {}).get("variables") or [])
 
     def remove(self, client: str, plural: str, name: str) -> dict:
         """Remove a resource's CR from the client repo."""

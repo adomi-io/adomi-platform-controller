@@ -17,6 +17,7 @@ from . import (
     databaseservers,
     domains,
     gitrepositories,
+    scoped,
     snapshots,
     environments,
 )
@@ -32,5 +33,6 @@ for _module in (
     applications,
     gitrepositories,
     snapshots,
+    scoped,
 ):
     api_router.include_router(_module.router)

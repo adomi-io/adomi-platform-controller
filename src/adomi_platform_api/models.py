@@ -118,6 +118,19 @@ class SnapshotSpec(BaseModel):
     application: str = Field(description="Application resource name to snapshot.")
 
 
+class ScopedValue(BaseModel):
+    """A scoped variable or secret value being set."""
+
+    value: str
+
+
+class VariableEntry(BaseModel):
+    """A plain scoped variable as committed on the scope's CR."""
+
+    name: str
+    value: str = ""
+
+
 # --- responses ------------------------------------------------------------------
 class WriteResult(BaseModel):
     """Acknowledgement of a git write (commit/PR)."""

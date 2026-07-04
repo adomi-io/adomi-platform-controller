@@ -32,6 +32,18 @@ class Settings(BaseSettings):
 
     managed_by: str = MANAGED_BY
 
+    # Scoped Secrets (OpenBao KV v2). Secret VALUES go straight here - never git.
+    # Auth: openbao_token (dev/tests) or the Kubernetes auth role for the API's
+    # ServiceAccount (the same auth mount External Secrets and the controller use).
+    openbao_addr: str = ""
+    openbao_mount: str = "secret"
+    openbao_token: str = ""
+    openbao_auth_mount: str = "kubernetes"
+    openbao_role: str = "adomi-platform-api"
+    # KV prefix for scoped Variables/Secrets; must match the controller's
+    # SCOPED_SECRETS_PREFIX.
+    scoped_secrets_prefix: str = "scoped"
+
 
 @lru_cache
 def get_settings() -> Settings:

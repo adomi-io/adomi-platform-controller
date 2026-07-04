@@ -12,6 +12,9 @@ class Organization(models.Model):
     _k8s_cluster_scoped = True
 
     name = fields.Char(required=True, tracking=True)
+    scoped_config_ids = fields.One2many(
+        "adomi.scoped.config", "organization_id", string="Variables & Secrets"
+    )
     base_domain = fields.Char(
         tracking=True, help="Base domain for generated hostnames (<app>.<environment>.<client>.<base>)."
     )
@@ -32,6 +35,14 @@ class Organization(models.Model):
 
         if self.ingress_class:
             spec["ingress"] = {"className": self.ingress_class}
+
+        variables = [
+            {"name": c.name, "value": c.value or ""}
+            for c in self.scoped_config_ids
+            if c.kind == "variable"
+        ]
+        if variables:
+            spec["variables"] = variables
 
         return spec
 

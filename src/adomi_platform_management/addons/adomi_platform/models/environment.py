@@ -11,6 +11,9 @@ class Environment(models.Model):
     _k8s_kind = "Environment"
 
     name = fields.Char(required=True, tracking=True)
+    scoped_config_ids = fields.One2many(
+        "adomi.scoped.config", "environment_id", string="Variables & Secrets"
+    )
     client_id = fields.Many2one("adomi.client", string="Client", required=True, ondelete="cascade")
     environment_class = fields.Selection(
         [

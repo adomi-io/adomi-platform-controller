@@ -15,3 +15,4 @@ access_adomi_application_env,adomi.application.env,model_adomi_application_env,b
 access_adomi_git_repository,adomi.git.repository,model_adomi_git_repository,base.group_user,1,1,1,1
 access_adomi_snapshot,adomi.snapshot,model_adomi_snapshot,base.group_user,1,1,1,1
 access_adomi_deploy_wizard,adomi.deploy.wizard,model_adomi_deploy_wizard,base.group_user,1,1,1,1
+access_adomi_scoped_config,adomi.scoped.config,model_adomi_scoped_config,base.group_user,1,1,1,1

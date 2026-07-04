@@ -18,6 +18,9 @@ class Application(models.Model):
     _k8s_kind = "Application"
 
     name = fields.Char(required=True, tracking=True)
+    scoped_config_ids = fields.One2many(
+        "adomi.scoped.config", "application_id", string="Variables & Secrets"
+    )
     environment_id = fields.Many2one(
         "adomi.environment", string="Environment", required=True, ondelete="cascade"
     )
@@ -168,6 +171,43 @@ class Application(models.Model):
             "phase": status.get("phase") or False,
             "namespace": status.get("namespace") or False,
         }
+
+    def get_effective_config(self):
+        """The rolled-up Variables & Secrets this app's workload receives.
+
+        Walks the scope chain (organization -> customer -> environment ->
+        application); nearer scopes override by name. Overridden entries stay in
+        the result flagged, so the UI can show WHERE a value comes from and what
+        it shadowed (the GitHub Actions roll-up view). Secret values are never
+        included - only names.
+        """
+        self.ensure_one()
+
+        chain = [
+            ("organization", self.client_id.organization_id),
+            ("client", self.client_id),
+            ("environment", self.environment_id),
+            ("application", self),
+        ]
+
+        winners = {}
+        entries = []
+        for scope, owner in chain:
+            for rec in owner.scoped_config_ids if owner else []:
+                entry = {
+                    "id": rec.id,
+                    "name": rec.name,
+                    "kind": rec.kind,
+                    "value": rec.value if rec.kind == "variable" else False,
+                    "scope": scope,
+                    "overridden": False,
+                }
+                if rec.name in winners:
+                    winners[rec.name]["overridden"] = True
+                winners[rec.name] = entry
+                entries.append(entry)
+
+        return sorted(entries, key=lambda e: (e["name"], e["overridden"]))
 
     def _k8s_identity_domain(self, obj):
         # "superset" exists in every client: identity is (client, environment, name).

@@ -9,6 +9,7 @@ from fastapi import Depends
 from .cluster import ClusterReader
 from .config import Settings, get_settings
 from .git import ForgejoWriter, GitWriter, Readiness
+from .secrets import ScopedSecretsStore
 from .service import ClientService
 
 
@@ -32,6 +33,16 @@ def get_service(
         namespace_prefix=settings.client_namespace_prefix,
         managed_by=settings.managed_by,
         git_mode=settings.git_mode,
+    )
+
+
+def get_secrets_store(settings: Settings = Depends(get_settings)) -> ScopedSecretsStore:
+    return ScopedSecretsStore(
+        settings.openbao_addr,
+        settings.openbao_mount,
+        token=settings.openbao_token,
+        auth_mount=settings.openbao_auth_mount,
+        role=settings.openbao_role,
     )
 
 

@@ -13,6 +13,9 @@ class Client(models.Model):
     _k8s_kind = "Client"
 
     name = fields.Char(required=True, tracking=True)
+    scoped_config_ids = fields.One2many(
+        "adomi.scoped.config", "client_id", string="Variables & Secrets"
+    )
     slug = fields.Char(help="Stable identifier; defaults to the resource name.")
     partner_id = fields.Many2one(
         "res.partner",
