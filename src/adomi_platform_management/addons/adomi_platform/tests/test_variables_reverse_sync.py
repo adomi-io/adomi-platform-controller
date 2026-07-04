@@ -152,6 +152,18 @@ class TestAppScopedObservability(TransactionCase):
             'namespace="acme-production"',
         )
 
+    def test_grafana_link_targets_a_real_dashboard(self):
+        # /d?var-namespace=... (no dashboard UID) rendered a blank page.
+        self.env["ir.config_parameter"].sudo().set_param(
+            "adomi_platform.base_domain", "example.com"
+        )
+        self.application.invalidate_recordset()
+        self.assertEqual(
+            self.application.link_grafana_url,
+            "https://grafana.example.com/d/85a562078cdf77779eaa1add43ccec1e"
+            "?var-namespace=acme-production",
+        )
+
     def test_search_is_escaped_into_the_line_filter(self):
         query = self.application._obs_log_query('error "500"')
         self.assertEqual(

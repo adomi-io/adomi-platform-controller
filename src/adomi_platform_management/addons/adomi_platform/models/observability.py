@@ -28,6 +28,12 @@ PROMETHEUS_DEFAULT = "http://kube-prometheus-stack-prometheus.monitoring.svc.clu
 LOKI_DEFAULT = "http://loki.monitoring.svc.cluster.local:3100"
 HTTP_TIMEOUT = 5  # seconds; keep the Odoo worker responsive when monitoring is down
 
+# "Kubernetes / Compute Resources / Namespace (Pods)" — the kubernetes-mixin
+# dashboard kube-prometheus-stack ships, keyed by its stable upstream UID. The
+# Metrics deep link lands here filtered to the resource's namespace; override
+# with ir.config_parameter adomi_platform.grafana_dashboard_uid.
+GRAFANA_DASHBOARD_UID_DEFAULT = "85a562078cdf77779eaa1add43ccec1e"
+
 
 class ObservabilityMixin(models.AbstractModel):
     _name = "adomi.observability.mixin"
@@ -133,7 +139,14 @@ class ObservabilityMixin(models.AbstractModel):
                 }
                 qs = urllib.parse.quote(json.dumps(explore))
                 rec.link_logs_url = "https://%s/explore?left=%s" % (grafana, qs)
-                rec.link_grafana_url = "https://%s/d?var-namespace=%s" % (grafana, ns)
+                dashboard = self._obs_param(
+                    "grafana_dashboard_uid", GRAFANA_DASHBOARD_UID_DEFAULT
+                )
+                rec.link_grafana_url = "https://%s/d/%s?var-namespace=%s" % (
+                    grafana,
+                    dashboard,
+                    ns,
+                )
             else:
                 rec.link_logs_url = ""
                 rec.link_grafana_url = ""
