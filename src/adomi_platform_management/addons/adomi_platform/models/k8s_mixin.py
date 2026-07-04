@@ -409,6 +409,7 @@ class K8sMixin(models.AbstractModel):
             "adomi.organization",
             "adomi.application.type",
             "adomi.client",
+            "adomi.domain",
             "adomi.environment",
             "adomi.database.server",
             "adomi.application",

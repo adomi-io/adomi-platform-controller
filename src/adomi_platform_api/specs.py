@@ -111,6 +111,7 @@ def application_spec(
     env: list[dict] | None = None,
     replicas: int | None = None,
     host: str | None = None,
+    domain: str | None = None,
     values: dict | None = None,
     source: dict | None = None,
 ) -> dict:
@@ -131,6 +132,8 @@ def application_spec(
         spec["replicas"] = int(replicas)
     if host:
         spec["ingress"] = {"host": host}
+    if domain:
+        spec["domainRef"] = _ref(domain)
     if values:
         spec["values"] = values
 

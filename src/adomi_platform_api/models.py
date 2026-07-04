@@ -93,6 +93,10 @@ class ApplicationSpec(BaseModel):
     )
     replicas: int | None = Field(default=None, ge=1, description="Workload replica count.")
     host: str | None = Field(default=None, description="Explicit hostname override.")
+    domain: str | None = Field(
+        default=None,
+        description="Domain resource name; its fqdn becomes the hostname base (domainRef).",
+    )
     values: dict | None = Field(
         default=None, description="Extra chart values merged last; passed through verbatim."
     )

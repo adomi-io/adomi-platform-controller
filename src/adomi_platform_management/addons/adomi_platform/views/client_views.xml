@@ -98,104 +98,27 @@
                        invisible="not id"/>
                 <sheet>
                     <field name="id" widget="adomi_bus_listener" nolabel="1"/>
-                    <div class="oe_button_box" name="button_box">
-                        <button class="oe_stat_button" icon="fa-cubes" type="object"
-                                name="action_view_applications">
-                            <field name="application_count" widget="statinfo" string="Applications"/>
-                        </button>
-                        <button class="oe_stat_button" icon="fa-folder-o" type="object"
-                                name="action_view_environments">
-                            <field name="environment_count" widget="statinfo" string="Environments"/>
-                        </button>
-                    </div>
                     <div class="oe_title">
                         <h1><field name="name" placeholder="Customer name"/></h1>
+                        <div class="text-muted">
+                            <field name="organization_id" class="oe_inline" placeholder="Organization"/>
+                            <span invisible="not k8s_name"> · </span>
+                            <field name="k8s_name" class="oe_inline" readonly="id"/>
+                            <span invisible="not partner_id"> · </span>
+                            <field name="partner_id" class="oe_inline" placeholder="Contact"/>
+                        </div>
                     </div>
-                    <group>
+                    <!-- New records: nothing exists yet, the portal has nothing to
+                         show — a plain form until the first save. -->
+                    <group invisible="id">
                         <group>
-                            <field name="partner_id"/>
-                            <field name="organization_id"/>
-                            <field name="health" widget="badge"
-                                   decoration-success="health == 'ok'"
-                                   decoration-warning="health == 'pending'"
-                                   decoration-danger="health == 'degraded'"
-                                   decoration-muted="health == 'empty'"/>
-                        </group>
-                        <group>
-                            <field name="k8s_name"/>
                             <field name="slug"/>
-                            <field name="k8s_last_sync" readonly="1"/>
-                            <field name="k8s_message" readonly="1"/>
                         </group>
                     </group>
-                    <notebook>
-                        <page string="Applications" name="applications">
-                            <field name="application_ids" mode="kanban" readonly="1"
-                                   context="{'default_client_id': id}">
-                                <kanban>
-                                    <field name="name"/>
-                                    <field name="type_id"/>
-                                    <field name="environment_id"/>
-                                    <field name="phase"/>
-                                    <field name="url"/>
-                                    <field name="k8s_state"/>
-                                    <templates>
-                                        <t t-name="card">
-                                            <div class="d-flex flex-column gap-1 p-2">
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <strong t-esc="record.name.value"/>
-                                                    <span class="badge"
-                                                          t-att-class="{
-                                                              'text-bg-success': record.k8s_state.raw_value == 'ready',
-                                                              'text-bg-danger': record.k8s_state.raw_value == 'not_ready',
-                                                              'text-bg-warning': record.k8s_state.raw_value == 'pending'}"
-                                                          t-esc="record.k8s_state.value"/>
-                                                </div>
-                                                <div class="text-muted small">
-                                                    <field name="type_id"/>
-                                                    <t t-if="record.phase.value"> · <t t-esc="record.phase.value"/></t>
-                                                </div>
-                                                <div t-if="record.url.value">
-                                                    <a t-att-href="record.url.value" target="_blank"
-                                                       t-esc="record.url.value"/>
-                                                </div>
-                                            </div>
-                                        </t>
-                                    </templates>
-                                </kanban>
-                            </field>
-                        </page>
-                        <page string="Variables &amp; Secrets" name="scoped_config">
-                            <p class="text-muted">
-                                Variables are plain values committed to the infrastructure
-                                repository; secret values go straight to the platform vault
-                                and are never shown again. Nearer scopes override:
-                                organization &lt; customer &lt; environment &lt; application.
-                            </p>
-                            <field name="scoped_config_ids">
-                                <list editable="bottom">
-                                    <field name="kind"/>
-                                    <field name="name"/>
-                                    <field name="value" readonly="kind == 'secret'"/>
-                                    <field name="secret_value" password="True"
-                                           readonly="kind == 'variable'"/>
-                                    <field name="secret_set" string="Stored"/>
-                                </list>
-                            </field>
-                        </page>
-                        <page string="Environments" name="environments">
-                            <field name="environment_ids">
-                                <list>
-                                    <field name="name"/>
-                                    <field name="environment_class"/>
-                                    <field name="namespace"/>
-                                    <field name="k8s_state" widget="badge"
-                                           decoration-success="k8s_state == 'ready'"
-                                           decoration-danger="k8s_state == 'not_ready'"/>
-                                </list>
-                            </field>
-                        </page>
-                    </notebook>
+                    <!-- THE portal: everything the platform runs for this customer,
+                         actionable in place. -->
+                    <field name="id" widget="adomi_customer_portal" nolabel="1"
+                           invisible="not id"/>
                 </sheet>
                 <chatter/>
             </form>

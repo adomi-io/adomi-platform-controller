@@ -105,7 +105,9 @@
                             <field name="environment_id"/>
                             <field name="type_id"/>
                             <field name="replicas"/>
-                            <field name="hostname"/>
+                            <field name="domain_id"/>
+                            <field name="subdomain"/>
+                            <field name="hostname" groups="base.group_no_one"/>
                         </group>
                         <group string="Status">
                             <field name="url" widget="url" readonly="1"/>
@@ -171,6 +173,37 @@
                     </notebook>
                 </sheet>
                 <chatter/>
+            </form>
+        </field>
+    </record>
+
+<!-- The customer portal's host editor: which domain + subdomain (or a raw
+         override), with the live result. Opened as a dialog by
+         action_open_host_dialog. -->
+    <record id="view_adomi_application_host_form" model="ir.ui.view">
+        <field name="name">adomi.application.host.form</field>
+        <field name="model">adomi.application</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <field name="client_id" invisible="1"/>
+                    <group>
+                        <field name="subdomain" placeholder="erp"/>
+                        <field name="domain_id" options="{'no_create': True}"/>
+                        <field name="hostname" groups="base.group_no_one"/>
+                        <field name="host_effective" readonly="1"/>
+                    </group>
+                    <div class="text-muted">
+                        Leave both empty and the platform generates a name under the
+                        organization domain. DNS and the certificate follow the change
+                        automatically.
+                    </div>
+                </sheet>
+                <footer>
+                    <button string="Save" special="save" class="btn-primary"/>
+                    <button string="Discard" special="cancel" class="btn-secondary"/>
+                </footer>
             </form>
         </field>
     </record>

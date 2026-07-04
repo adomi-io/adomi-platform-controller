@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="adomi_platform.CustomerPortal">
+    <div class="o_adomi_portal">
+        <div t-if="state.loading" class="text-muted p-4">
+            <i class="fa fa-circle-o-notch fa-spin me-2"/>Loading the estate…
+        </div>
+
+        <t t-if="!state.loading and state.data">
+            <!-- ============ Domains + Database servers ============ -->
+            <div class="o_adomi_portal_duo">
+                <div class="o_adomi_portal_card">
+                    <div class="o_adomi_portal_card_head">
+                        <h3>Domains</h3>
+                        <button class="btn btn-sm btn-secondary ms-auto" t-on-click="addDomain">
+                            <i class="fa fa-plus me-1"/>Add domain
+                        </button>
+                    </div>
+                    <div t-if="!state.data.domains.length" class="o_adomi_portal_empty">
+                        Apps currently publish under the organization domain
+                        <t t-if="state.data.client.base_domain">
+                            (<span class="o_adomi_mono" t-esc="state.data.client.base_domain"/>)</t>.
+                        Add the customer's own domain, or give them a branded one on ours.
+                    </div>
+                    <div t-foreach="state.data.domains" t-as="domain" t-key="domain.id"
+                         class="o_adomi_portal_row" t-on-click="() => this.editDomain(domain)">
+                        <div class="o_adomi_portal_row_main">
+                            <div class="o_adomi_mono fw-bold" t-esc="domain.fqdn"/>
+                            <div class="o_adomi_portal_meta">
+                                <t t-if="domain.mode === 'byo'">
+                                    Their domain
+                                    <t t-if="domain.cname_target">
+                                        · CNAME → <span class="o_adomi_mono" t-esc="domain.cname_target"/>
+                                    </t>
+                                </t>
+                                <t t-else="">On our domain · DNS &amp; certificates managed by the platform</t>
+                                <t t-if="domain.app_count"> · <t t-esc="domain.app_count"/> app(s)</t>
+                            </div>
+                        </div>
+                        <span t-if="domain.wildcard" class="o_adomi_portal_tag">wildcard</span>
+                        <span class="badge" t-att-class="stateClass(domain.state)"
+                              t-esc="stateLabel(domain.state)"/>
+                    </div>
+                </div>
+
+                <div class="o_adomi_portal_card">
+                    <div class="o_adomi_portal_card_head">
+                        <h3>Database servers</h3>
+                        <button class="btn btn-sm btn-secondary ms-auto" t-on-click="addServer">
+                            <i class="fa fa-plus me-1"/>Add server
+                        </button>
+                    </div>
+                    <div t-if="!state.data.servers.length" class="o_adomi_portal_empty">
+                        No database servers yet — apps that need one will ask for it,
+                        or add one up front.
+                    </div>
+                    <div t-foreach="state.data.servers" t-as="server" t-key="server.id"
+                         class="o_adomi_portal_row" t-on-click="() => this.editServer(server)">
+                        <div class="o_adomi_portal_row_main">
+                            <div class="fw-bold" t-esc="server.name"/>
+                            <div class="o_adomi_portal_meta">
+                                <t t-if="server.mode === 'cnpg'">
+                                    <span t-if="server.host" class="o_adomi_mono" t-esc="server.host"/>
+                                    <t t-if="server.host"> · </t>In-cluster
+                                    <t t-if="server.storage"> · <t t-esc="server.storage"/></t>
+                                    <t t-if="server.instances > 1"> · <t t-esc="server.instances"/> instances</t>
+                                </t>
+                                <t t-else="">
+                                    <span class="o_adomi_mono">
+                                        <t t-esc="server.external_host"/><t t-if="server.external_port">:<t t-esc="server.external_port"/></t>
+                                    </span> · External
+                                </t>
+                            </div>
+                        </div>
+                        <span t-if="server.environment" class="o_adomi_portal_tag" t-esc="server.environment"/>
+                        <span t-else="" class="o_adomi_portal_tag">shared</span>
+                        <span class="badge" t-att-class="stateClass(server.state)"
+                              t-esc="stateLabel(server.state)"/>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ Environments -> applications ============ -->
+            <div class="o_adomi_portal_card">
+                <div class="o_adomi_portal_card_head">
+                    <h3>Environments &amp; applications</h3>
+                    <button class="btn btn-sm btn-secondary ms-auto" t-on-click="newEnvironment">
+                        <i class="fa fa-plus me-1"/>New environment
+                    </button>
+                </div>
+
+                <div t-if="!state.data.environments.length" class="o_adomi_portal_empty">
+                    Nothing runs yet. Deploying the first application creates its
+                    environment along the way.
+                    <button class="btn btn-sm btn-primary ms-2" t-on-click="() => this.deployApp(null)">
+                        <i class="fa fa-rocket me-1"/>Deploy application
+                    </button>
+                </div>
+
+                <div t-foreach="state.data.environments" t-as="env" t-key="env.id"
+                     class="o_adomi_portal_env">
+                    <div class="o_adomi_portal_env_head" t-on-click="() => this.toggleEnv(env)">
+                        <i class="fa" t-att-class="isCollapsed(env) ? 'fa-caret-right' : 'fa-caret-down'"/>
+                        <span class="fw-bold" t-esc="env.name"/>
+                        <span class="o_adomi_portal_tag" t-esc="env.environment_class"/>
+                        <span class="badge" t-att-class="stateClass(env.state)"
+                              t-esc="stateLabel(env.state)"/>
+                        <span t-if="env.namespace" class="o_adomi_portal_meta o_adomi_mono"
+                              t-esc="'ns: ' + env.namespace"/>
+                        <span class="ms-auto d-flex gap-2">
+                            <button class="btn btn-sm btn-secondary"
+                                    t-on-click.stop="() => this.deployApp(env)">
+                                <i class="fa fa-rocket me-1"/>Deploy app here
+                            </button>
+                            <button class="btn btn-sm btn-link text-muted"
+                                    t-on-click.stop="() => this.openEnvironment(env)"
+                                    title="Environment settings">
+                                <i class="fa fa-cog"/>
+                            </button>
+                        </span>
+                    </div>
+
+                    <div t-if="!isCollapsed(env)" class="o_adomi_portal_env_body">
+                        <div t-if="!env.apps.length" class="o_adomi_portal_empty">
+                            No applications in this environment yet.
+                        </div>
+
+                        <div t-foreach="env.apps" t-as="app" t-key="app.id" class="o_adomi_portal_app">
+                            <div class="o_adomi_portal_app_head">
+                                <span class="o_adomi_portal_app_icon"
+                                      t-esc="(app.type || app.name)[0].toUpperCase()"/>
+                                <span class="fw-bold" t-esc="app.name"/>
+                                <span class="o_adomi_portal_meta" t-esc="app.type"/>
+                                <span class="badge" t-att-class="stateClass(app.state)"
+                                      t-esc="app.phase || stateLabel(app.state)"/>
+                                <span class="ms-auto d-flex gap-1">
+                                    <button class="btn btn-sm btn-link" t-on-click="() => this.openAppForm(app)">
+                                        Logs
+                                    </button>
+                                    <button t-if="app.url" class="btn btn-sm btn-link"
+                                            t-on-click="() => this.openApp(app)">
+                                        Open app <i class="fa fa-external-link ms-1"/>
+                                    </button>
+                                    <button class="btn btn-sm btn-link text-muted"
+                                            t-on-click="() => this.openAppForm(app)"
+                                            title="Application settings">
+                                        <i class="fa fa-cog"/>
+                                    </button>
+                                </span>
+                            </div>
+
+                            <div class="o_adomi_portal_app_line">
+                                <span class="o_adomi_portal_app_key">Host</span>
+                                <span class="o_adomi_portal_app_val">
+                                    <a t-if="app.url" t-att-href="app.url" target="_blank" rel="noopener"
+                                       class="o_adomi_mono" t-esc="app.host.effective || app.url"/>
+                                    <span t-elif="app.host.effective" class="o_adomi_mono"
+                                          t-esc="app.host.effective"/>
+                                    <span t-else="" class="text-muted">generated by the platform</span>
+                                    <button class="btn btn-sm btn-link" t-on-click="() => this.editHost(app)">
+                                        <i class="fa fa-pencil me-1"/>Change
+                                    </button>
+                                </span>
+                            </div>
+
+                            <div class="o_adomi_portal_app_line">
+                                <span class="o_adomi_portal_app_key">Database</span>
+                                <span class="o_adomi_portal_app_val">
+                                    <t t-if="app.databases.length">
+                                        <span t-foreach="app.databases" t-as="db" t-key="db.id"
+                                              class="o_adomi_portal_chip"
+                                              t-on-click="() => this.editDatabase(app)">
+                                            <span class="o_adomi_mono" t-esc="db.database_name"/>
+                                            <span class="text-muted">on</span>
+                                            <span class="o_adomi_mono" t-esc="db.server"/>
+                                            <span t-if="db.server_mode" class="text-muted"
+                                                  t-esc="db.server_mode === 'cnpg' ? '· in-cluster' : '· external'"/>
+                                        </span>
+                                    </t>
+                                    <span t-else="" class="text-muted">none</span>
+                                </span>
+                            </div>
+
+                            <div class="o_adomi_portal_app_line">
+                                <span class="o_adomi_portal_app_key">Variables</span>
+                                <span class="o_adomi_portal_app_val">
+                                    <t t-foreach="app.config" t-as="entry"
+                                       t-key="entry.scope + '-' + entry.id">
+                                        <span t-if="!entry.overridden" class="o_adomi_portal_chip"
+                                              t-on-click="() => this.editConfig(app, entry)">
+                                            <i t-if="entry.kind === 'secret'" class="fa fa-lock text-muted"/>
+                                            <span class="o_adomi_portal_chip_scope" t-esc="scopeLabel(entry)"/>
+                                            <span class="o_adomi_mono" t-esc="entry.name"/>
+                                        </span>
+                                    </t>
+                                    <span class="o_adomi_portal_chip o_adomi_portal_chip_add"
+                                          t-on-click="() => this.addConfig(app)">
+                                        <i class="fa fa-plus"/> Add
+                                    </span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </div>
+</t>
+
+</templates>

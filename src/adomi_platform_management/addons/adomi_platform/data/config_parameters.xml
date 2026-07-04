@@ -47,6 +47,14 @@
         <field name="value">argocd</field>
     </record>
 
+    <!-- Where customer-owned (BYO) domains point their CNAME: the platform's
+         ingress edge. Empty = fall back to the Organization base domain, whose
+         wildcard record resolves to the same ingress. -->
+    <record id="param_edge_host" model="ir.config_parameter">
+        <field name="key">adomi_platform.edge_host</field>
+        <field name="value"></field>
+    </record>
+
     <!-- Authentik group whose members get Odoo Settings (admin) access on OIDC login.
          Members of this group are synced into base.group_system; non-members are
          removed from it (the bootstrap admin is never touched). -->

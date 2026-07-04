@@ -1,0 +1,216 @@
+/** @odoo-module **/
+
+import {Component, onWillStart, useState} from "@odoo/owl";
+import {useService} from "@web/core/utils/hooks";
+import {registry} from "@web/core/registry";
+import {standardFieldProps} from "@web/views/fields/standard_field_props";
+
+const fieldRegistry = registry.category("fields");
+
+const SCOPE_LABELS = {
+    organization: "Org",
+    client: "Customer",
+    environment: "Env",
+    application: "App",
+};
+
+/**
+ * The customer page IS the portal: one view over everything the platform runs
+ * for this customer — domains, database servers, and the environment ->
+ * application tree (host, databases, variables per app). Cards are summaries;
+ * every line opens the right record dialog in place and reloads on close.
+ *
+ * Usage: <field name="id" widget="adomi_customer_portal" nolabel="1"/>
+ */
+export class CustomerPortal extends Component {
+    static template = "adomi_platform.CustomerPortal";
+    static props = {...standardFieldProps};
+
+    setup() {
+        this.orm = useService("orm");
+        this.action = useService("action");
+        this.state = useState({
+            data: null,
+            loading: true,
+            collapsed: {},
+        });
+
+        onWillStart(() => this.load());
+    }
+
+    get resId() {
+        return this.props.record.resId;
+    }
+
+    async load() {
+        if (!this.resId) {
+            this.state.loading = false;
+            return;
+        }
+        try {
+            this.state.data = await this.orm.call("adomi.client", "get_portal_data", [
+                [this.resId],
+            ]);
+        } finally {
+            this.state.loading = false;
+        }
+    }
+
+    // Environments start expanded; production estates are small enough that
+    // seeing everything beats remembering to unfold it.
+    isCollapsed(env) {
+        return Boolean(this.state.collapsed[env.id]);
+    }
+
+    toggleEnv(env) {
+        this.state.collapsed[env.id] = !this.state.collapsed[env.id];
+    }
+
+    scopeLabel(entry) {
+        return SCOPE_LABELS[entry.scope] || entry.scope;
+    }
+
+    stateClass(state) {
+        return {
+            ready: "text-bg-success",
+            not_ready: "text-bg-danger",
+            pending: "text-bg-warning",
+        }[state] || "text-bg-light border";
+    }
+
+    stateLabel(state) {
+        return {
+            ready: "Ready",
+            not_ready: "Attention",
+            pending: "Provisioning",
+            unknown: "Unknown",
+        }[state] || state;
+    }
+
+    // --- dialogs: open the record, reload the portal when it closes ---
+    _dialog(action) {
+        this.action.doAction(
+            {
+                type: "ir.actions.act_window",
+                views: [[false, "form"]],
+                target: "new",
+                ...action,
+            },
+            {onClose: () => this.load()}
+        );
+    }
+
+    addDomain() {
+        this._dialog({
+            name: "Add a domain",
+            res_model: "adomi.domain",
+            context: {default_client_id: this.resId},
+        });
+    }
+
+    editDomain(domain) {
+        this._dialog({
+            name: domain.fqdn,
+            res_model: "adomi.domain",
+            res_id: domain.id,
+        });
+    }
+
+    addServer() {
+        this._dialog({
+            name: "Add a database server",
+            res_model: "adomi.database.server",
+            context: {default_client_id: this.resId},
+        });
+    }
+
+    editServer(server) {
+        this._dialog({
+            name: server.name,
+            res_model: "adomi.database.server",
+            res_id: server.id,
+        });
+    }
+
+    newEnvironment() {
+        this._dialog({
+            name: "New environment",
+            res_model: "adomi.environment",
+            context: {default_client_id: this.resId},
+        });
+    }
+
+    openEnvironment(env) {
+        this._dialog({
+            name: env.name,
+            res_model: "adomi.environment",
+            res_id: env.id,
+        });
+    }
+
+    async deployApp(env) {
+        const action = await this.orm.call("adomi.client", "action_open_deploy_wizard", [
+            [this.resId],
+        ]);
+        if (env) {
+            action.context = {...action.context, default_environment_id: env.id};
+        }
+        this.action.doAction(action, {onClose: () => this.load()});
+    }
+
+    async editHost(app) {
+        const action = await this.orm.call("adomi.application", "action_open_host_dialog", [
+            [app.id],
+        ]);
+        this.action.doAction(action, {onClose: () => this.load()});
+    }
+
+    addConfig(app) {
+        this._dialog({
+            name: `Add a variable or secret — ${app.name}`,
+            res_model: "adomi.scoped.config",
+            context: {default_application_id: app.id},
+        });
+    }
+
+    editConfig(app, entry) {
+        this._dialog({
+            name: `${entry.name} (${this.scopeLabel(entry)})`,
+            res_model: "adomi.scoped.config",
+            res_id: entry.id,
+        });
+    }
+
+    editDatabase(app) {
+        // Databases are provision-time wiring; the full app form is the editor.
+        this.openAppForm(app);
+    }
+
+    openApp(app) {
+        if (app.url) {
+            window.open(app.url, "_blank", "noopener");
+        }
+    }
+
+    openAppForm(app) {
+        this.action.doAction({
+            type: "ir.actions.act_window",
+            res_model: "adomi.application",
+            res_id: app.id,
+            views: [[false, "form"]],
+            target: "current",
+        });
+    }
+
+    openRepo() {
+        const url = this.state.data?.client?.infra_repo_url;
+        if (url) {
+            window.open(url, "_blank", "noopener");
+        }
+    }
+}
+
+fieldRegistry.add("adomi_customer_portal", {
+    component: CustomerPortal,
+    supportedTypes: ["integer"],
+});

@@ -28,6 +28,8 @@
               parent="menu_adomi_root" sequence="45"/>
     <menuitem id="menu_adomi_database_servers" name="Database Servers"
               parent="menu_adomi_infrastructure" action="action_adomi_database_server" sequence="10"/>
+    <menuitem id="menu_adomi_domains" name="Domains"
+              parent="menu_adomi_infrastructure" action="action_adomi_domain" sequence="20"/>
 
     <!-- Sources -->
     <menuitem id="menu_adomi_sources" name="Sources" parent="menu_adomi_root" sequence="50"/>

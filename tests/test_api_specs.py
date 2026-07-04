@@ -41,7 +41,18 @@ def test_application_spec_explicit_databases_env_ingress():
     assert spec["replicas"] == 2
     assert spec["ingress"] == {"host": "erp.acme.example.com"}
     assert spec["values"] == {"odoo": {"workers": 4}}
-    assert "domainRef" not in spec  # dropped: the Application CRD has no domainRef
+    assert "domainRef" not in spec  # not requested
+
+
+def test_application_spec_domain_ref():
+    spec = specs.application_spec(
+        environment="prod",
+        type="odoo",
+        host="erp.acme.com",
+        domain="acme-com",
+    )
+    assert spec["domainRef"] == {"name": "acme-com"}
+    assert spec["ingress"] == {"host": "erp.acme.com"}
 
 
 def test_application_spec_sso_and_source():

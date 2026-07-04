@@ -105,6 +105,7 @@ def test_put_environment_class_alias_and_application(ctx):
             "type": "odoo",
             "replicas": 2,
             "host": "erp.acme.example.com",
+            "domain": "acme-example-com",
             "databases": [
                 {"name": "erp", "server": "acme-prod-db", "credentials": {"secret": "erp-db"}}
             ],
@@ -115,6 +116,7 @@ def test_put_environment_class_alias_and_application(ctx):
     body = writer.applied[-1]["content"]
     assert "kind: Application" in body and "databases" in body
     assert "replicas: 2" in body and "erp.acme.example.com" in body
+    assert "domainRef" in body and "acme-example-com" in body
     assert writer.applied[-1]["path"] == "applications/erp.yaml"
 
 

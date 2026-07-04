@@ -1,0 +1,198 @@
+.o_adomi_portal {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    .o_adomi_mono {
+        font-family: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 0.92em;
+    }
+
+    .o_adomi_portal_duo {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+
+        @media (max-width: 900px) {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .o_adomi_portal_card {
+        border: 1px solid var(--border-color, #dee2e6);
+        border-radius: 8px;
+        background: var(--o-view-background-color, #fff);
+        overflow: hidden;
+    }
+
+    .o_adomi_portal_card_head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border-color, #dee2e6);
+
+        h3 {
+            margin: 0;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--o-main-text-color, #495057);
+            opacity: 0.75;
+        }
+    }
+
+    .o_adomi_portal_empty {
+        padding: 14px;
+        color: var(--o-main-text-color, #6c757d);
+        opacity: 0.75;
+        font-size: 13px;
+    }
+
+    .o_adomi_portal_row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        cursor: pointer;
+
+        & + .o_adomi_portal_row {
+            border-top: 1px solid var(--border-color, #dee2e6);
+        }
+
+        &:hover {
+            background: rgba(0, 0, 0, 0.03);
+        }
+    }
+
+    .o_adomi_portal_row_main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .o_adomi_portal_meta {
+        color: var(--o-main-text-color, #6c757d);
+        opacity: 0.8;
+        font-size: 12.5px;
+    }
+
+    .o_adomi_portal_tag {
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 4px;
+        padding: 2px 7px;
+        background: rgba(0, 0, 0, 0.06);
+        white-space: nowrap;
+    }
+
+    // --- environments tree ---
+    .o_adomi_portal_env + .o_adomi_portal_env {
+        border-top: 1px solid var(--border-color, #dee2e6);
+    }
+
+    .o_adomi_portal_env_head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        background: rgba(0, 0, 0, 0.025);
+        cursor: pointer;
+
+        .fa-caret-down,
+        .fa-caret-right {
+            width: 10px;
+            opacity: 0.6;
+        }
+    }
+
+    .o_adomi_portal_env_body {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px 14px 14px 30px;
+    }
+
+    // --- app cards ---
+    .o_adomi_portal_app {
+        border: 1px solid var(--border-color, #dee2e6);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .o_adomi_portal_app_head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 12px;
+    }
+
+    .o_adomi_portal_app_icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 7px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 13px;
+        background: rgba(113, 75, 103, 0.12);
+        color: #714b67;
+    }
+
+    .o_adomi_portal_app_line {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        padding: 8px 12px;
+        border-top: 1px solid var(--border-color, #dee2e6);
+    }
+
+    .o_adomi_portal_app_key {
+        flex: 0 0 84px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--o-main-text-color, #6c757d);
+        opacity: 0.65;
+    }
+
+    .o_adomi_portal_app_val {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        min-width: 0;
+    }
+
+    .o_adomi_portal_chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        border: 1px solid var(--border-color, #dee2e6);
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.02);
+        padding: 2px 8px;
+        font-size: 12px;
+        cursor: pointer;
+
+        &:hover {
+            border-color: #714b67;
+        }
+    }
+
+    .o_adomi_portal_chip_scope {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #714b67;
+    }
+
+    .o_adomi_portal_chip_add {
+        border-style: dashed;
+        background: transparent;
+        color: var(--o-main-text-color, #6c757d);
+    }
+}

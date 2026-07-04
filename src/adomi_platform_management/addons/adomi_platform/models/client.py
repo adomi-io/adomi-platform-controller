@@ -155,6 +155,125 @@ class Client(models.Model):
             "organization_id": org.id or False,
         }
 
+    domain_ids = fields.One2many("adomi.domain", "client_id", string="Domains")
+    database_server_ids = fields.One2many(
+        "adomi.database.server", "client_id", string="Database servers"
+    )
+
+    # --- the portal payload: everything the customer page renders, one call ---
+    def get_portal_data(self):
+        """Everything the customer-portal view shows, in one round trip.
+
+        The page is a read of the whole estate (domains, database servers, the
+        environment -> application tree with hosts / databases / variables);
+        every mutation goes through the regular records + dialogs, then the
+        widget reloads this.
+        """
+        self.ensure_one()
+
+        env_class_order = {"production": 0, "pdi": 1, "test": 2, "development": 3, "preview": 4}
+
+        domains = [
+            {
+                "id": d.id,
+                "fqdn": d.fqdn,
+                "mode": d.mode,
+                "wildcard": d.wildcard,
+                "state": d.k8s_state,
+                "message": d.k8s_message or "",
+                "cname_target": d.cname_target or "",
+                "app_count": len(d.application_ids),
+            }
+            for d in self.domain_ids
+        ]
+
+        def server_data(s):
+            return {
+                "id": s.id,
+                "name": s.name,
+                "mode": s.mode,
+                "engine": s.engine,
+                "storage": s.cnpg_storage or "",
+                "instances": s.cnpg_instances,
+                "external_host": s.external_host or "",
+                "external_port": s.external_port,
+                "host": s.host or "",
+                "environment": s.environment_id.name or "",
+                "state": s.k8s_state,
+            }
+
+        def app_data(a):
+            return {
+                "id": a.id,
+                "name": a.name,
+                "k8s_name": a.k8s_name,
+                "type": a.type_id.name or a.type_id.k8s_name,
+                "state": a.k8s_state,
+                "message": a.k8s_message or "",
+                "phase": a.phase or "",
+                "url": a.url or "",
+                "host": {
+                    "subdomain": a.subdomain or "",
+                    "domain": a.domain_id.fqdn or "",
+                    "hostname": a.hostname or "",
+                    "effective": a.host_effective or "",
+                },
+                "databases": [
+                    {
+                        "id": d.id,
+                        "name": d.name,
+                        "server": d.server_id.name or d.server_name or "",
+                        "server_mode": d.server_id.mode or "",
+                        "database_name": d.database_name or d.name,
+                        "secret": d.secret,
+                    }
+                    for d in a.database_ids
+                ],
+                "config": a.get_effective_config(),
+            }
+
+        environments = [
+            {
+                "id": e.id,
+                "name": e.name,
+                "environment_class": e.environment_class,
+                "namespace": e.namespace or "",
+                "state": e.k8s_state,
+                "message": e.k8s_message or "",
+                "servers": [
+                    server_data(s)
+                    for s in self.database_server_ids
+                    if s.environment_id == e or not s.environment_id
+                ],
+                "apps": [app_data(a) for a in e.application_ids],
+            }
+            for e in self.environment_ids.sorted(
+                key=lambda e: (env_class_order.get(e.environment_class, 9), e.name)
+            )
+        ]
+
+        return {
+            "client": {
+                "id": self.id,
+                "name": self.name,
+                "slug": self.k8s_name,
+                "organization": self.organization_id.name or "",
+                "partner": self.partner_id.display_name or "",
+                "health": self.health,
+                "state": self.k8s_state,
+                "message": self.k8s_message or "",
+                "application_count": self.application_count,
+                "application_ready_count": self.application_ready_count,
+                "environment_count": self.environment_count,
+                "provisioning_stage": self.provisioning_stage,
+                "infra_repo_url": self.infra_repo_url or "",
+                "base_domain": self.organization_id.base_domain or "",
+            },
+            "domains": domains,
+            "servers": [server_data(s) for s in self.database_server_ids],
+            "environments": environments,
+        }
+
     # --- customer-centric onboarding shortcuts ---
     def action_open_deploy_wizard(self):
         """Launch the guided deploy flow pre-scoped to this customer."""

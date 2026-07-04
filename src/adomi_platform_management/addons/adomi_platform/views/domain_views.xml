@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_adomi_domain_list" model="ir.ui.view">
+        <field name="name">adomi.domain.list</field>
+        <field name="model">adomi.domain</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="fqdn"/>
+                <field name="client_id"/>
+                <field name="mode"/>
+                <field name="wildcard"/>
+                <field name="k8s_state" widget="badge"
+                       decoration-success="k8s_state == 'ready'"
+                       decoration-danger="k8s_state == 'not_ready'"
+                       decoration-warning="k8s_state == 'pending'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Dialog-friendly form: pick how the domain comes in, see exactly what
+         (if anything) the customer must do on their side. -->
+    <record id="view_adomi_domain_form" model="ir.ui.view">
+        <field name="name">adomi.domain.form</field>
+        <field name="model">adomi.domain</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <field name="client_id" readonly="id"/>
+                        <field name="mode" widget="radio"/>
+                        <field name="platform_label" invisible="mode != 'platform'"
+                               placeholder="acme"/>
+                        <field name="fqdn" readonly="mode == 'platform'"
+                               placeholder="acme.com"/>
+                        <field name="cname_target" invisible="1"/>
+                    </group>
+                    <div class="alert alert-info" role="alert"
+                         invisible="mode != 'byo' or not cname_target">
+                        The customer creates one DNS record at their registrar:<br/>
+                        <code>*.<field name="fqdn" readonly="1" class="oe_inline"/>&#160;&#160;CNAME&#160;&#160;<field name="cname_target" readonly="1" class="oe_inline"/></code><br/>
+                        The platform takes it from there — routing and certificates included.
+                    </div>
+                    <div class="alert alert-success" role="alert"
+                         invisible="mode != 'platform'">
+                        Nothing to do on the customer's side: DNS and certificates are
+                        fully managed by the platform.
+                    </div>
+                    <group string="Advanced">
+                        <field name="wildcard"/>
+                        <field name="issuer"/>
+                        <field name="k8s_name" readonly="id"/>
+                        <field name="host" readonly="1"/>
+                        <field name="k8s_message" readonly="1"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button string="Save" special="save" class="btn-primary"/>
+                    <button string="Remove" name="action_remove" type="object" class="btn-secondary"
+                            invisible="not id"
+                            confirm="Remove this domain? Apps still publishing under it will fall back to the organization domain on their next change."/>
+                    <button string="Discard" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_adomi_domain" model="ir.actions.act_window">
+        <field name="name">Domains</field>
+        <field name="res_model">adomi.domain</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Add a customer domain</p>
+            <p>Customers either bring their own domain (one CNAME on their side)
+               or get a branded name under the organization's domain.</p>
+        </field>
+    </record>
+</odoo>

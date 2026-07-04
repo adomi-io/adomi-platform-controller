@@ -52,6 +52,7 @@ def put_application(
         env=body.env,
         replicas=body.replicas,
         host=body.host,
+        domain=body.domain,
         values=body.values,
         source=body.source.model_dump() if body.source else None,
     )

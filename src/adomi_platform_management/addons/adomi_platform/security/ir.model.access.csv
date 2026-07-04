@@ -7,6 +7,7 @@ access_adomi_github_installation_admin,adomi.github.installation.admin,model_ado
 access_adomi_github_repository_user,adomi.github.repository.user,model_adomi_github_repository,base.group_user,1,0,0,0
 access_adomi_github_repository_admin,adomi.github.repository.admin,model_adomi_github_repository,base.group_system,1,1,1,1
 access_adomi_client,adomi.client,model_adomi_client,base.group_user,1,1,1,1
+access_adomi_domain,adomi.domain,model_adomi_domain,base.group_user,1,1,1,1
 access_adomi_environment,adomi.environment,model_adomi_environment,base.group_user,1,1,1,1
 access_adomi_database_server,adomi.database.server,model_adomi_database_server,base.group_user,1,1,1,1
 access_adomi_application_type,adomi.application.type,model_adomi_application_type,base.group_user,1,1,1,1

@@ -1,6 +1,6 @@
 import json
 
-from odoo import api, fields, models
+from odoo import _, api, fields, models
 
 
 class Application(models.Model):
@@ -36,7 +36,27 @@ class Application(models.Model):
     )
     type_id = fields.Many2one("adomi.application.type", string="Type", required=True)
     replicas = fields.Integer(string="Replicas", default=1)
-    hostname = fields.Char(string="Hostname", help="Override the generated ingress host.")
+
+    # --- where the app is published: [subdomain].[domain], or a raw override ---
+    domain_id = fields.Many2one(
+        "adomi.domain",
+        string="Domain",
+        domain="[('client_id', '=', client_id)]",
+        help="The customer domain this app is published under.",
+    )
+    subdomain = fields.Char(
+        string="Subdomain",
+        help="Label under the selected domain: <subdomain>.<domain>.",
+    )
+    hostname = fields.Char(
+        string="Hostname override",
+        help="Advanced: full ingress host, bypassing the subdomain + domain pair.",
+    )
+    host_effective = fields.Char(
+        compute="_compute_host_effective",
+        string="Host",
+        help="The host this app is (or will be) published at.",
+    )
 
     # --- PROVISION (spin it up): named capability lists -> capability CRs ---
     database_ids = fields.One2many(
@@ -58,6 +78,29 @@ class Application(models.Model):
     url = fields.Char(string="URL", readonly=True, tracking=True)
     phase = fields.Char(string="Phase", readonly=True)
     namespace = fields.Char(string="Namespace", readonly=True)
+
+    @api.depends("hostname", "subdomain", "domain_id.fqdn", "url")
+    def _compute_host_effective(self):
+        for rec in self:
+            rec.host_effective = rec._composed_host() or (
+                rec.url.replace("https://", "").rstrip("/") if rec.url else False
+            )
+
+    def _composed_host(self):
+        """The explicit ingress host this record asks for (False = generated)."""
+        self.ensure_one()
+        if self.hostname:
+            return self.hostname.strip().lower()
+        if self.subdomain and self.domain_id.fqdn:
+            return ("%s.%s" % (self.subdomain.strip(), self.domain_id.fqdn.strip())).lower()
+        return False
+
+    @api.onchange("environment_id")
+    def _onchange_environment_scope_domain(self):
+        # Keep the domain within the app's customer.
+        for rec in self:
+            if rec.domain_id and rec.domain_id.client_id != rec.environment_id.client_id:
+                rec.domain_id = False
 
     def _k8s_client_slug(self):
         return self.client_id.k8s_name or False
@@ -95,8 +138,12 @@ class Application(models.Model):
         if self.replicas:
             body["replicas"] = self.replicas
 
-        if self.hostname:
-            body["host"] = self.hostname
+        host = self._composed_host()
+        if host:
+            body["host"] = host
+
+        if self.domain_id:
+            body["domain"] = self.domain_id.k8s_name
 
         values = self._parse_values(self.values)
         if values:
@@ -148,8 +195,12 @@ class Application(models.Model):
         if self.replicas:
             spec["replicas"] = self.replicas
 
-        if self.hostname:
-            spec["ingress"] = {"host": self.hostname}
+        host = self._composed_host()
+        if host:
+            spec["ingress"] = {"host": host}
+
+        if self.domain_id:
+            spec["domainRef"] = {"name": self.domain_id.k8s_name}
 
         values = self._parse_values(self.values)
         if values:
@@ -250,8 +301,32 @@ class Application(models.Model):
             "environment_id": environment.id,
             "type_id": app_type.id,
             "replicas": spec.get("replicas") or 1,
-            "hostname": (spec.get("ingress") or {}).get("host") or False,
         }
+
+        domain_ref = (spec.get("domainRef") or {}).get("name")
+        domain = (
+            self.env["adomi.domain"].search(
+                [
+                    ("k8s_name", "=", domain_ref),
+                    ("client_id", "=", environment.client_id.id),
+                ],
+                limit=1,
+            )
+            if domain_ref
+            else self.env["adomi.domain"]
+        )
+        vals["domain_id"] = domain.id or False
+
+        # A host under the referenced domain round-trips as subdomain + domain;
+        # anything else stays a raw override.
+        host = ((spec.get("ingress") or {}).get("host") or "").strip().lower()
+        fqdn = (domain.fqdn or "").strip().lower()
+        if host and fqdn and host.endswith("." + fqdn):
+            vals["subdomain"] = host[: -len(fqdn) - 1]
+            vals["hostname"] = False
+        else:
+            vals["subdomain"] = False
+            vals["hostname"] = host or False
 
         vals["database_ids"] = [
             (0, 0, {
@@ -299,6 +374,22 @@ class Application(models.Model):
             vals["source_ref"] = source.get("ref") or False
 
         return vals
+
+    def action_open_host_dialog(self):
+        """The customer portal's host editor: subdomain + domain, in a dialog."""
+        self.ensure_one()
+
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Where is %s published?") % self.name,
+            "res_model": "adomi.application",
+            "res_id": self.id,
+            "view_mode": "form",
+            "views": [
+                (self.env.ref("adomi_platform.view_adomi_application_host_form").id, "form")
+            ],
+            "target": "new",
+        }
 
     # --- observability hooks ---
     def _obs_pod_regex(self):
