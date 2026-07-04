@@ -15,12 +15,13 @@ const STEPS = [
 ];
 
 /**
- * Visual provisioning journey for a platform resource. Shows what creating the
- * record actually did (repo committed -> applied -> ready) with a deep link to
- * the customer's infrastructure repository, so non-technical users can SEE the
+ * Visual provisioning journey for a platform resource, rendered as a slim
+ * stepper banner (committed -> applied -> ready) with a deep link to the
+ * customer's infrastructure repository, so non-technical users can SEE the
  * system working instead of reading status strings.
  *
- * Usage: <field name="provisioning_stage" widget="adomi_provisioning_flow" nolabel="1"/>
+ * Usage (between the form header and sheet):
+ *   <field name="provisioning_stage" widget="adomi_provisioning_flow" nolabel="1"/>
  * Reads siblings from the record: infra_repo_url, k8s_message.
  */
 export class ProvisioningFlow extends Component {
@@ -45,29 +46,29 @@ export class ProvisioningFlow extends Component {
 
     get steps() {
         // When failed, the journey stalled past "committed": first step reads
-        // done, second current-with-error, last blocked.
+        // done, second carries the error, last is blocked.
         const reachedIdx = this.failed ? 1 : STEPS.findIndex((s) => s.key === this.stage);
         const allDone = !this.failed && this.stage === "ready";
         return STEPS.map((s, idx) => {
             const done = allDone || idx < reachedIdx;
             const current = !allDone && idx === reachedIdx;
-            const blocked = this.failed && idx === STEPS.length - 1;
-            let tone = "text-muted";
+            const blocked = this.failed && idx >= reachedIdx;
+            let state = "o_todo";
             if (done) {
-                tone = "text-success";
-            } else if (blocked || (current && this.failed)) {
-                tone = "text-danger";
+                state = "o_done";
+            } else if (blocked) {
+                state = "o_blocked";
             } else if (current) {
-                tone = "text-primary";
+                state = "o_current";
             }
             return {
                 ...s,
                 done,
-                current,
-                blocked,
-                iconClass: `fa fa-lg ${s.icon} ${tone}`,
-                labelClass: `${current ? "fw-bold " : ""}${tone}`,
+                blocked: blocked && !done,
                 spinning: current && !this.failed,
+                nodeClass: state,
+                stateClass: state,
+                connectorClass: done ? "o_done" : "",
             };
         });
     }

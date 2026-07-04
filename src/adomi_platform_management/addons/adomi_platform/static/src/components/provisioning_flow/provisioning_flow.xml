@@ -1,25 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-name="adomi_platform.ProvisioningFlow" owl="1">
-        <div class="o_adomi_provisioning border rounded p-3 w-100">
-            <div class="d-flex align-items-center flex-wrap gap-3">
+        <div class="o_adomi_provisioning d-flex align-items-center px-4 py-2 w-100">
+            <div class="d-flex align-items-center flex-grow-1">
                 <t t-foreach="steps" t-as="step" t-key="step.key">
                     <div class="d-flex align-items-center gap-2">
-                        <i t-att-class="step.iconClass"/>
-                        <span t-att-class="step.labelClass" t-esc="step.label"/>
-                        <i t-if="step.done" class="fa fa-check text-success small"/>
-                        <i t-elif="step.spinning" class="fa fa-spinner fa-pulse text-primary small"/>
+                        <div class="o_adomi_step_node" t-att-class="step.nodeClass">
+                            <i t-if="step.done" class="fa fa-check"/>
+                            <i t-elif="step.spinning" class="fa fa-spinner fa-pulse"/>
+                            <i t-elif="step.blocked" class="fa fa-exclamation"/>
+                            <i t-else="" t-att-class="'fa ' + step.icon"/>
+                        </div>
+                        <span class="o_adomi_step_label small" t-att-class="step.stateClass"
+                              t-esc="step.label"/>
                     </div>
-                    <i t-if="!step_last" class="fa fa-angle-right text-muted"/>
+                    <div t-if="!step_last" class="o_adomi_connector" t-att-class="step.connectorClass"/>
                 </t>
-                <div class="ms-auto">
-                    <a t-if="repoUrl" t-att-href="repoUrl" target="_blank" rel="noopener"
-                       class="btn btn-sm btn-secondary">
-                        <i class="fa fa-external-link me-1"/>View repository
-                    </a>
-                </div>
             </div>
-            <div t-if="failed and message" class="text-danger small mt-2" t-esc="message"/>
+            <div class="ms-3 d-flex align-items-center gap-2">
+                <span t-if="failed and message" class="text-danger small text-truncate"
+                      style="max-width: 320px;" t-att-title="message" t-esc="message"/>
+                <a t-if="repoUrl" t-att-href="repoUrl" target="_blank" rel="noopener"
+                   class="btn btn-sm btn-outline-secondary text-nowrap">
+                    <i class="fa fa-git-square me-1"/>View repository
+                </a>
+            </div>
         </div>
     </t>
 </templates>
