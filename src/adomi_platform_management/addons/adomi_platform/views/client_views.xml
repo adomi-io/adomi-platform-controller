@@ -90,10 +90,12 @@
                     <field name="k8s_state" widget="statusbar" statusbar_visible="pending,ready"/>
                 </header>
                 <!-- The visible face of the GitOps flow: what creating this customer
-                     actually did, as a slim banner with a link to their infra repo. -->
+                     actually did, as a slim banner with a link to their infra repo.
+                     Hidden on unsaved records — nothing has been provisioned yet. -->
                 <field name="infra_repo_url" invisible="1"/>
                 <field name="k8s_message" invisible="1"/>
-                <field name="provisioning_stage" widget="adomi_provisioning_flow" nolabel="1"/>
+                <field name="provisioning_stage" widget="adomi_provisioning_flow" nolabel="1"
+                       invisible="not id"/>
                 <sheet>
                     <field name="id" widget="adomi_bus_listener" nolabel="1"/>
                     <div class="oe_button_box" name="button_box">

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-name="adomi_platform.ProvisioningFlow" owl="1">
-        <div class="o_adomi_provisioning d-flex align-items-center px-4 py-2 w-100">
+        <div t-if="!isNew" class="o_adomi_provisioning d-flex align-items-center px-4 py-2 w-100">
             <div class="d-flex align-items-center flex-grow-1">
                 <t t-foreach="steps" t-as="step" t-key="step.key">
                     <div class="d-flex align-items-center gap-2">

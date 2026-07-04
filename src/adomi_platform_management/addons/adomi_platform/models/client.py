@@ -77,8 +77,8 @@ class Client(models.Model):
                 rec.provisioning_stage = "ready"
             elif rec.k8s_state == "not_ready" or "failed" in message:
                 rec.provisioning_stage = "failed"
-            elif rec.k8s_state == "pending" and message.startswith("committed"):
-                # In git, GitOps hasn't applied it to the cluster yet.
+            elif rec.k8s_state == "pending" and (not message or message.startswith("committed")):
+                # In git (or just pushed), GitOps hasn't applied it to the cluster yet.
                 rec.provisioning_stage = "committed"
             else:
                 # The CR exists in the cluster; the controller is reconciling.

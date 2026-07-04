@@ -32,6 +32,12 @@ class TestProvisioningFlow(TransactionCase):
         self._set("pending", "Committed to the client repo; waiting for the platform to apply it.")
         self.assertEqual(self.client.provisioning_stage, "committed")
 
+    def test_committed_when_nothing_observed_yet(self):
+        # Fresh record, no status message at all: nothing observed from the
+        # cluster, so the journey starts at "committed", not "applied".
+        self._set("pending", "")
+        self.assertEqual(self.client.provisioning_stage, "committed")
+
     def test_applied_once_cr_exists(self):
         self._set("pending", "Client 'acme' reconciling")
         self.assertEqual(self.client.provisioning_stage, "applied")

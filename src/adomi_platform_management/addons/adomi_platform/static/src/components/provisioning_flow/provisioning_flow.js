@@ -28,6 +28,11 @@ export class ProvisioningFlow extends Component {
     static template = "adomi_platform.ProvisioningFlow";
     static props = {...standardFieldProps};
 
+    get isNew() {
+        // An unsaved record has provisioned nothing yet: no journey to tell.
+        return !this.props.record.resId;
+    }
+
     get stage() {
         return this.props.record.data[this.props.name] || "committed";
     }
