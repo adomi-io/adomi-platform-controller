@@ -53,6 +53,16 @@ class Environment(models.Model):
             "namespace": (obj.get("status") or {}).get("namespace") or False,
         }
 
+    def _k8s_identity_domain(self, obj):
+        # "production" exists in every client: identity is (client, name).
+        domain = super()._k8s_identity_domain(obj)
+        slug = ((obj.get("spec") or {}).get("clientRef") or {}).get(
+            "name"
+        ) or self._k8s_obj_client_slug(obj)
+        if slug:
+            domain.append(("client_id.k8s_name", "=", slug))
+        return domain
+
     def _k8s_import_vals(self, obj):
         spec = obj.get("spec") or {}
         client_ref = (spec.get("clientRef") or {}).get("name")

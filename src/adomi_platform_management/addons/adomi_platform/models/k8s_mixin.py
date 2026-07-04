@@ -259,6 +259,31 @@ class K8sMixin(models.AbstractModel):
         return None
 
     @api.model
+    def _k8s_obj_client_slug(self, obj):
+        """Client slug a CR belongs to, derived from its intent namespace.
+
+        Client intent namespaces are ``<prefix><slug>`` (default ``adomi-client-``,
+        must match the platform API / provisioner). False for CRs outside a client
+        namespace (platform-scoped resources, or the legacy single-namespace mode).
+        """
+        ns = (obj.get("metadata") or {}).get("namespace") or ""
+        prefix = (
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_param("adomi_platform.client_namespace_prefix", "adomi-client-")
+        )
+        return ns[len(prefix) :] if prefix and ns.startswith(prefix) else False
+
+    @api.model
+    def _k8s_identity_domain(self, obj):
+        """Domain identifying THE Odoo record for a CR.
+
+        Name-only by default; client-scoped models must narrow it, because the same
+        k8s_name (``production``, ``superset``, ...) exists in many clients.
+        """
+        return [("k8s_name", "=", (obj.get("metadata") or {}).get("name"))]
+
+    @api.model
     def _adomi_import_one(self, obj):
         """Upsert the Odoo record for one CR (best-effort, never pushes back).
 
@@ -269,7 +294,7 @@ class K8sMixin(models.AbstractModel):
         name = (obj.get("metadata") or {}).get("name")
         if not name:
             return False
-        rec = self.search([("k8s_name", "=", name)], limit=1)
+        rec = self.search(self._k8s_identity_domain(obj), limit=1)
         if not rec:
             vals = self._k8s_import_vals(obj)
             if vals is None:

@@ -144,14 +144,26 @@ class DatabaseServer(models.Model):
             "host": (obj.get("status") or {}).get("host") or False,
         }
 
+    def _k8s_identity_domain(self, obj):
+        # The same server name may exist in every client: identity is (client, name).
+        domain = super()._k8s_identity_domain(obj)
+        slug = self._k8s_obj_client_slug(obj)
+        if slug:
+            domain.append(("client_id.k8s_name", "=", slug))
+        return domain
+
     def _k8s_import_vals(self, obj):
         spec = obj.get("spec") or {}
         cnpg = spec.get("cnpg") or {}
         ext = spec.get("external") or {}
         admin = spec.get("admin") or {}
         env_ref = (spec.get("environmentRef") or {}).get("name")
+        env_domain = [("k8s_name", "=", env_ref)]
+        slug = self._k8s_obj_client_slug(obj)
+        if slug:
+            env_domain.append(("client_id.k8s_name", "=", slug))
         environment = (
-            self.env["adomi.environment"].search([("k8s_name", "=", env_ref)], limit=1)
+            self.env["adomi.environment"].search(env_domain, limit=1)
             if env_ref
             else self.env["adomi.environment"]
         )

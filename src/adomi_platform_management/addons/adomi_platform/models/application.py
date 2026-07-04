@@ -169,12 +169,27 @@ class Application(models.Model):
             "namespace": status.get("namespace") or False,
         }
 
+    def _k8s_identity_domain(self, obj):
+        # "superset" exists in every client: identity is (client, environment, name).
+        domain = super()._k8s_identity_domain(obj)
+        slug = self._k8s_obj_client_slug(obj)
+        if slug:
+            domain.append(("environment_id.client_id.k8s_name", "=", slug))
+        env_ref = ((obj.get("spec") or {}).get("environmentRef") or {}).get("name")
+        if env_ref:
+            domain.append(("environment_id.k8s_name", "=", env_ref))
+        return domain
+
     def _k8s_import_vals(self, obj):
         spec = obj.get("spec") or {}
 
         ws_ref = (spec.get("environmentRef") or {}).get("name")
+        env_domain = [("k8s_name", "=", ws_ref)]
+        slug = self._k8s_obj_client_slug(obj)
+        if slug:
+            env_domain.append(("client_id.k8s_name", "=", slug))
         environment = (
-            self.env["adomi.environment"].search([("k8s_name", "=", ws_ref)], limit=1)
+            self.env["adomi.environment"].search(env_domain, limit=1)
             if ws_ref
             else self.env["adomi.environment"]
         )

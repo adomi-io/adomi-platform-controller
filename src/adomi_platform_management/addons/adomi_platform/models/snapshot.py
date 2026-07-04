@@ -20,6 +20,14 @@ class Snapshot(models.Model):
     def _k8s_client_slug(self):
         return self.application_id.client_id.k8s_name or False
 
+    def _k8s_identity_domain(self, obj):
+        # Snapshot names repeat across clients: identity is (client, name).
+        domain = super()._k8s_identity_domain(obj)
+        slug = self._k8s_obj_client_slug(obj)
+        if slug:
+            domain.append(("application_id.client_id.k8s_name", "=", slug))
+        return domain
+
     def _api_body(self):
         self.ensure_one()
 
