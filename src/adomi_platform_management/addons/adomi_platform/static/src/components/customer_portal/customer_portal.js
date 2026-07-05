@@ -92,6 +92,72 @@ export class CustomerPortal extends Component {
         return `${Math.floor(hours / 24)} d ago`;
     }
 
+    // The customer-scoped "Getting started": the same idea as the dashboard's
+    // guided setup, but for standing up ONE customer. Hidden once complete.
+    get setupSteps() {
+        const d = this.state.data;
+        if (!d) {
+            return [];
+        }
+        return [
+            {
+                key: "domain",
+                label: "Add a domain",
+                hint: "Their own domain (one CNAME on their side) or a branded name on ours.",
+                done: d.domains.length > 0,
+                action: () => this.addDomain(),
+                button: "Add domain",
+            },
+            {
+                key: "server",
+                label: "Add a database server",
+                hint: "In-cluster (provisioned for them) or a connection to one they run.",
+                done: d.servers.length > 0,
+                action: () => this.addServer(),
+                button: "Add server",
+            },
+            {
+                key: "environment",
+                label: "Create an environment",
+                hint: "production, development, … — each gets its own namespace.",
+                done: d.environments.length > 0,
+                action: () => this.newEnvironment(),
+                button: "New environment",
+            },
+            {
+                key: "app",
+                label: "Deploy the first application",
+                hint: "Pick from the catalog; hosts, databases and SSO wire up from here.",
+                done: d.environments.some((e) => e.apps.length > 0),
+                action: () => this.deployApp(null),
+                button: "Deploy application",
+            },
+        ];
+    }
+
+    get setupDone() {
+        const steps = this.setupSteps;
+        return steps.length > 0 && steps.every((s) => s.done);
+    }
+
+    // The GitOps journey of this customer's intent, shown with the repository
+    // it lives in: committed (in git) -> applied (in the cluster) -> ready.
+    get flowSteps() {
+        const stage = this.state.data?.client?.provisioning_stage || "committed";
+        const order = ["committed", "applied", "ready"];
+        const reached = stage === "failed" ? 1 : order.indexOf(stage);
+        return order.map((key, i) => ({
+            key,
+            label: {committed: "Committed", applied: "Applied", ready: "Ready"}[key],
+            done: i <= reached && stage !== "failed",
+            failed: stage === "failed" && i === reached,
+        }));
+    }
+
+    get flowFailed() {
+        return this.state.data?.client?.provisioning_stage === "failed";
+    }
+
     // Environments start expanded; production estates are small enough that
     // seeing everything beats remembering to unfold it.
     isCollapsed(env) {

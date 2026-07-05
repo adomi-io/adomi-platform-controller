@@ -89,34 +89,30 @@
                     <button name="action_k8s_sync" type="object" string="Sync from cluster" class="btn-secondary"/>
                     <field name="k8s_state" widget="statusbar" statusbar_visible="pending,ready"/>
                 </header>
-                <!-- The visible face of the GitOps flow: what creating this customer
-                     actually did, as a slim banner with a link to their infra repo.
-                     Hidden on unsaved records — nothing has been provisioned yet. -->
-                <field name="infra_repo_url" invisible="1"/>
-                <field name="k8s_message" invisible="1"/>
-                <field name="provisioning_stage" widget="adomi_provisioning_flow" nolabel="1"
-                       invisible="not id"/>
                 <sheet>
                     <field name="id" widget="adomi_bus_listener" nolabel="1"/>
                     <div class="oe_title">
                         <h1><field name="name" placeholder="Customer name"/></h1>
-                        <div class="text-muted">
-                            <field name="organization_id" class="oe_inline" placeholder="Organization"/>
-                            <span invisible="not k8s_name"> · </span>
-                            <field name="k8s_name" class="oe_inline" readonly="id"/>
-                            <span invisible="not partner_id"> · </span>
-                            <field name="partner_id" class="oe_inline" placeholder="Contact"/>
-                        </div>
                     </div>
-                    <!-- New records: nothing exists yet, the portal has nothing to
-                         show — a plain form until the first save. -->
-                    <group invisible="id">
+                    <group>
                         <group>
+                            <field name="partner_id"/>
+                            <field name="organization_id"/>
+                            <field name="health" widget="badge"
+                                   decoration-success="health == 'ok'"
+                                   decoration-warning="health == 'pending'"
+                                   decoration-danger="health == 'degraded'"
+                                   decoration-muted="health == 'empty'"/>
+                        </group>
+                        <group>
+                            <field name="k8s_name" readonly="id"/>
                             <field name="slug"/>
+                            <field name="k8s_last_sync" readonly="1"/>
                         </group>
                     </group>
                     <!-- THE portal: everything the platform runs for this customer,
-                         actionable in place. -->
+                         actionable in place (getting started, infrastructure repo,
+                         domains, database servers, the environments -> apps tree). -->
                     <field name="id" widget="adomi_customer_portal" nolabel="1"
                            invisible="not id"/>
                 </sheet>

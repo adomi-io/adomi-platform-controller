@@ -1,6 +1,6 @@
 {
     "name": "Adomi Platform Management",
-    "version": "19.0.9.1.0",
+    "version": "19.0.9.2.0",
     "summary": "Manage the Adomi platform (Clients, Environments, Applications) from Odoo",
     "description": """
 Adomi Platform Management
@@ -49,9 +49,6 @@ the primary portal for running the platform.
             "adomi_platform/static/src/components/k8s_observability/k8s_observability.xml",
             "adomi_platform/static/src/components/app_catalog/app_catalog.js",
             "adomi_platform/static/src/components/app_catalog/app_catalog.xml",
-            "adomi_platform/static/src/components/provisioning_flow/provisioning_flow.js",
-            "adomi_platform/static/src/components/provisioning_flow/provisioning_flow.xml",
-            "adomi_platform/static/src/components/provisioning_flow/provisioning_flow.scss",
             "adomi_platform/static/src/components/effective_config/effective_config.js",
             "adomi_platform/static/src/components/effective_config/effective_config.xml",
             "adomi_platform/static/src/components/customer_portal/customer_portal.js",

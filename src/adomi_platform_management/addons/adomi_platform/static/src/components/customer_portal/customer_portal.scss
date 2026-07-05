@@ -1,21 +1,39 @@
 .o_adomi_portal {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 32px;
+    padding-top: 8px;
 
     .o_adomi_mono {
         font-family: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
         font-size: 0.92em;
     }
 
-    .o_adomi_portal_duo {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
+    // --- sections: header + one full-width panel, generous rhythm ---
+    .o_adomi_portal_section {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
 
-        @media (max-width: 900px) {
-            grid-template-columns: 1fr;
+    .o_adomi_portal_section_head {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        flex-wrap: wrap;
+
+        h2 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
         }
+    }
+
+    .o_adomi_portal_section_sub {
+        color: var(--o-main-text-color, #6c757d);
+        opacity: 0.75;
+        font-size: 12.5px;
     }
 
     .o_adomi_portal_card {
@@ -25,36 +43,62 @@
         overflow: hidden;
     }
 
-    .o_adomi_portal_card_head {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 14px;
-        border-bottom: 1px solid var(--border-color, #dee2e6);
-
-        h3 {
-            margin: 0;
-            font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: var(--o-main-text-color, #495057);
-            opacity: 0.75;
-        }
-    }
-
     .o_adomi_portal_empty {
-        padding: 14px;
+        padding: 18px;
         color: var(--o-main-text-color, #6c757d);
         opacity: 0.75;
         font-size: 13px;
     }
 
-    .o_adomi_portal_row {
+    // --- getting started ---
+    .o_adomi_portal_step {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 15px 18px;
+
+        & + .o_adomi_portal_step {
+            border-top: 1px solid var(--border-color, #dee2e6);
+        }
+
+        .fa-2x {
+            font-size: 20px;
+            width: 24px;
+            text-align: center;
+        }
+    }
+
+    .o_adomi_portal_step_done {
+        opacity: 0.65;
+    }
+
+    // --- infrastructure: the GitOps flow strip ---
+    .o_adomi_portal_flow {
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 10px 14px;
+        flex-wrap: wrap;
+        padding: 13px 18px;
+        border-bottom: 1px solid var(--border-color, #dee2e6);
+        background: rgba(0, 0, 0, 0.015);
+        font-size: 13px;
+    }
+
+    .o_adomi_portal_flow_step {
+        font-weight: 600;
+    }
+
+    .o_adomi_portal_flow_sep {
+        color: var(--o-main-text-color, #adb5bd);
+        opacity: 0.5;
+    }
+
+    // --- list rows (domains, database servers) ---
+    .o_adomi_portal_row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 18px;
         cursor: pointer;
 
         & + .o_adomi_portal_row {
@@ -95,7 +139,7 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 10px 14px;
+        padding: 13px 18px;
         background: rgba(0, 0, 0, 0.025);
         cursor: pointer;
 
@@ -109,14 +153,15 @@
     .o_adomi_portal_env_body {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        padding: 12px 14px 14px 30px;
+        gap: 16px;
+        padding: 16px 18px 18px 34px;
     }
 
     // --- app cards ---
     .o_adomi_portal_app {
         border: 1px solid var(--border-color, #dee2e6);
         border-radius: 8px;
+        background: var(--o-view-background-color, #fff);
         overflow: hidden;
     }
 
@@ -124,12 +169,12 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 9px 12px;
+        padding: 11px 15px;
     }
 
     .o_adomi_portal_app_icon {
-        width: 28px;
-        height: 28px;
+        width: 30px;
+        height: 30px;
         border-radius: 7px;
         display: inline-flex;
         align-items: center;
@@ -143,8 +188,8 @@
     .o_adomi_portal_app_line {
         display: flex;
         align-items: baseline;
-        gap: 10px;
-        padding: 8px 12px;
+        gap: 12px;
+        padding: 10px 15px;
         border-top: 1px solid var(--border-color, #dee2e6);
     }
 
@@ -161,7 +206,7 @@
     .o_adomi_portal_app_val {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 7px;
         flex-wrap: wrap;
         min-width: 0;
     }
@@ -173,7 +218,7 @@
         border: 1px solid var(--border-color, #dee2e6);
         border-radius: 6px;
         background: rgba(0, 0, 0, 0.02);
-        padding: 2px 8px;
+        padding: 3px 9px;
         font-size: 12px;
         cursor: pointer;
 
@@ -207,7 +252,7 @@
     }
 
     .o_adomi_portal_git_col {
-        padding: 12px 14px;
+        padding: 14px 18px;
         min-width: 0;
 
         & + .o_adomi_portal_git_col {
@@ -226,13 +271,13 @@
             text-transform: uppercase;
             color: var(--o-main-text-color, #6c757d);
             opacity: 0.7;
-            margin: 0 0 8px;
+            margin: 0 0 10px;
         }
     }
 
     .o_adomi_portal_tree {
         font-size: 12.5px;
-        line-height: 1.9;
+        line-height: 2;
         overflow-x: auto;
     }
 
@@ -240,7 +285,7 @@
         display: flex;
         gap: 8px;
         align-items: baseline;
-        padding: 6px 0;
+        padding: 7px 0;
         font-size: 12.5px;
 
         & + .o_adomi_portal_commit {

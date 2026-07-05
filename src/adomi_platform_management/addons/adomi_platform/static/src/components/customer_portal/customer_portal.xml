@@ -8,15 +8,110 @@
         </div>
 
         <t t-if="!state.loading and state.data">
-            <!-- ============ Domains + Database servers ============ -->
-            <div class="o_adomi_portal_duo">
+
+            <!-- ============ Getting started ============ -->
+            <div t-if="!setupDone" class="o_adomi_portal_section">
+                <div class="o_adomi_portal_section_head">
+                    <h2>Getting started</h2>
+                    <span class="o_adomi_portal_section_sub">Everything a customer needs, in order — each step is one dialog.</span>
+                </div>
                 <div class="o_adomi_portal_card">
-                    <div class="o_adomi_portal_card_head">
-                        <h3>Domains</h3>
-                        <button class="btn btn-sm btn-secondary ms-auto" t-on-click="addDomain">
-                            <i class="fa fa-plus me-1"/>Add domain
-                        </button>
+                    <div t-foreach="setupSteps" t-as="step" t-key="step.key"
+                         class="o_adomi_portal_step" t-att-class="step.done ? 'o_adomi_portal_step_done' : ''">
+                        <i class="fa fa-2x" t-att-class="step.done ? 'fa-check-circle text-success' : 'fa-circle-o text-muted'"/>
+                        <div class="o_adomi_portal_row_main">
+                            <div class="fw-bold" t-esc="step.label"/>
+                            <div class="o_adomi_portal_meta" t-esc="step.hint"/>
+                        </div>
+                        <button t-if="!step.done" class="btn btn-sm btn-primary"
+                                t-on-click="step.action" t-esc="step.button"/>
                     </div>
+                </div>
+            </div>
+
+            <!-- ============ Infrastructure ============ -->
+            <div class="o_adomi_portal_section">
+                <div class="o_adomi_portal_section_head">
+                    <h2>Infrastructure</h2>
+                    <span class="o_adomi_portal_section_sub">This customer's repository — every change on this page lands here as a commit.</span>
+                    <span class="ms-auto"/>
+                    <button t-if="state.git and state.git.repo_url" class="btn btn-sm btn-secondary"
+                            t-on-click="openRepo">
+                        Open in Forgejo <i class="fa fa-external-link ms-1"/>
+                    </button>
+                </div>
+                <div class="o_adomi_portal_card">
+                    <!-- The GitOps journey: committed -> applied -> ready. -->
+                    <div class="o_adomi_portal_flow">
+                        <t t-foreach="flowSteps" t-as="fstep" t-key="fstep.key">
+                            <span t-if="fstep_index > 0" class="o_adomi_portal_flow_sep">→</span>
+                            <span class="o_adomi_portal_flow_step"
+                                  t-att-class="fstep.failed ? 'text-danger' : (fstep.done ? 'text-success' : 'text-muted')">
+                                <i class="fa me-1"
+                                   t-att-class="fstep.failed ? 'fa-exclamation-circle' : (fstep.done ? 'fa-check' : 'fa-circle-o')"/>
+                                <t t-esc="fstep.label"/>
+                            </span>
+                        </t>
+                        <span t-if="flowFailed" class="text-danger ms-2"
+                              t-esc="state.data.client.message"/>
+                    </div>
+
+                    <div t-if="state.gitLoading" class="o_adomi_portal_empty">
+                        <i class="fa fa-circle-o-notch fa-spin me-2"/>Reading the repository…
+                    </div>
+                    <div t-elif="state.git and state.git.available" class="o_adomi_portal_git">
+                        <div class="o_adomi_portal_git_col">
+                            <h4>Files <span class="o_adomi_portal_meta">· <t t-esc="state.git.file_count"/> total</span></h4>
+                            <div t-if="!state.git.file_count" class="o_adomi_portal_empty">
+                                Nothing committed yet — the first deploy writes here.
+                            </div>
+                            <div class="o_adomi_portal_tree">
+                                <div t-foreach="state.git.root_files" t-as="f" t-key="f.name">
+                                    <i class="fa fa-file-o me-2"/><span class="o_adomi_mono" t-esc="f.name"/>
+                                </div>
+                                <div t-foreach="state.git.dirs" t-as="d" t-key="d.name">
+                                    <i class="fa fa-folder-o me-2"/><span class="o_adomi_mono" t-esc="d.name + '/'"/>
+                                    <span class="o_adomi_portal_meta ms-1">
+                                        <t t-esc="d.count"/> file<t t-if="d.count != 1">s</t>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="o_adomi_portal_git_col">
+                            <h4>Recent changes</h4>
+                            <div t-if="!state.git.commits.length" class="o_adomi_portal_empty">
+                                No commits yet.
+                            </div>
+                            <div t-foreach="state.git.commits" t-as="commit" t-key="commit.sha"
+                                 class="o_adomi_portal_commit">
+                                <a t-if="commit.url" t-att-href="commit.url" target="_blank" rel="noopener"
+                                   class="o_adomi_mono o_adomi_portal_sha" t-esc="commit.sha.slice(0, 7)"/>
+                                <span t-else="" class="o_adomi_mono o_adomi_portal_sha"
+                                      t-esc="commit.sha.slice(0, 7)"/>
+                                <span class="o_adomi_portal_commit_msg" t-esc="commit.message"/>
+                                <span class="o_adomi_portal_meta text-nowrap">
+                                    <t t-esc="commit.author"/> · <t t-esc="commitAge(commit)"/>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div t-else="" class="o_adomi_portal_empty">
+                        The repository view isn't available on this install.
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============ Domains ============ -->
+            <div class="o_adomi_portal_section">
+                <div class="o_adomi_portal_section_head">
+                    <h2>Domains</h2>
+                    <span class="o_adomi_portal_section_sub">Where this customer's apps are published.</span>
+                    <span class="ms-auto"/>
+                    <button class="btn btn-sm btn-secondary" t-on-click="addDomain">
+                        <i class="fa fa-plus me-1"/>Add domain
+                    </button>
+                </div>
+                <div class="o_adomi_portal_card">
                     <div t-if="!state.data.domains.length" class="o_adomi_portal_empty">
                         Apps currently publish under the organization domain
                         <t t-if="state.data.client.base_domain">
@@ -43,14 +138,19 @@
                               t-esc="stateLabel(domain.state)"/>
                     </div>
                 </div>
+            </div>
 
+            <!-- ============ Database servers ============ -->
+            <div class="o_adomi_portal_section">
+                <div class="o_adomi_portal_section_head">
+                    <h2>Database servers</h2>
+                    <span class="o_adomi_portal_section_sub">The servers this customer's apps attach databases to.</span>
+                    <span class="ms-auto"/>
+                    <button class="btn btn-sm btn-secondary" t-on-click="addServer">
+                        <i class="fa fa-plus me-1"/>Add server
+                    </button>
+                </div>
                 <div class="o_adomi_portal_card">
-                    <div class="o_adomi_portal_card_head">
-                        <h3>Database servers</h3>
-                        <button class="btn btn-sm btn-secondary ms-auto" t-on-click="addServer">
-                            <i class="fa fa-plus me-1"/>Add server
-                        </button>
-                    </div>
                     <div t-if="!state.data.servers.length" class="o_adomi_portal_empty">
                         No database servers yet — apps that need one will ask for it,
                         or add one up front.
@@ -81,172 +181,128 @@
                 </div>
             </div>
 
-            <!-- ============ Environments -> applications ============ -->
-            <div class="o_adomi_portal_card">
-                <div class="o_adomi_portal_card_head">
-                    <h3>Environments &amp; applications</h3>
-                    <button class="btn btn-sm btn-secondary ms-auto" t-on-click="newEnvironment">
+            <!-- ============ Environments & applications ============ -->
+            <div class="o_adomi_portal_section">
+                <div class="o_adomi_portal_section_head">
+                    <h2>Environments &amp; applications</h2>
+                    <span class="o_adomi_portal_section_sub">What runs where — each app card is a summary; every line opens the right dialog.</span>
+                    <span class="ms-auto"/>
+                    <button class="btn btn-sm btn-secondary" t-on-click="newEnvironment">
                         <i class="fa fa-plus me-1"/>New environment
                     </button>
                 </div>
-
-                <div t-if="!state.data.environments.length" class="o_adomi_portal_empty">
-                    Nothing runs yet. Deploying the first application creates its
-                    environment along the way.
-                    <button class="btn btn-sm btn-primary ms-2" t-on-click="() => this.deployApp(null)">
-                        <i class="fa fa-rocket me-1"/>Deploy application
-                    </button>
-                </div>
-
-                <div t-foreach="state.data.environments" t-as="env" t-key="env.id"
-                     class="o_adomi_portal_env">
-                    <div class="o_adomi_portal_env_head" t-on-click="() => this.toggleEnv(env)">
-                        <i class="fa" t-att-class="isCollapsed(env) ? 'fa-caret-right' : 'fa-caret-down'"/>
-                        <span class="fw-bold" t-esc="env.name"/>
-                        <span class="o_adomi_portal_tag" t-esc="env.environment_class"/>
-                        <span class="badge" t-att-class="stateClass(env.state)"
-                              t-esc="stateLabel(env.state)"/>
-                        <span t-if="env.namespace" class="o_adomi_portal_meta o_adomi_mono"
-                              t-esc="'ns: ' + env.namespace"/>
-                        <span class="ms-auto d-flex gap-2">
-                            <button class="btn btn-sm btn-secondary"
-                                    t-on-click.stop="() => this.deployApp(env)">
-                                <i class="fa fa-rocket me-1"/>Deploy app here
-                            </button>
-                            <button class="btn btn-sm btn-link text-muted"
-                                    t-on-click.stop="() => this.openEnvironment(env)"
-                                    title="Environment settings">
-                                <i class="fa fa-cog"/>
-                            </button>
-                        </span>
+                <div class="o_adomi_portal_card">
+                    <div t-if="!state.data.environments.length" class="o_adomi_portal_empty">
+                        Nothing runs yet. Deploying the first application creates its
+                        environment along the way.
+                        <button class="btn btn-sm btn-primary ms-2" t-on-click="() => this.deployApp(null)">
+                            <i class="fa fa-rocket me-1"/>Deploy application
+                        </button>
                     </div>
 
-                    <div t-if="!isCollapsed(env)" class="o_adomi_portal_env_body">
-                        <div t-if="!env.apps.length" class="o_adomi_portal_empty">
-                            No applications in this environment yet.
-                        </div>
-
-                        <div t-foreach="env.apps" t-as="app" t-key="app.id" class="o_adomi_portal_app">
-                            <div class="o_adomi_portal_app_head">
-                                <span class="o_adomi_portal_app_icon"
-                                      t-esc="(app.type || app.name)[0].toUpperCase()"/>
-                                <span class="fw-bold" t-esc="app.name"/>
-                                <span class="o_adomi_portal_meta" t-esc="app.type"/>
-                                <span class="badge" t-att-class="stateClass(app.state)"
-                                      t-esc="app.phase || stateLabel(app.state)"/>
-                                <span class="ms-auto d-flex gap-1">
-                                    <button class="btn btn-sm btn-link" t-on-click="() => this.openAppForm(app)">
-                                        Logs
-                                    </button>
-                                    <button t-if="app.url" class="btn btn-sm btn-link"
-                                            t-on-click="() => this.openApp(app)">
-                                        Open app <i class="fa fa-external-link ms-1"/>
-                                    </button>
-                                    <button class="btn btn-sm btn-link text-muted"
-                                            t-on-click="() => this.openAppForm(app)"
-                                            title="Application settings">
-                                        <i class="fa fa-cog"/>
-                                    </button>
-                                </span>
-                            </div>
-
-                            <div class="o_adomi_portal_app_line">
-                                <span class="o_adomi_portal_app_key">Host</span>
-                                <span class="o_adomi_portal_app_val">
-                                    <a t-if="app.url" t-att-href="app.url" target="_blank" rel="noopener"
-                                       class="o_adomi_mono" t-esc="app.host.effective || app.url"/>
-                                    <span t-elif="app.host.effective" class="o_adomi_mono"
-                                          t-esc="app.host.effective"/>
-                                    <span t-else="" class="text-muted">generated by the platform</span>
-                                    <button class="btn btn-sm btn-link" t-on-click="() => this.editHost(app)">
-                                        <i class="fa fa-pencil me-1"/>Change
-                                    </button>
-                                </span>
-                            </div>
-
-                            <div class="o_adomi_portal_app_line">
-                                <span class="o_adomi_portal_app_key">Database</span>
-                                <span class="o_adomi_portal_app_val">
-                                    <t t-if="app.databases.length">
-                                        <span t-foreach="app.databases" t-as="db" t-key="db.id"
-                                              class="o_adomi_portal_chip"
-                                              t-on-click="() => this.editDatabase(app)">
-                                            <span class="o_adomi_mono" t-esc="db.database_name"/>
-                                            <span class="text-muted">on</span>
-                                            <span class="o_adomi_mono" t-esc="db.server"/>
-                                            <span t-if="db.server_mode" class="text-muted"
-                                                  t-esc="db.server_mode === 'cnpg' ? '· in-cluster' : '· external'"/>
-                                        </span>
-                                    </t>
-                                    <span t-else="" class="text-muted">none</span>
-                                </span>
-                            </div>
-
-                            <div class="o_adomi_portal_app_line">
-                                <span class="o_adomi_portal_app_key">Variables</span>
-                                <span class="o_adomi_portal_app_val">
-                                    <t t-foreach="app.config" t-as="entry"
-                                       t-key="entry.scope + '-' + entry.id">
-                                        <span t-if="!entry.overridden" class="o_adomi_portal_chip"
-                                              t-on-click="() => this.editConfig(app, entry)">
-                                            <i t-if="entry.kind === 'secret'" class="fa fa-lock text-muted"/>
-                                            <span class="o_adomi_portal_chip_scope" t-esc="scopeLabel(entry)"/>
-                                            <span class="o_adomi_mono" t-esc="entry.name"/>
-                                        </span>
-                                    </t>
-                                    <span class="o_adomi_portal_chip o_adomi_portal_chip_add"
-                                          t-on-click="() => this.addConfig(app)">
-                                        <i class="fa fa-plus"/> Add
-                                    </span>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- ============ Infrastructure repository ============ -->
-            <div class="o_adomi_portal_card" t-if="!state.gitLoading and state.git and state.git.available">
-                <div class="o_adomi_portal_card_head">
-                    <h3>Infrastructure repository</h3>
-                    <span class="ms-auto"/>
-                    <button t-if="state.git.repo_url" class="btn btn-sm btn-secondary"
-                            t-on-click="openRepo">
-                        Open in Forgejo <i class="fa fa-external-link ms-1"/>
-                    </button>
-                </div>
-                <div class="o_adomi_portal_git">
-                    <div class="o_adomi_portal_git_col">
-                        <h4>Files <span class="o_adomi_portal_meta">· <t t-esc="state.git.file_count"/> total</span></h4>
-                        <div t-if="!state.git.file_count" class="o_adomi_portal_empty">
-                            Nothing committed yet — the first deploy writes here.
-                        </div>
-                        <div class="o_adomi_portal_tree">
-                            <div t-foreach="state.git.root_files" t-as="f" t-key="f.name">
-                                <i class="fa fa-file-o me-2"/><span class="o_adomi_mono" t-esc="f.name"/>
-                            </div>
-                            <div t-foreach="state.git.dirs" t-as="d" t-key="d.name">
-                                <i class="fa fa-folder-o me-2"/><span class="o_adomi_mono" t-esc="d.name + '/'"/>
-                                <span class="o_adomi_portal_meta ms-1">
-                                    <t t-esc="d.count"/> file<t t-if="d.count != 1">s</t>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="o_adomi_portal_git_col">
-                        <h4>Recent changes</h4>
-                        <div t-if="!state.git.commits.length" class="o_adomi_portal_empty">
-                            No commits yet.
-                        </div>
-                        <div t-foreach="state.git.commits" t-as="commit" t-key="commit.sha"
-                             class="o_adomi_portal_commit">
-                            <a t-if="commit.url" t-att-href="commit.url" target="_blank" rel="noopener"
-                               class="o_adomi_mono o_adomi_portal_sha" t-esc="commit.sha.slice(0, 7)"/>
-                            <span t-else="" class="o_adomi_mono o_adomi_portal_sha"
-                                  t-esc="commit.sha.slice(0, 7)"/>
-                            <span class="o_adomi_portal_commit_msg" t-esc="commit.message"/>
-                            <span class="o_adomi_portal_meta text-nowrap">
-                                <t t-esc="commit.author"/> · <t t-esc="commitAge(commit)"/>
+                    <div t-foreach="state.data.environments" t-as="env" t-key="env.id"
+                         class="o_adomi_portal_env">
+                        <div class="o_adomi_portal_env_head" t-on-click="() => this.toggleEnv(env)">
+                            <i class="fa" t-att-class="isCollapsed(env) ? 'fa-caret-right' : 'fa-caret-down'"/>
+                            <span class="fw-bold" t-esc="env.name"/>
+                            <span class="o_adomi_portal_tag" t-esc="env.environment_class"/>
+                            <span class="badge" t-att-class="stateClass(env.state)"
+                                  t-esc="stateLabel(env.state)"/>
+                            <span t-if="env.namespace" class="o_adomi_portal_meta o_adomi_mono"
+                                  t-esc="'ns: ' + env.namespace"/>
+                            <span class="ms-auto d-flex gap-2">
+                                <button class="btn btn-sm btn-secondary"
+                                        t-on-click.stop="() => this.deployApp(env)">
+                                    <i class="fa fa-rocket me-1"/>Deploy app here
+                                </button>
+                                <button class="btn btn-sm btn-link text-muted"
+                                        t-on-click.stop="() => this.openEnvironment(env)"
+                                        title="Environment settings">
+                                    <i class="fa fa-cog"/>
+                                </button>
                             </span>
+                        </div>
+
+                        <div t-if="!isCollapsed(env)" class="o_adomi_portal_env_body">
+                            <div t-if="!env.apps.length" class="o_adomi_portal_empty">
+                                No applications in this environment yet.
+                            </div>
+
+                            <div t-foreach="env.apps" t-as="app" t-key="app.id" class="o_adomi_portal_app">
+                                <div class="o_adomi_portal_app_head">
+                                    <span class="o_adomi_portal_app_icon"
+                                          t-esc="(app.type || app.name)[0].toUpperCase()"/>
+                                    <span class="fw-bold" t-esc="app.name"/>
+                                    <span class="o_adomi_portal_meta" t-esc="app.type"/>
+                                    <span class="badge" t-att-class="stateClass(app.state)"
+                                          t-esc="app.phase || stateLabel(app.state)"/>
+                                    <span class="ms-auto d-flex gap-1">
+                                        <button class="btn btn-sm btn-link" t-on-click="() => this.openAppForm(app)">
+                                            Logs
+                                        </button>
+                                        <button t-if="app.url" class="btn btn-sm btn-link"
+                                                t-on-click="() => this.openApp(app)">
+                                            Open app <i class="fa fa-external-link ms-1"/>
+                                        </button>
+                                        <button class="btn btn-sm btn-link text-muted"
+                                                t-on-click="() => this.openAppForm(app)"
+                                                title="Application settings">
+                                            <i class="fa fa-cog"/>
+                                        </button>
+                                    </span>
+                                </div>
+
+                                <div class="o_adomi_portal_app_line">
+                                    <span class="o_adomi_portal_app_key">Host</span>
+                                    <span class="o_adomi_portal_app_val">
+                                        <a t-if="app.url" t-att-href="app.url" target="_blank" rel="noopener"
+                                           class="o_adomi_mono" t-esc="app.host.effective || app.url"/>
+                                        <span t-elif="app.host.effective" class="o_adomi_mono"
+                                              t-esc="app.host.effective"/>
+                                        <span t-else="" class="text-muted">generated by the platform</span>
+                                        <button class="btn btn-sm btn-link" t-on-click="() => this.editHost(app)">
+                                            <i class="fa fa-pencil me-1"/>Change
+                                        </button>
+                                    </span>
+                                </div>
+
+                                <div class="o_adomi_portal_app_line">
+                                    <span class="o_adomi_portal_app_key">Database</span>
+                                    <span class="o_adomi_portal_app_val">
+                                        <t t-if="app.databases.length">
+                                            <span t-foreach="app.databases" t-as="db" t-key="db.id"
+                                                  class="o_adomi_portal_chip"
+                                                  t-on-click="() => this.editDatabase(app)">
+                                                <span class="o_adomi_mono" t-esc="db.database_name"/>
+                                                <span class="text-muted">on</span>
+                                                <span class="o_adomi_mono" t-esc="db.server"/>
+                                                <span t-if="db.server_mode" class="text-muted"
+                                                      t-esc="db.server_mode === 'cnpg' ? '· in-cluster' : '· external'"/>
+                                            </span>
+                                        </t>
+                                        <span t-else="" class="text-muted">none</span>
+                                    </span>
+                                </div>
+
+                                <div class="o_adomi_portal_app_line">
+                                    <span class="o_adomi_portal_app_key">Variables</span>
+                                    <span class="o_adomi_portal_app_val">
+                                        <t t-foreach="app.config" t-as="entry"
+                                           t-key="entry.scope + '-' + entry.id">
+                                            <span t-if="!entry.overridden" class="o_adomi_portal_chip"
+                                                  t-on-click="() => this.editConfig(app, entry)">
+                                                <i t-if="entry.kind === 'secret'" class="fa fa-lock text-muted"/>
+                                                <span class="o_adomi_portal_chip_scope" t-esc="scopeLabel(entry)"/>
+                                                <span class="o_adomi_mono" t-esc="entry.name"/>
+                                            </span>
+                                        </t>
+                                        <span class="o_adomi_portal_chip o_adomi_portal_chip_add"
+                                              t-on-click="() => this.addConfig(app)">
+                                            <i class="fa fa-plus"/> Add
+                                        </span>
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
