@@ -114,7 +114,7 @@
                          actionable in place (getting started, infrastructure repo,
                          domains, database servers, the environments -> apps tree). -->
                     <field name="id" widget="adomi_customer_portal" nolabel="1"
-                           invisible="not id"/>
+                           class="w-100" invisible="not id"/>
                 </sheet>
                 <chatter/>
             </form>

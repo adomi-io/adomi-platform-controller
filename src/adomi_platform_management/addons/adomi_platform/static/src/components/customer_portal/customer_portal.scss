@@ -1,8 +1,20 @@
+// The form renderer sizes field wrappers to their content; these widgets ARE
+// the page content, so their wrappers must span the sheet (w-100 on the
+// component root is useless while the wrapper shrink-wraps it).
+.o_field_adomi_customer_portal,
+.o_field_adomi_effective_config,
+.o_field_adomi_observability,
+.o_field_adomi_app_catalog {
+    width: 100%;
+    display: block;
+}
+
 .o_adomi_portal {
     display: flex;
     flex-direction: column;
     gap: 32px;
     padding-top: 8px;
+    width: 100%;
 
     .o_adomi_mono {
         font-family: "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
