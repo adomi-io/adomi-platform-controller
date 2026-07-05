@@ -112,11 +112,14 @@
                     </button>
                 </div>
                 <div class="o_adomi_portal_card">
-                    <div t-if="!state.data.domains.length" class="o_adomi_portal_empty">
-                        Apps currently publish under the organization domain
-                        <t t-if="state.data.client.base_domain">
-                            (<span class="o_adomi_mono" t-esc="state.data.client.base_domain"/>)</t>.
-                        Add the customer's own domain, or give them a branded one on ours.
+                    <div t-if="!state.data.domains.length" class="o_adomi_portal_blank">
+                        <i class="fa fa-globe"/>
+                        <div class="o_adomi_portal_blank_msg">
+                            No domains yet — apps publish under the organization domain<t t-if="state.data.client.base_domain"> (<span class="o_adomi_mono" t-esc="state.data.client.base_domain"/>)</t>.
+                        </div>
+                        <button class="btn btn-primary" t-on-click="addDomain">
+                            <i class="fa fa-plus me-1"/>Add domain
+                        </button>
                     </div>
                     <div t-foreach="state.data.domains" t-as="domain" t-key="domain.id"
                          class="o_adomi_portal_row" t-on-click="() => this.editDomain(domain)">
@@ -151,9 +154,14 @@
                     </button>
                 </div>
                 <div class="o_adomi_portal_card">
-                    <div t-if="!state.data.servers.length" class="o_adomi_portal_empty">
-                        No database servers yet — apps that need one will ask for it,
-                        or add one up front.
+                    <div t-if="!state.data.servers.length" class="o_adomi_portal_blank">
+                        <i class="fa fa-database"/>
+                        <div class="o_adomi_portal_blank_msg">
+                            No database servers yet — apps that need one will ask for it.
+                        </div>
+                        <button class="btn btn-primary" t-on-click="addServer">
+                            <i class="fa fa-plus me-1"/>Add server
+                        </button>
                     </div>
                     <div t-foreach="state.data.servers" t-as="server" t-key="server.id"
                          class="o_adomi_portal_row" t-on-click="() => this.editServer(server)">
@@ -192,10 +200,13 @@
                     </button>
                 </div>
                 <div class="o_adomi_portal_card">
-                    <div t-if="!state.data.environments.length" class="o_adomi_portal_empty">
-                        Nothing runs yet. Deploying the first application creates its
-                        environment along the way.
-                        <button class="btn btn-sm btn-primary ms-2" t-on-click="() => this.deployApp(null)">
+                    <div t-if="!state.data.environments.length" class="o_adomi_portal_blank">
+                        <i class="fa fa-rocket"/>
+                        <div class="o_adomi_portal_blank_msg">
+                            Nothing runs yet — deploying the first application creates its
+                            environment along the way.
+                        </div>
+                        <button class="btn btn-primary" t-on-click="() => this.deployApp(null)">
                             <i class="fa fa-rocket me-1"/>Deploy application
                         </button>
                     </div>
@@ -208,9 +219,9 @@
                             <span class="o_adomi_portal_tag" t-esc="env.environment_class"/>
                             <span class="badge" t-att-class="stateClass(env.state)"
                                   t-esc="stateLabel(env.state)"/>
-                            <span t-if="env.namespace" class="o_adomi_portal_meta o_adomi_mono"
-                                  t-esc="'ns: ' + env.namespace"/>
-                            <span class="ms-auto d-flex gap-2">
+                            <span class="ms-auto d-flex gap-2 align-items-center">
+                                <span class="o_adomi_portal_meta"
+                                      t-esc="env.apps.length + ' app' + (env.apps.length === 1 ? '' : 's')"/>
                                 <button class="btn btn-sm btn-secondary"
                                         t-on-click.stop="() => this.deployApp(env)">
                                     <i class="fa fa-rocket me-1"/>Deploy app here
@@ -224,34 +235,36 @@
                         </div>
 
                         <div t-if="!isCollapsed(env)" class="o_adomi_portal_env_body">
-                            <div t-if="!env.apps.length" class="o_adomi_portal_empty">
-                                No applications in this environment yet.
+                            <div t-if="!env.apps.length" class="o_adomi_portal_blank o_adomi_portal_blank_sm">
+                                <i class="fa fa-cube"/>
+                                <div class="o_adomi_portal_blank_msg">
+                                    No applications in this environment yet.
+                                </div>
+                                <button class="btn btn-primary btn-sm"
+                                        t-on-click="() => this.deployApp(env)">
+                                    <i class="fa fa-rocket me-1"/>Deploy app here
+                                </button>
                             </div>
 
+                            <!-- One calm row per app; details unfold on click. -->
                             <div t-foreach="env.apps" t-as="app" t-key="app.id" class="o_adomi_portal_app">
-                                <div class="o_adomi_portal_app_head">
+                                <div class="o_adomi_portal_app_head" t-on-click="() => this.toggleApp(app)">
+                                    <i class="fa o_adomi_portal_app_caret"
+                                       t-att-class="isAppOpen(app) ? 'fa-caret-down' : 'fa-caret-right'"/>
                                     <span class="o_adomi_portal_app_icon"
                                           t-esc="(app.type || app.name)[0].toUpperCase()"/>
                                     <span class="fw-bold" t-esc="app.name"/>
                                     <span class="o_adomi_portal_meta" t-esc="app.type"/>
+                                    <a t-if="app.url" t-att-href="app.url" target="_blank" rel="noopener"
+                                       class="o_adomi_mono o_adomi_portal_app_host text-truncate"
+                                       t-on-click.stop="() => {}"
+                                       t-esc="app.host.effective || app.url"/>
+                                    <span class="ms-auto"/>
                                     <span class="badge" t-att-class="stateClass(app.state)"
                                           t-esc="app.phase || stateLabel(app.state)"/>
-                                    <span class="ms-auto d-flex gap-1">
-                                        <button class="btn btn-sm btn-link" t-on-click="() => this.openAppForm(app)">
-                                            Logs
-                                        </button>
-                                        <button t-if="app.url" class="btn btn-sm btn-link"
-                                                t-on-click="() => this.openApp(app)">
-                                            Open app <i class="fa fa-external-link ms-1"/>
-                                        </button>
-                                        <button class="btn btn-sm btn-link text-muted"
-                                                t-on-click="() => this.openAppForm(app)"
-                                                title="Application settings">
-                                            <i class="fa fa-cog"/>
-                                        </button>
-                                    </span>
                                 </div>
 
+                                <t t-if="isAppOpen(app)">
                                 <div class="o_adomi_portal_app_line">
                                     <span class="o_adomi_portal_app_key">Host</span>
                                     <span class="o_adomi_portal_app_val">
@@ -302,6 +315,21 @@
                                         </span>
                                     </span>
                                 </div>
+
+                                <div class="o_adomi_portal_app_actions">
+                                    <button t-if="app.url" class="btn btn-sm btn-secondary"
+                                            t-on-click="() => this.openApp(app)">
+                                        Open app <i class="fa fa-external-link ms-1"/>
+                                    </button>
+                                    <button class="btn btn-sm btn-link" t-on-click="() => this.openAppForm(app)">
+                                        Logs
+                                    </button>
+                                    <button class="btn btn-sm btn-link text-muted"
+                                            t-on-click="() => this.openAppForm(app)">
+                                        <i class="fa fa-cog me-1"/>Settings
+                                    </button>
+                                </div>
+                                </t>
                             </div>
                         </div>
                     </div>

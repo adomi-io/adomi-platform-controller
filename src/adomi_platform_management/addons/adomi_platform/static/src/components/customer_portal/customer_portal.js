@@ -33,6 +33,7 @@ export class CustomerPortal extends Component {
             data: null,
             loading: true,
             collapsed: {},
+            appOpen: {},
             git: null,
             gitLoading: true,
         });
@@ -166,6 +167,15 @@ export class CustomerPortal extends Component {
 
     toggleEnv(env) {
         this.state.collapsed[env.id] = !this.state.collapsed[env.id];
+    }
+
+    // Apps are summary rows first: one line each, details on demand.
+    isAppOpen(app) {
+        return Boolean(this.state.appOpen[app.id]);
+    }
+
+    toggleApp(app) {
+        this.state.appOpen[app.id] = !this.state.appOpen[app.id];
     }
 
     scopeLabel(entry) {

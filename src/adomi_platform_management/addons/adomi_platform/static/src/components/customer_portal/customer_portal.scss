@@ -50,6 +50,37 @@
         font-size: 13px;
     }
 
+    // Empty state: icon + one line + the one action that fills the box.
+    .o_adomi_portal_blank {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 12px;
+        padding: 40px 24px;
+
+        > .fa {
+            font-size: 30px;
+            color: var(--o-main-text-color, #adb5bd);
+            opacity: 0.45;
+        }
+    }
+
+    .o_adomi_portal_blank_sm {
+        padding: 26px 20px;
+
+        > .fa {
+            font-size: 24px;
+        }
+    }
+
+    .o_adomi_portal_blank_msg {
+        color: var(--o-main-text-color, #6c757d);
+        opacity: 0.85;
+        font-size: 13px;
+        max-width: 52ch;
+    }
+
     // --- getting started ---
     .o_adomi_portal_step {
         display: flex;
@@ -170,6 +201,31 @@
         align-items: center;
         gap: 10px;
         padding: 11px 15px;
+        cursor: pointer;
+
+        &:hover {
+            background: rgba(0, 0, 0, 0.02);
+        }
+    }
+
+    .o_adomi_portal_app_caret {
+        width: 10px;
+        opacity: 0.55;
+    }
+
+    .o_adomi_portal_app_host {
+        margin-left: 8px;
+        max-width: 34ch;
+        color: var(--o-main-text-color, #6c757d);
+    }
+
+    .o_adomi_portal_app_actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 15px;
+        border-top: 1px solid var(--border-color, #dee2e6);
+        background: rgba(0, 0, 0, 0.015);
     }
 
     .o_adomi_portal_app_icon {
