@@ -47,6 +47,13 @@ openbao:
   # Must match the controller's SCOPED_SECRETS_PREFIX.
   scopedSecretsPrefix: scoped
 
+# Identity (per-app access management). Empty addr disables the endpoints'
+# wiring; the admin token comes from OpenBao (same path the controller reads).
+authentik:
+  addr: ""
+  secretPath: authentik
+  tokenKey: bootstrap-token
+
 forgejo:
   url: http://forgejo-http.forgejo.svc.cluster.local:3000
   org: clients

@@ -90,6 +90,14 @@ class ScopedSecretsStore:
         """The secret NAMES stored at a scope path (never the values)."""
         return sorted((self._read(path) or {}).keys())
 
+    def read_value(self, path: str, key: str) -> str:
+        """One value from a KV path (e.g. the Authentik admin token).
+
+        The API's OpenBao policy must grant read on the path explicitly — by
+        default it can only touch the scoped-secrets prefix.
+        """
+        return str((self._read(path) or {}).get(key) or "")
+
     def set(self, path: str, name: str, value: str) -> None:
         """Set one secret in the scope's map (read-modify-write)."""
         data = dict(self._read(path) or {})

@@ -136,6 +136,26 @@ class VariableEntry(BaseModel):
 
 
 # --- responses ------------------------------------------------------------------
+class AccessUser(BaseModel):
+    """An Authentik account, as shown in the portal's access chips."""
+
+    pk: int
+    username: str = ""
+    name: str = ""
+    email: str = ""
+
+
+class AccessState(BaseModel):
+    """Who can reach an application right now."""
+
+    available: bool = True
+    reason: str = ""
+    mode: str = Field(default="everyone", description="everyone | restricted")
+    group: str = ""
+    applications: list[str] = Field(default_factory=list, description="Authentik app slugs.")
+    users: list[AccessUser] = Field(default_factory=list)
+
+
 class RepoFile(BaseModel):
     """One entry of the client repo's tree."""
 

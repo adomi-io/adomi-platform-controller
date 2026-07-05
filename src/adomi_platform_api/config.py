@@ -44,6 +44,16 @@ class Settings(BaseSettings):
     # SCOPED_SECRETS_PREFIX.
     scoped_secrets_prefix: str = "scoped"
 
+    # Identity (Authentik): per-app access management. The admin token lives in
+    # OpenBao (same path/key the controller uses); the API's OpenBao policy
+    # must grant read on it.
+    authentik_addr: str = "http://authentik-server.authentik.svc.cluster.local"
+    authentik_secret_path: str = "authentik"
+    authentik_token_key: str = "bootstrap-token"
+    authentik_verify_tls: bool = True
+    # One Authentik group per app gates access: <prefix><runtime-namespace>-<app>.
+    access_group_prefix: str = "app-access-"
+
 
 @lru_cache
 def get_settings() -> Settings:

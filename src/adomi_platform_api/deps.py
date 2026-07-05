@@ -9,6 +9,7 @@ from fastapi import Depends
 from .cluster import ClusterReader
 from .config import Settings, get_settings
 from .git import ForgejoWriter, GitWriter, Readiness
+from .identity import AuthentikAdmin
 from .secrets import ScopedSecretsStore
 from .service import ClientService
 
@@ -48,6 +49,34 @@ def get_secrets_store(settings: Settings = Depends(get_settings)) -> ScopedSecre
 
 def check_backend_ready(writer: GitWriter = Depends(get_writer)) -> Readiness:
     return writer.check_ready()
+
+
+# The Authentik admin token lives in OpenBao; cache it across requests and let
+# the identity client fail (surfaced as 502) if it goes stale — the next
+# request re-reads it.
+_authentik_token: dict = {"value": "", "at": 0.0}
+_AUTHENTIK_TOKEN_TTL = 600.0  # seconds
+
+
+def get_identity(
+    settings: Settings = Depends(get_settings),
+    store: ScopedSecretsStore = Depends(get_secrets_store),
+) -> AuthentikAdmin:
+    import time
+
+    now = time.monotonic()
+    if not _authentik_token["value"] or now - _authentik_token["at"] > _AUTHENTIK_TOKEN_TTL:
+        _authentik_token["value"] = store.read_value(
+            settings.authentik_secret_path, settings.authentik_token_key
+        )
+        _authentik_token["at"] = now
+
+    return AuthentikAdmin(
+        settings.authentik_addr,
+        _authentik_token["value"],
+        timeout=settings.http_timeout,
+        verify=settings.authentik_verify_tls,
+    )
 
 
 @lru_cache

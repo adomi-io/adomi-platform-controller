@@ -1,6 +1,6 @@
 {
     "name": "Adomi Platform Management",
-    "version": "19.0.9.3.1",
+    "version": "19.0.10.0.0",
     "summary": "Manage the Adomi platform (Clients, Environments, Applications) from Odoo",
     "description": """
 Adomi Platform Management
@@ -34,6 +34,7 @@ the primary portal for running the platform.
         "views/git_repository_views.xml",
         "views/scoped_config_views.xml",
         "views/snapshot_views.xml",
+        "views/access_wizard_views.xml",
         "views/deploy_wizard_views.xml",
         "data/setup_guides.xml",
         "views/menus.xml",

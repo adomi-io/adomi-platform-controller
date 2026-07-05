@@ -61,6 +61,16 @@ spec:
             - name: ADOMI_API_SCOPED_SECRETS_PREFIX
               value: {{ .Values.openbao.scopedSecretsPrefix | quote }}
             {{- end }}
+            {{- if .Values.authentik.addr }}
+            # Identity: per-app access management. The admin token is read from
+            # OpenBao at authentik.secretPath (the API's policy must allow it).
+            - name: ADOMI_API_AUTHENTIK_ADDR
+              value: {{ .Values.authentik.addr | quote }}
+            - name: ADOMI_API_AUTHENTIK_SECRET_PATH
+              value: {{ .Values.authentik.secretPath | quote }}
+            - name: ADOMI_API_AUTHENTIK_TOKEN_KEY
+              value: {{ .Values.authentik.tokenKey | quote }}
+            {{- end }}
             - name: ADOMI_API_AUTH_TOKEN
               valueFrom:
                 secretKeyRef:

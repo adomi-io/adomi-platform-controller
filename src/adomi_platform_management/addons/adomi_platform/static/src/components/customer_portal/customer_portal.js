@@ -34,6 +34,7 @@ export class CustomerPortal extends Component {
             loading: true,
             collapsed: {},
             appOpen: {},
+            access: {},
             git: null,
             gitLoading: true,
         });
@@ -176,6 +177,37 @@ export class CustomerPortal extends Component {
 
     toggleApp(app) {
         this.state.appOpen[app.id] = !this.state.appOpen[app.id];
+        if (this.state.appOpen[app.id] && !this.state.access[app.id]) {
+            this.loadAccess(app);
+        }
+    }
+
+    // Access is an Authentik round-trip: fetched per app, only once unfolded.
+    async loadAccess(app) {
+        this.state.access[app.id] = {loading: true};
+        try {
+            this.state.access[app.id] = await this.orm.call(
+                "adomi.application",
+                "get_access",
+                [[app.id]]
+            );
+        } catch {
+            this.state.access[app.id] = {available: false, reason: "error"};
+        }
+    }
+
+    async grantAccess(app) {
+        const action = await this.orm.call(
+            "adomi.application",
+            "action_open_access_dialog",
+            [[app.id]]
+        );
+        this.action.doAction(action, {onClose: () => this.loadAccess(app)});
+    }
+
+    async revokeAccess(app, user) {
+        await this.orm.call("adomi.application", "action_revoke_access", [[app.id], user.pk]);
+        await this.loadAccess(app);
     }
 
     scopeLabel(entry) {

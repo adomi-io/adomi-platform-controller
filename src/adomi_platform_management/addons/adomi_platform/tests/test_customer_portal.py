@@ -218,6 +218,97 @@ class TestGitPanel(PortalCase):
         self.assertIn("/v1/clients/acme/repo/tree", stub.calls[0])
 
 
+class _AccessStubApi:
+    def __init__(self):
+        self.gets = []
+        self.puts = []
+        self.deletes = []
+
+    def get(self, path):
+        self.gets.append(path)
+        if path.endswith("/access"):
+            return {
+                "available": True,
+                "mode": "restricted",
+                "group": "app-access-acme-production-erp",
+                "users": [{"pk": 7, "username": "kyle", "name": "Kyle", "email": ""}],
+            }
+        if "/identity/users" in path:
+            return [
+                {"pk": 7, "username": "kyle", "name": "Kyle", "email": "k@example.com"},
+                {"pk": 8, "username": "cory", "name": "", "email": ""},
+            ]
+        raise AssertionError("unexpected GET %s" % path)
+
+    def upsert(self, path, body):
+        self.puts.append(path)
+
+    def delete(self, path):
+        self.deletes.append(path)
+
+
+class TestAppAccess(PortalCase):
+    def setUp(self):
+        super().setUp()
+        self.stub = _AccessStubApi()
+        self.app = self.no_push["adomi.application"].create(
+            {
+                "name": "erp",
+                "k8s_name": "erp",
+                "environment_id": self.environment.id,
+                "type_id": self.app_type.id,
+            }
+        )
+        self.patch(type(self.app), "_k8s_write_backend", lambda s: "api")
+        self.patch(type(self.app), "_platform_api", lambda s: self.stub)
+
+    def test_get_access_reads_the_access_endpoint(self):
+        state = self.app.get_access()
+        self.assertEqual(state["mode"], "restricted")
+        self.assertEqual([u["username"] for u in state["users"]], ["kyle"])
+        self.assertEqual(
+            self.stub.gets,
+            ["/v1/clients/acme/environments/production/applications/erp/access"],
+        )
+
+    def test_revoke_access_deletes_the_member(self):
+        self.app.action_revoke_access(7)
+        self.assertEqual(
+            self.stub.deletes,
+            ["/v1/clients/acme/environments/production/applications/erp/access/7"],
+        )
+
+    def test_wizard_grant_puts_the_member(self):
+        self.patch(
+            type(self.env["adomi.application"]), "_platform_api", lambda s: self.stub
+        )
+        wizard = self.no_push["adomi.app.access.wizard"].create(
+            {"application_id": self.app.id}
+        )
+        user = self.env["adomi.authentik.user"].search([("authentik_pk", "=", 8)])
+        self.assertTrue(user, "default_get should have synced the directory")
+        self.assertEqual(user.name, "cory")  # falls back to the username
+        wizard.user_id = user
+        wizard.action_grant()
+        self.assertEqual(
+            self.stub.puts,
+            ["/v1/clients/acme/environments/production/applications/erp/access/8"],
+        )
+
+    def test_directory_sync_upserts_and_drops(self):
+        Directory = self.env["adomi.authentik.user"]
+        stale = self.no_push["adomi.authentik.user"].create(
+            {"name": "Old", "username": "old", "authentik_pk": 99}
+        )
+        self.patch(
+            type(self.env["adomi.application"]), "_platform_api", lambda s: self.stub
+        )
+        count = Directory.sync_from_platform()
+        self.assertEqual(count, 2)
+        self.assertFalse(stale.exists())
+        self.assertEqual(Directory.search([("authentik_pk", "=", 7)]).name, "Kyle")
+
+
 class TestPortalData(PortalCase):
     def test_portal_payload(self):
         domain = self.no_push["adomi.domain"].create(

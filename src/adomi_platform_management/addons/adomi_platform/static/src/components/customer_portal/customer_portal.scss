@@ -309,6 +309,16 @@
         color: var(--o-main-text-color, #6c757d);
     }
 
+    .o_adomi_portal_chip_x {
+        opacity: 0.45;
+        cursor: pointer;
+
+        &:hover {
+            opacity: 1;
+            color: #b3392e;
+        }
+    }
+
     // --- git panel ---
     .o_adomi_portal_git {
         display: grid;

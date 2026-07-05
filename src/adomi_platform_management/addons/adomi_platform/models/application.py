@@ -375,6 +375,39 @@ class Application(models.Model):
 
         return vals
 
+    # --- who can reach this app (Authentik, via the platform API) ---
+    def get_access(self):
+        """Current access state: everyone-with-SSO, or the granted users."""
+        self.ensure_one()
+
+        if self._k8s_write_backend() != "api" or not self.k8s_name:
+            return {"available": False, "reason": "no_api"}
+
+        from .api_client import PlatformApiError
+
+        try:
+            return self._platform_api().get(self._api_path() + "/access")
+        except PlatformApiError as exc:
+            return {"available": False, "reason": "error", "error": str(exc)}
+
+    def action_revoke_access(self, user_pk):
+        """Remove one user; revoking the last one opens the app up again."""
+        self.ensure_one()
+        self._platform_api().delete(self._api_path() + "/access/%s" % int(user_pk))
+        return True
+
+    def action_open_access_dialog(self):
+        self.ensure_one()
+
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Who can open %s?") % self.name,
+            "res_model": "adomi.app.access.wizard",
+            "view_mode": "form",
+            "target": "new",
+            "context": {"default_application_id": self.id},
+        }
+
     def action_open_host_dialog(self):
         """The customer portal's host editor: subdomain + domain, in a dialog."""
         self.ensure_one()

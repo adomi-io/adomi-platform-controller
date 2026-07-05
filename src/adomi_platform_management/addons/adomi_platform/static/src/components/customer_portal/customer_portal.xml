@@ -316,6 +316,45 @@
                                     </span>
                                 </div>
 
+                                <div class="o_adomi_portal_app_line">
+                                    <span class="o_adomi_portal_app_key">Access</span>
+                                    <span class="o_adomi_portal_app_val">
+                                        <t t-set="acc" t-value="state.access[app.id]"/>
+                                        <span t-if="!acc or acc.loading" class="text-muted">
+                                            <i class="fa fa-circle-o-notch fa-spin me-1"/>checking…
+                                        </span>
+                                        <t t-elif="!acc.available">
+                                            <span t-if="acc.reason === 'no_sso'" class="text-muted">
+                                                No SSO registration — sign-in is managed inside the app.
+                                            </span>
+                                            <span t-else="" class="text-muted">
+                                                Access management unavailable right now.
+                                            </span>
+                                        </t>
+                                        <t t-elif="acc.mode === 'everyone'">
+                                            <span class="text-muted">Everyone with SSO</span>
+                                            <button class="btn btn-sm btn-link"
+                                                    t-on-click="() => this.grantAccess(app)">
+                                                <i class="fa fa-lock me-1"/>Restrict…
+                                            </button>
+                                        </t>
+                                        <t t-else="">
+                                            <span t-foreach="acc.users" t-as="user" t-key="user.pk"
+                                                  class="o_adomi_portal_chip">
+                                                <i class="fa fa-user text-muted"/>
+                                                <t t-esc="user.name || user.username"/>
+                                                <i class="fa fa-times o_adomi_portal_chip_x"
+                                                   title="Revoke access"
+                                                   t-on-click.stop="() => this.revokeAccess(app, user)"/>
+                                            </span>
+                                            <span class="o_adomi_portal_chip o_adomi_portal_chip_add"
+                                                  t-on-click="() => this.grantAccess(app)">
+                                                <i class="fa fa-plus"/> Add
+                                            </span>
+                                        </t>
+                                    </span>
+                                </div>
+
                                 <div class="o_adomi_portal_app_actions">
                                     <button t-if="app.url" class="btn btn-sm btn-secondary"
                                             t-on-click="() => this.openApp(app)">

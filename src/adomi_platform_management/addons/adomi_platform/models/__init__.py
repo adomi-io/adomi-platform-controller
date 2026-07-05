@@ -6,6 +6,7 @@ from . import k8s_mixin
 from . import observability
 from . import oidc_setup
 from . import res_users
+from . import authentik_user
 from . import organization
 from . import client
 from . import domain

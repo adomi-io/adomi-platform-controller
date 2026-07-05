@@ -37,12 +37,12 @@ class ClusterReader:
         self._api = client.CustomObjectsApi()
         return self._api
 
-    def get(self, plural: str, namespace: str, name: str) -> dict | None:
+    def get(self, plural: str, namespace: str, name: str, *, group: str = GROUP) -> dict | None:
         from kubernetes.client.exceptions import ApiException
 
         try:
             return self._client().get_namespaced_custom_object(
-                GROUP, VERSION, namespace, plural, name
+                group, VERSION, namespace, plural, name
             )
         except ApiException as exc:
             if exc.status == 404:
@@ -50,18 +50,23 @@ class ClusterReader:
             raise ClusterError(f"reading {plural}/{name}: {exc.reason}") from exc
 
     def list(
-        self, plural: str, namespace: str | None = None, label_selector: str = ""
+        self,
+        plural: str,
+        namespace: str | None = None,
+        label_selector: str = "",
+        *,
+        group: str = GROUP,
     ) -> list[dict]:
         from kubernetes.client.exceptions import ApiException
 
         try:
             if namespace:
                 res = self._client().list_namespaced_custom_object(
-                    GROUP, VERSION, namespace, plural, label_selector=label_selector
+                    group, VERSION, namespace, plural, label_selector=label_selector
                 )
             else:
                 res = self._client().list_cluster_custom_object(
-                    GROUP, VERSION, plural, label_selector=label_selector
+                    group, VERSION, plural, label_selector=label_selector
                 )
         except ApiException as exc:
             raise ClusterError(f"listing {plural}: {exc.reason}") from exc

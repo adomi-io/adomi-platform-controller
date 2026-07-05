@@ -17,6 +17,7 @@ from . import (
     databaseservers,
     domains,
     gitrepositories,
+    identity,
     repo,
     scoped,
     snapshots,
@@ -38,3 +39,6 @@ for _module in (
     scoped,
 ):
     api_router.include_router(_module.router)
+
+api_router.include_router(identity.router)
+api_router.include_router(identity.access)
