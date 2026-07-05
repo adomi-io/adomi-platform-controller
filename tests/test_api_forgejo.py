@@ -121,3 +121,72 @@ def test_missing_config_raises():
         ForgejoWriter("", "tok", "clients", session=_StubSession([]))
     with pytest.raises(GitError):
         ForgejoWriter("https://x", "", "clients", session=_StubSession([]))
+
+
+def test_list_tree_maps_entries_and_recurses():
+    session = _StubSession(
+        [
+            (
+                ("GET", "git/trees/main"),
+                _Resp(
+                    200,
+                    {
+                        "tree": [
+                            {"path": "client.yaml", "type": "blob", "size": 120},
+                            {"path": "domains", "type": "tree"},
+                            {"path": "domains/acme-com.yaml", "type": "blob", "size": 90},
+                        ]
+                    },
+                ),
+            ),
+        ]
+    )
+    entries = _writer(session).list_tree("acme")
+    assert {"path": "client.yaml", "type": "file", "size": 120} in entries
+    assert {"path": "domains", "type": "dir", "size": 0} in entries
+    assert "recursive=true" in session.calls[0]["url"]
+
+
+def test_list_tree_empty_repo_is_empty_list():
+    for code in (404, 409):
+        session = _StubSession([(("GET", "git/trees/main"), _Resp(code, text="empty"))])
+        assert _writer(session).list_tree("acme") == []
+
+
+def test_list_commits_maps_fields_and_first_line():
+    session = _StubSession(
+        [
+            (
+                ("GET", "repos/clients/acme/commits"),
+                _Resp(
+                    200,
+                    [
+                        {
+                            "sha": "abc1234def5678",
+                            "html_url": "https://git.example.com/c/abc1234def5678",
+                            "commit": {
+                                "message": "Deploy erp\n\nlong body",
+                                "author": {"name": "portal", "date": "2026-07-05T00:00:00Z"},
+                            },
+                        }
+                    ],
+                ),
+            ),
+        ]
+    )
+    commits = _writer(session).list_commits("acme", limit=5)
+    assert commits == [
+        {
+            "sha": "abc1234def",
+            "message": "Deploy erp",
+            "author": "portal",
+            "date": "2026-07-05T00:00:00Z",
+            "url": "https://git.example.com/c/abc1234def5678",
+        }
+    ]
+    assert "limit=5" in session.calls[0]["url"]
+
+
+def test_list_commits_empty_repo_is_empty_list():
+    session = _StubSession([(("GET", "repos/clients/acme/commits"), _Resp(409, text="empty"))])
+    assert _writer(session).list_commits("acme") == []

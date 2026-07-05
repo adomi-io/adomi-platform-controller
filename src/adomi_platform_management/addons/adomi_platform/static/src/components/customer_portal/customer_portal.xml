@@ -204,6 +204,53 @@
                     </div>
                 </div>
             </div>
+            <!-- ============ Infrastructure repository ============ -->
+            <div class="o_adomi_portal_card" t-if="!state.gitLoading and state.git and state.git.available">
+                <div class="o_adomi_portal_card_head">
+                    <h3>Infrastructure repository</h3>
+                    <span class="ms-auto"/>
+                    <button t-if="state.git.repo_url" class="btn btn-sm btn-secondary"
+                            t-on-click="openRepo">
+                        Open in Forgejo <i class="fa fa-external-link ms-1"/>
+                    </button>
+                </div>
+                <div class="o_adomi_portal_git">
+                    <div class="o_adomi_portal_git_col">
+                        <h4>Files <span class="o_adomi_portal_meta">· <t t-esc="state.git.file_count"/> total</span></h4>
+                        <div t-if="!state.git.file_count" class="o_adomi_portal_empty">
+                            Nothing committed yet — the first deploy writes here.
+                        </div>
+                        <div class="o_adomi_portal_tree">
+                            <div t-foreach="state.git.root_files" t-as="f" t-key="f.name">
+                                <i class="fa fa-file-o me-2"/><span class="o_adomi_mono" t-esc="f.name"/>
+                            </div>
+                            <div t-foreach="state.git.dirs" t-as="d" t-key="d.name">
+                                <i class="fa fa-folder-o me-2"/><span class="o_adomi_mono" t-esc="d.name + '/'"/>
+                                <span class="o_adomi_portal_meta ms-1">
+                                    <t t-esc="d.count"/> file<t t-if="d.count != 1">s</t>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="o_adomi_portal_git_col">
+                        <h4>Recent changes</h4>
+                        <div t-if="!state.git.commits.length" class="o_adomi_portal_empty">
+                            No commits yet.
+                        </div>
+                        <div t-foreach="state.git.commits" t-as="commit" t-key="commit.sha"
+                             class="o_adomi_portal_commit">
+                            <a t-if="commit.url" t-att-href="commit.url" target="_blank" rel="noopener"
+                               class="o_adomi_mono o_adomi_portal_sha" t-esc="commit.sha.slice(0, 7)"/>
+                            <span t-else="" class="o_adomi_mono o_adomi_portal_sha"
+                                  t-esc="commit.sha.slice(0, 7)"/>
+                            <span class="o_adomi_portal_commit_msg" t-esc="commit.message"/>
+                            <span class="o_adomi_portal_meta text-nowrap">
+                                <t t-esc="commit.author"/> · <t t-esc="commitAge(commit)"/>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </t>
     </div>
 </t>

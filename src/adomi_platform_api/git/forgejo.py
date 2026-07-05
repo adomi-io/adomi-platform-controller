@@ -221,6 +221,72 @@ class ForgejoWriter:
         except Exception as exc:  # noqa: BLE001
             raise GitError(f"Decoding {path} failed: {exc}") from exc
 
+    def list_tree(self, repo, ref=None) -> list[dict]:
+        """Every file in the repo at ``ref`` (default branch when omitted).
+
+        Empty/missing repos list as [] — the portal shows an empty panel, not
+        an error, for a customer whose first commit hasn't landed yet.
+        """
+        ref = ref or self.default_branch
+        resp = self._request(
+            "GET",
+            f"repos/{self.owner}/{repo}/git/trees/{ref}",
+            params={"recursive": "true"},
+        )
+
+        if resp.status_code in (404, 409):
+            return []
+        if resp.status_code != 200:
+            raise GitError(f"Listing tree of {repo} failed: {resp.status_code} {resp.text}")
+
+        entries = self._json(resp).get("tree") or []
+
+        return [
+            {
+                "path": e.get("path") or "",
+                "type": "dir" if e.get("type") == "tree" else "file",
+                "size": e.get("size") or 0,
+            }
+            for e in entries
+            if e.get("path")
+        ]
+
+    def list_commits(self, repo, limit=10, ref=None) -> list[dict]:
+        """The most recent commits on ``ref`` (default branch when omitted)."""
+        params = {
+            "limit": int(limit),
+            "stat": "false",
+            "verification": "false",
+            "files": "false",
+        }
+        if ref:
+            params["sha"] = ref
+
+        resp = self._request("GET", f"repos/{self.owner}/{repo}/commits", params=params)
+
+        if resp.status_code in (404, 409):  # missing or empty repo
+            return []
+        if resp.status_code != 200:
+            raise GitError(f"Listing commits of {repo} failed: {resp.status_code} {resp.text}")
+
+        out = []
+        for c in self._json(resp) or []:
+            commit = c.get("commit") or {}
+            author = commit.get("author") or {}
+            out.append(
+                {
+                    "sha": (c.get("sha") or "")[:10],
+                    "message": (commit.get("message") or "").splitlines()[0]
+                    if commit.get("message")
+                    else "",
+                    "author": author.get("name") or "",
+                    "date": author.get("date") or "",
+                    "url": c.get("html_url") or "",
+                }
+            )
+
+        return out
+
     def delete_manifest(self, repo, path, message, *, mode=MODE_COMMIT) -> dict:
         base_branch = self.default_branch
         sha = self._file_sha(repo, path, base_branch)

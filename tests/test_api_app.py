@@ -10,7 +10,12 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from adomi_platform_api import app as app_module  # noqa: E402
 from adomi_platform_api.config import get_settings  # noqa: E402
-from adomi_platform_api.deps import check_backend_ready, get_reader, get_service  # noqa: E402
+from adomi_platform_api.deps import (  # noqa: E402
+    check_backend_ready,
+    get_reader,
+    get_service,
+    get_writer,
+)
 from adomi_platform_api.git import Readiness  # noqa: E402
 from adomi_platform_api.service import ClientService  # noqa: E402
 
@@ -34,6 +39,24 @@ class _FakeWriter:
 
     def check_ready(self):
         return Readiness.up()
+
+    def list_tree(self, repo, ref=None):
+        return [
+            {"path": "client.yaml", "type": "file", "size": 120},
+            {"path": "domains", "type": "dir", "size": 0},
+            {"path": "domains/acme-com.yaml", "type": "file", "size": 90},
+        ]
+
+    def list_commits(self, repo, limit=10, ref=None):
+        return [
+            {
+                "sha": "abc1234def",
+                "message": "Deploy erp to production",
+                "author": "portal",
+                "date": "2026-07-05T00:00:00Z",
+                "url": "https://git.example.com/c/abc1234def",
+            }
+        ][:limit]
 
 
 class _FakeReader:
@@ -64,6 +87,7 @@ def ctx(monkeypatch):
     )
     app_module.app.dependency_overrides[get_service] = lambda: service
     app_module.app.dependency_overrides[get_reader] = lambda: reader
+    app_module.app.dependency_overrides[get_writer] = lambda: writer
     app_module.app.dependency_overrides[check_backend_ready] = lambda: writer.check_ready()
     get_settings.cache_clear()
     monkeypatch.setenv("ADOMI_API_AUTH_TOKEN", "secret")
@@ -168,6 +192,23 @@ def test_delete_application(ctx):
     r = _c().delete("/v1/clients/acme/environments/prod/applications/erp", headers=AUTH)
     assert r.status_code == 200
     assert writer.deleted[0]["path"] == "applications/erp.yaml"
+
+
+def test_repo_tree_and_commits(ctx):
+    c = _c()
+
+    r = c.get("/v1/clients/acme/repo/tree", headers=AUTH)
+    assert r.status_code == 200, r.text
+    entries = r.json()
+    assert {"path": "client.yaml", "type": "file", "size": 120} in entries
+
+    r = c.get("/v1/clients/acme/repo/commits?limit=5", headers=AUTH)
+    assert r.status_code == 200, r.text
+    commits = r.json()
+    assert commits[0]["sha"] == "abc1234def"
+    assert commits[0]["message"] == "Deploy erp to production"
+
+    assert c.get("/v1/clients/acme/repo/tree").status_code == 401  # authed like the rest
 
 
 def test_readyz_and_healthz(ctx):

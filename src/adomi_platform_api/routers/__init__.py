@@ -17,6 +17,7 @@ from . import (
     databaseservers,
     domains,
     gitrepositories,
+    repo,
     scoped,
     snapshots,
     environments,
@@ -32,6 +33,7 @@ for _module in (
     environments,
     applications,
     gitrepositories,
+    repo,
     snapshots,
     scoped,
 ):

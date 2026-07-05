@@ -49,6 +49,14 @@ class GitWriter(Protocol):
         """Remove ``path`` from ``repo`` (no-op if already absent)."""
         ...
 
+    def list_tree(self, repo: str, ref: str | None = None) -> list[dict]:
+        """Every file at ``ref``: {path, type: file|dir, size}. [] for empty repos."""
+        ...
+
+    def list_commits(self, repo: str, limit: int = 10, ref: str | None = None) -> list[dict]:
+        """Recent commits: {sha, message, author, date, url}. [] for empty repos."""
+        ...
+
     def check_ready(self) -> Readiness:
         """Report whether the backend is reachable and authenticated."""
         ...

@@ -76,3 +76,11 @@ class PlatformApiClient:
     def delete(self, path):
         """Remove a resource's CR from the client repo."""
         return self._request("DELETE", path)
+
+    def get(self, path):
+        """Read a resource (parsed JSON) from the platform API."""
+        resp = self._request("GET", path)
+        try:
+            return json.loads(resp.text)
+        except ValueError as exc:
+            raise PlatformApiError("Platform API returned invalid JSON for %s" % path) from exc

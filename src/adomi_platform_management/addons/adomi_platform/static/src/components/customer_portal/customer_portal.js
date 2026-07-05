@@ -33,6 +33,8 @@ export class CustomerPortal extends Component {
             data: null,
             loading: true,
             collapsed: {},
+            git: null,
+            gitLoading: true,
         });
 
         onWillStart(() => this.load());
@@ -45,6 +47,7 @@ export class CustomerPortal extends Component {
     async load() {
         if (!this.resId) {
             this.state.loading = false;
+            this.state.gitLoading = false;
             return;
         }
         try {
@@ -54,6 +57,39 @@ export class CustomerPortal extends Component {
         } finally {
             this.state.loading = false;
         }
+        // Git reads go out to Forgejo — refresh them after the page, never
+        // instead of it.
+        this.loadGit();
+    }
+
+    async loadGit() {
+        try {
+            this.state.git = await this.orm.call("adomi.client", "get_git_panel", [
+                [this.resId],
+            ]);
+        } catch {
+            this.state.git = {available: false, reason: "error"};
+        } finally {
+            this.state.gitLoading = false;
+        }
+    }
+
+    commitAge(commit) {
+        if (!commit.date) {
+            return "";
+        }
+        const mins = Math.max(0, Math.floor((Date.now() - new Date(commit.date)) / 60000));
+        if (mins < 1) {
+            return "just now";
+        }
+        if (mins < 60) {
+            return `${mins} min ago`;
+        }
+        const hours = Math.floor(mins / 60);
+        if (hours < 48) {
+            return `${hours} h ago`;
+        }
+        return `${Math.floor(hours / 24)} d ago`;
     }
 
     // Environments start expanded; production estates are small enough that

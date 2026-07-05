@@ -158,6 +158,66 @@ class TestApplicationHost(PortalCase):
         self.assertEqual(vals["hostname"], "legacy.acme.net")
 
 
+class _StubApi:
+    def __init__(self, responses):
+        self.responses = responses
+        self.calls = []
+
+    def get(self, path):
+        self.calls.append(path)
+        for frag, payload in self.responses.items():
+            if frag in path:
+                return payload
+        raise AssertionError("unexpected GET %s" % path)
+
+
+class TestGitPanel(PortalCase):
+    def test_unavailable_without_client_repo(self):
+        self.patch(type(self.client), "_k8s_write_backend", lambda s: "kubernetes")
+        panel = self.client.get_git_panel()
+        self.assertFalse(panel["available"])
+        self.assertEqual(panel["reason"], "no_repo")
+
+    def test_panel_rolls_up_tree_and_commits(self):
+        stub = _StubApi(
+            {
+                "/repo/tree": [
+                    {"path": "client.yaml", "type": "file", "size": 120},
+                    {"path": "domains", "type": "dir", "size": 0},
+                    {"path": "domains/acme-com.yaml", "type": "file", "size": 90},
+                    {"path": "environments/production/environment.yaml", "type": "file", "size": 80},
+                    {"path": "environments/production/applications/erp.yaml", "type": "file", "size": 200},
+                ],
+                "/repo/commits": [
+                    {
+                        "sha": "abc1234def",
+                        "message": "Deploy erp",
+                        "author": "portal",
+                        "date": "2026-07-05T00:00:00Z",
+                        "url": "",
+                    }
+                ],
+            }
+        )
+        self.patch(type(self.client), "_k8s_write_backend", lambda s: "api")
+        self.patch(type(self.client), "_platform_api", lambda s: stub)
+
+        panel = self.client.get_git_panel()
+
+        self.assertTrue(panel["available"])
+        self.assertEqual(panel["file_count"], 4)
+        self.assertEqual([f["name"] for f in panel["root_files"]], ["client.yaml"])
+        self.assertEqual(
+            panel["dirs"],
+            [
+                {"name": "domains", "count": 1},
+                {"name": "environments", "count": 2},
+            ],
+        )
+        self.assertEqual(panel["commits"][0]["sha"], "abc1234def")
+        self.assertIn("/v1/clients/acme/repo/tree", stub.calls[0])
+
+
 class TestPortalData(PortalCase):
     def test_portal_payload(self):
         domain = self.no_push["adomi.domain"].create(

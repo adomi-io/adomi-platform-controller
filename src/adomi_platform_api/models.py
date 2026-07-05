@@ -136,6 +136,24 @@ class VariableEntry(BaseModel):
 
 
 # --- responses ------------------------------------------------------------------
+class RepoFile(BaseModel):
+    """One entry of the client repo's tree."""
+
+    path: str
+    type: str = Field(description="file | dir")
+    size: int = 0
+
+
+class RepoCommit(BaseModel):
+    """One recent commit on the client repo."""
+
+    sha: str
+    message: str = ""
+    author: str = ""
+    date: str = ""
+    url: str = ""
+
+
 class WriteResult(BaseModel):
     """Acknowledgement of a git write (commit/PR)."""
 

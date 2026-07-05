@@ -195,4 +195,69 @@
         background: transparent;
         color: var(--o-main-text-color, #6c757d);
     }
+
+    // --- git panel ---
+    .o_adomi_portal_git {
+        display: grid;
+        grid-template-columns: 1fr 1.3fr;
+
+        @media (max-width: 900px) {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .o_adomi_portal_git_col {
+        padding: 12px 14px;
+        min-width: 0;
+
+        & + .o_adomi_portal_git_col {
+            border-left: 1px solid var(--border-color, #dee2e6);
+
+            @media (max-width: 900px) {
+                border-left: 0;
+                border-top: 1px solid var(--border-color, #dee2e6);
+            }
+        }
+
+        h4 {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--o-main-text-color, #6c757d);
+            opacity: 0.7;
+            margin: 0 0 8px;
+        }
+    }
+
+    .o_adomi_portal_tree {
+        font-size: 12.5px;
+        line-height: 1.9;
+        overflow-x: auto;
+    }
+
+    .o_adomi_portal_commit {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+        padding: 6px 0;
+        font-size: 12.5px;
+
+        & + .o_adomi_portal_commit {
+            border-top: 1px solid var(--border-color, #dee2e6);
+        }
+    }
+
+    .o_adomi_portal_sha {
+        color: #714b67;
+        flex: 0 0 auto;
+    }
+
+    .o_adomi_portal_commit_msg {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
 }

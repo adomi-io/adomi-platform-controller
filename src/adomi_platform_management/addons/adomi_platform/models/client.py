@@ -274,6 +274,51 @@ class Client(models.Model):
             "environments": environments,
         }
 
+    def get_git_panel(self):
+        """The customer page's repository panel: files + recent commits.
+
+        Reads through the platform API (which owns the Forgejo credentials);
+        loaded lazily by the portal widget so the page never waits on git. On
+        the kubernetes write backend there is no client repo — the panel says
+        so instead of erroring.
+        """
+        self.ensure_one()
+
+        if self._k8s_write_backend() != "api" or not self.k8s_name:
+            return {"available": False, "reason": "no_repo"}
+
+        from .api_client import PlatformApiError
+
+        try:
+            api = self._platform_api()
+            files = api.get("/v1/clients/%s/repo/tree" % self.k8s_name)
+            commits = api.get("/v1/clients/%s/repo/commits?limit=8" % self.k8s_name)
+        except PlatformApiError as exc:
+            return {"available": False, "reason": "error", "error": str(exc)}
+
+        # Roll the flat tree up to top-level entries: directories with a file
+        # count, root files as-is — the at-a-glance shape of the repo.
+        groups = {}
+        root = []
+        for f in files or []:
+            head, _, rest = f["path"].partition("/")
+            if not rest:
+                if f["type"] == "file":
+                    root.append({"name": head, "count": 0})
+                continue
+            if f["type"] == "file":
+                entry = groups.setdefault(head, {"name": head, "count": 0})
+                entry["count"] += 1
+
+        return {
+            "available": True,
+            "repo_url": self.infra_repo_url or "",
+            "dirs": sorted(groups.values(), key=lambda g: g["name"]),
+            "root_files": sorted(root, key=lambda f: f["name"]),
+            "file_count": sum(1 for f in files or [] if f["type"] == "file"),
+            "commits": commits or [],
+        }
+
     # --- customer-centric onboarding shortcuts ---
     def action_open_deploy_wizard(self):
         """Launch the guided deploy flow pre-scoped to this customer."""

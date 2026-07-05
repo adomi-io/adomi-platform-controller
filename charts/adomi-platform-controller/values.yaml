@@ -8,7 +8,11 @@ image:
   repository: ghcr.io/adomi-io/adomi-platform-controller
   # tag defaults to the chart appVersion when empty.
   tag: ""
-  pullPolicy: IfNotPresent
+  # The appVersion tag is MUTABLE (CI republishes it every merge), so the
+  # policy must be Always — IfNotPresent pins pods to whatever the node cached
+  # first and rollout restarts silently keep running old code. Pin tag to an
+  # immutable digest/SHA before switching this back.
+  pullPolicy: Always
 
 imagePullSecrets: []
 nameOverride: ""

@@ -3,7 +3,9 @@ replicaCount: 1
 image:
   repository: ghcr.io/adomi-io/adomi-platform-api
   tag: ""  # defaults to chart appVersion
-  pullPolicy: IfNotPresent
+  # Always: the appVersion tag is mutable (CI republishes it every merge), so
+  # IfNotPresent would pin pods to the node's first-cached image.
+  pullPolicy: Always
 
 imagePullSecrets: []
 nameOverride: ""
