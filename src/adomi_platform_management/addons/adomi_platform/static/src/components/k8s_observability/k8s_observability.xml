@@ -71,7 +71,7 @@
                     <t t-foreach="histBuckets" t-as="bucket" t-key="bucket[0]">
                         <div class="o_adomi_hist_bar bg-primary flex-grow-1"
                              t-att-style="'height: ' + barHeight(bucket) + 'px; min-width: 3px; cursor: pointer; opacity: .7;'"
-                             t-att-title="bucket[1] + ' lines around ' + formatClock(bucket[0] * 1e9)"
+                             t-att-title="bucketTitle(bucket)"
                              t-on-click="() => this.drillInto(bucket)"/>
                     </t>
                 </div>

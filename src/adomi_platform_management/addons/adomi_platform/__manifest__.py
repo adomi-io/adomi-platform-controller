@@ -1,6 +1,6 @@
 {
     "name": "Adomi Platform Management",
-    "version": "19.0.9.2.0",
+    "version": "19.0.9.2.1",
     "summary": "Manage the Adomi platform (Clients, Environments, Applications) from Odoo",
     "description": """
 Adomi Platform Management

@@ -245,6 +245,13 @@ export class K8sObservability extends Component {
         return new Date(tsNs / 1e6).toLocaleTimeString();
     }
 
+    bucketTitle(bucket) {
+        // Kept out of the template: OWL's expression parser can't tokenize
+        // exponent literals (1e9 compiles to `1ctx['e9']` and the whole
+        // template fails), so any math like seconds->ns lives here.
+        return `${bucket[1]} lines around ${this.formatClock(bucket[0] * 1e9)}`;
+    }
+
     formatTs(tsNs) {
         const d = new Date(tsNs / 1e6);
         // Wide windows need the date, not just the clock.
