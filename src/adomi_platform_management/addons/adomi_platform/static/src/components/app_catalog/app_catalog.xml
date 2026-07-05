@@ -13,13 +13,16 @@
                          style="cursor: pointer;"
                          t-on-click="() => this.select(type)">
                         <div class="d-flex align-items-center gap-2">
-                            <i class="fa fa-2x text-primary" t-att-class="iconFor(type)"/>
+                            <img t-if="type.logo_url" t-att-src="type.logo_url" t-att-alt="type.name"
+                                 style="width: 32px; height: 32px; object-fit: contain;"/>
+                            <i t-else="" class="fa fa-2x text-primary" t-att-class="iconFor(type)"/>
                             <div class="flex-grow-1">
                                 <div class="fw-bold text-truncate" t-esc="type.name"/>
-                                <div class="text-muted small text-truncate" t-esc="type.k8s_name"/>
+                                <div class="text-muted small text-truncate" t-esc="subtitleFor(type)"/>
                             </div>
                             <i t-if="isSelected(type)" class="fa fa-check-circle text-primary"/>
                         </div>
+                        <div t-if="type.description" class="text-muted small mt-2" t-esc="type.description"/>
                         <div class="mt-2 d-flex flex-wrap gap-1">
                             <span t-if="type.database_required" class="badge text-bg-light border">
                                 <i class="fa fa-database me-1"/>Database

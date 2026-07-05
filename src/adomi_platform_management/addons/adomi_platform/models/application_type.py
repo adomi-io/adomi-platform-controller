@@ -22,6 +22,17 @@ class ApplicationType(models.Model):
     sso_protocol = fields.Selection(
         [("oauth2", "OAuth2 / OIDC"), ("proxy", "Forward-auth proxy")], string="SSO"
     )
+    # Store-facing card content (spec.catalog on the CR).
+    description = fields.Char(help="One-line blurb shown on the catalog card.")
+    about = fields.Text(help="Longer marketing copy for the type's page.")
+    icon = fields.Char(help="Font Awesome class (e.g. fa-cubes) used when no logo URL is set.")
+    logo_url = fields.Char(string="Logo URL")
+    image_urls = fields.Text(
+        string="Image URLs", help="Screenshot / marketing image URLs, one per line."
+    )
+    category = fields.Char(help="Catalog grouping (ERP, Analytics, ...).")
+    vendor = fields.Char(help="Upstream publisher shown on the card.")
+    website_url = fields.Char(string="Website")
 
     def _k8s_spec(self):
         self.ensure_one()
@@ -49,11 +60,34 @@ class ApplicationType(models.Model):
         if self.sso_protocol:
             spec["sso"] = {"enabled": True, "protocol": self.sso_protocol}
 
+        catalog = {}
+
+        for key, value in (
+            ("description", self.description),
+            ("about", self.about),
+            ("icon", self.icon),
+            ("logoUrl", self.logo_url),
+            ("category", self.category),
+            ("vendor", self.vendor),
+            ("websiteUrl", self.website_url),
+        ):
+            if value:
+                catalog[key] = value
+
+        images = [u.strip() for u in (self.image_urls or "").splitlines() if u.strip()]
+
+        if images:
+            catalog["images"] = images
+
+        if catalog:
+            spec["catalog"] = catalog
+
         return spec
 
     def _k8s_import_vals(self, obj):
         spec = obj.get("spec") or {}
         chart = spec.get("chart") or {}
+        catalog = spec.get("catalog") or {}
         return {
             "name": spec.get("displayName") or (obj.get("metadata") or {}).get("name"),
             "chart_repo_url": chart.get("repoURL") or False,
@@ -62,6 +96,14 @@ class ApplicationType(models.Model):
             "chart_target_revision": chart.get("targetRevision") or False,
             "database_required": bool((spec.get("database") or {}).get("required")),
             "sso_protocol": (spec.get("sso") or {}).get("protocol") or False,
+            "description": catalog.get("description") or False,
+            "about": catalog.get("about") or False,
+            "icon": catalog.get("icon") or False,
+            "logo_url": catalog.get("logoUrl") or False,
+            "image_urls": "\n".join(catalog.get("images") or []) or False,
+            "category": catalog.get("category") or False,
+            "vendor": catalog.get("vendor") or False,
+            "website_url": catalog.get("websiteUrl") or False,
         }
 
     @api.model

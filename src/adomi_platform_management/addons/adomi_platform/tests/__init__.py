@@ -6,4 +6,6 @@ from . import test_scoped_config
 from . import test_deploy_wizard
 from . import test_variables_reverse_sync
 from . import test_customer_portal
+from . import test_application_type
+from . import test_forgejo_webhook
 from . import test_template_lint

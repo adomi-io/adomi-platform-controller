@@ -12,14 +12,14 @@ from __future__ import annotations
 
 import kopf
 
-from .. import conditions, state
+from .. import conditions, requeue, state
 from ._common import Reconciler, fail
 
 
 class DomainReconciler(Reconciler):
     plural = "domains"
 
-    def reconcile(self, spec, meta, status, patch, name, **_) -> None:
+    def reconcile(self, spec, meta, status, patch, name, namespace, logger, **_) -> None:
         generation = meta.get("generation", 0)
         state.provider()
 
@@ -29,6 +29,15 @@ class DomainReconciler(Reconciler):
             fail(patch, status, conditions.REASON_INVALID_SPEC, "fqdn is required", generation)
 
         patch.status["host"] = fqdn
+
+        # Apps published under this Domain build their hostname from its fqdn:
+        # re-render them on a spec change (idempotent per generation).
+        requeue.requeue_applications(
+            requeue.revision("domain", name, generation),
+            namespace=namespace,
+            predicate=requeue.app_references_domain(name),
+            logger=logger,
+        )
 
         conditions.mark_ready(patch, status, f"Domain {fqdn!r} ready", generation)
 

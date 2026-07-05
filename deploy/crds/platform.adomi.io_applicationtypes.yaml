@@ -40,6 +40,41 @@ spec:
             properties:
               displayName:
                 type: string
+              catalog:
+                description: |-
+                  catalog is the store-facing card content for this type: what the
+                  portal shows when the catalog is browsed like an app store. Purely
+                  presentational — the controller ignores it.
+                properties:
+                  description:
+                    description: description is the one-line blurb shown on the card.
+                    type: string
+                  about:
+                    description: about is longer marketing copy for the type's page.
+                    type: string
+                  icon:
+                    description: icon is a Font Awesome class (e.g. fa-cubes) rendered
+                      when no logoUrl is set.
+                    type: string
+                  logoUrl:
+                    description: logoUrl points at the product logo (same convention
+                      as a Chart.yaml icon URL).
+                    type: string
+                  images:
+                    description: images are screenshot / marketing image URLs.
+                    items:
+                      type: string
+                    type: array
+                  category:
+                    description: category groups the catalog (ERP, Analytics, ...).
+                    type: string
+                  vendor:
+                    description: vendor is the upstream publisher shown on the card.
+                    type: string
+                  websiteUrl:
+                    description: websiteUrl links to the product's site.
+                    type: string
+                type: object
               chart:
                 description: chart is the Helm chart this type deploys via Argo CD.
                 properties:

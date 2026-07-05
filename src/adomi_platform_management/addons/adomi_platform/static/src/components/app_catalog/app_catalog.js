@@ -7,8 +7,8 @@ import {standardFieldProps} from "@web/views/fields/standard_field_props";
 
 const fieldRegistry = registry.category("fields");
 
-// A friendly glyph per catalog entry (keyed by the type's k8s name) so the catalog
-// reads like an app store rather than a dropdown. Unknown types get a generic cube.
+// Glyph fallbacks for catalog entries that don't carry their own icon/logo yet
+// (keyed by the type's k8s name). Unknown types get a generic cube.
 const TYPE_ICONS = {
     odoo: "fa-cubes",
     superset: "fa-bar-chart",
@@ -41,8 +41,19 @@ export class AppCatalog extends Component {
                 this.state.types = await this.orm.searchRead(
                     "adomi.application.type",
                     [],
-                    ["id", "name", "k8s_name", "database_required", "sso_protocol"],
-                    {order: "name"}
+                    [
+                        "id",
+                        "name",
+                        "k8s_name",
+                        "database_required",
+                        "sso_protocol",
+                        "description",
+                        "icon",
+                        "logo_url",
+                        "category",
+                        "vendor",
+                    ],
+                    {order: "category, name"}
                 );
             } finally {
                 this.state.loading = false;
@@ -56,7 +67,11 @@ export class AppCatalog extends Component {
     }
 
     iconFor(type) {
-        return TYPE_ICONS[type.k8s_name] || GENERIC_ICON;
+        return type.icon || TYPE_ICONS[type.k8s_name] || GENERIC_ICON;
+    }
+
+    subtitleFor(type) {
+        return [type.vendor, type.category].filter(Boolean).join(" · ") || type.k8s_name;
     }
 
     isSelected(type) {

@@ -134,7 +134,7 @@ pytest                      # unit tests
       deploy/crds/platform.adomi.io_domains.yaml \
       deploy/crds/platform.adomi.io_databaseservers.yaml \
       deploy/crds/platform.adomi.io_databases.yaml \
-      deploy/crds/platform.adomi.io_workspaces.yaml \
+      deploy/crds/platform.adomi.io_environments.yaml \
       deploy/crds/platform.adomi.io_applicationtypes.yaml \
       deploy/crds/platform.adomi.io_applications.yaml \
       deploy/crds/platform.adomi.io_gitrepositories.yaml \

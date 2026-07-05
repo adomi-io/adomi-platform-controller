@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Pipeline content management for Odoo-type applications: addon sources +
+         dependencies, committed to the customer's pipeline repository as
+         adomi-pipeline.yaml + a generated Dockerfile. -->
+    <record id="view_adomi_application_form_odoo_pipeline" model="ir.ui.view">
+        <field name="name">adomi.application.form.odoo.pipeline</field>
+        <field name="model">adomi.application</field>
+        <field name="inherit_id" ref="adomi_platform.view_adomi_application_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Pipeline" name="odoo_pipeline" invisible="not is_odoo_type">
+                    <field name="is_odoo_type" invisible="1"/>
+                    <div class="text-muted mb-3">
+                        Addons and dependencies for this application's Docker image.
+                        Committing writes <code>adomi-pipeline.yaml</code> and a generated
+                        <code>Dockerfile</code> to the pipeline repository; its CI builds
+                        and publishes the image. Hand edits to the manifest can be pulled
+                        back with <em>Import from repository</em>.
+                    </div>
+                    <group>
+                        <group>
+                            <field name="git_repository_id" readonly="1"/>
+                            <field name="odoo_base_image" placeholder="ghcr.io/adomi-io/odoo:19.0"/>
+                        </group>
+                        <group>
+                            <field name="odoo_pipeline_synced_at"/>
+                        </group>
+                    </group>
+                    <group string="Addon sources">
+                        <field name="odoo_addon_source_ids" nolabel="1" colspan="2">
+                            <list editable="bottom">
+                                <field name="sequence" widget="handle"/>
+                                <field name="repo_url"/>
+                                <field name="branch"/>
+                                <field name="modules" widget="text" placeholder="every addon in the repo"/>
+                            </list>
+                        </field>
+                    </group>
+                    <group>
+                        <group string="Python packages">
+                            <field name="odoo_pip_packages" nolabel="1" colspan="2" placeholder="one pip package per line"/>
+                        </group>
+                        <group string="System packages">
+                            <field name="odoo_apt_packages" nolabel="1" colspan="2" placeholder="one Debian package per line"/>
+                        </group>
+                    </group>
+                    <div class="d-flex gap-2">
+                        <button name="action_odoo_commit_pipeline" type="object"
+                                string="Commit to repository" class="btn-primary"/>
+                        <button name="action_odoo_import_pipeline" type="object"
+                                string="Import from repository" class="btn-secondary"/>
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -7,6 +7,8 @@
             <list>
                 <field name="name"/>
                 <field name="k8s_name"/>
+                <field name="category"/>
+                <field name="vendor"/>
                 <field name="database_required"/>
                 <field name="sso_protocol"/>
                 <field name="chart_path"/>
@@ -38,6 +40,20 @@
                             <field name="chart_path"/>
                             <field name="chart_target_revision"/>
                         </group>
+                    </group>
+                    <group string="Catalog card">
+                        <group>
+                            <field name="category"/>
+                            <field name="vendor"/>
+                            <field name="website_url" widget="url"/>
+                            <field name="icon" placeholder="fa-cubes"/>
+                        </group>
+                        <group>
+                            <field name="logo_url" widget="url"/>
+                            <field name="image_urls" placeholder="One image URL per line"/>
+                        </group>
+                        <field name="description" placeholder="One-line blurb shown on the catalog card"/>
+                        <field name="about" placeholder="Longer marketing copy for the type's page"/>
                     </group>
                 </sheet>
             </form>

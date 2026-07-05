@@ -9,14 +9,14 @@ from __future__ import annotations
 
 import kopf
 
-from .. import conditions, namespaces, resolve, state
+from .. import conditions, namespaces, requeue, resolve, state
 from ._common import Reconciler, fail
 
 
 class EnvironmentReconciler(Reconciler):
     plural = "environments"
 
-    def reconcile(self, spec, meta, status, patch, name, namespace, **_) -> None:
+    def reconcile(self, spec, meta, status, patch, name, namespace, logger, **_) -> None:
         generation = meta.get("generation", 0)
         state.provider()
 
@@ -59,6 +59,15 @@ class EnvironmentReconciler(Reconciler):
             )
 
         patch.status["namespace"] = env_namespace
+
+        # Its Applications inherit this Environment's variables + class: re-render
+        # them on a spec change (idempotent per generation).
+        requeue.requeue_applications(
+            requeue.revision("environment", name, generation),
+            namespace=namespace,
+            predicate=requeue.app_references_environment(name),
+            logger=logger,
+        )
 
         conditions.mark_ready(
             patch,

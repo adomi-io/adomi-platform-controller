@@ -109,6 +109,39 @@ class GitHubClient:
             payload["owner"] = owner
         return self._request("POST", "/repos/%s/generate" % template_full_name, payload)
 
+    # --- file contents ---
+    def get_content(self, full_name, path, ref=None):
+        """The file at ``path`` (decoded text + blob sha), or None when absent."""
+        import base64
+
+        try:
+            data = self._request(
+                "GET",
+                "/repos/%s/contents/%s" % (full_name, path),
+                params={"ref": ref} if ref else None,
+            )
+        except GitHubError as exc:
+            if exc.status == 404:
+                return None
+            raise
+        content = data.get("content") or ""
+        text = base64.b64decode(content.encode("ascii")).decode("utf-8") if content else ""
+        return {"text": text, "sha": data.get("sha"), "path": data.get("path")}
+
+    def put_content(self, full_name, path, text, message, branch=None, sha=None):
+        """Create or update the file at ``path`` (sha required to update)."""
+        import base64
+
+        payload = {
+            "message": message,
+            "content": base64.b64encode(text.encode("utf-8")).decode("ascii"),
+        }
+        if branch:
+            payload["branch"] = branch
+        if sha:
+            payload["sha"] = sha
+        return self._request("PUT", "/repos/%s/contents/%s" % (full_name, path), payload)
+
     # --- branches / refs ---
     def get_ref(self, full_name, ref):
         return self._request("GET", "/repos/%s/git/ref/%s" % (full_name, ref))

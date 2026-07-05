@@ -10,14 +10,14 @@ from __future__ import annotations
 
 import kopf
 
-from .. import conditions, state
+from .. import conditions, requeue, state
 from ._common import Reconciler
 
 
 class OrganizationReconciler(Reconciler):
     plural = "organizations"
 
-    def reconcile(self, spec, meta, status, patch, name, **_) -> None:
+    def reconcile(self, spec, meta, status, patch, name, logger, **_) -> None:
         generation = meta.get("generation", 0)
         cfg = state.provider().config
 
@@ -26,6 +26,13 @@ class OrganizationReconciler(Reconciler):
 
         patch.status["baseDomain"] = base_domain
         patch.status["odooImageRepository"] = image_repo
+
+        # Every Application inherits the Organization's variables / base domain /
+        # image defaults (unreferenced clients fall back to the single org too),
+        # so a spec change re-renders them all (idempotent per generation).
+        requeue.requeue_applications(
+            requeue.revision("organization", name, generation), logger=logger
+        )
 
         msg = f"Organization {name!r} reconciled"
 

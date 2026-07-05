@@ -360,3 +360,30 @@ class Client(models.Model):
             "domain": [("client_id", "=", self.id)],
             "context": {"default_client_id": self.id},
         }
+
+    @api.model
+    def _on_repo_push(self, repo_name):
+        """A push landed in a client's infrastructure repo (Forgejo webhook).
+
+        The push is the signal, not the data: the cluster stays the source of
+        truth we import from. Trigger the reconcile cron now (for state Argo CD
+        has already applied) and again shortly after (for the CRs this very
+        push is still rolling out), instead of waiting for the hourly fallback.
+        Repos are named after the client, so an unknown name means the push is
+        not client intent and is ignored.
+        """
+        if not repo_name:
+            return False
+
+        client = self.search([("k8s_name", "=", repo_name)], limit=1)
+
+        if not client:
+            return False
+
+        cron = self.env.ref("adomi_platform.cron_sync_platform", raise_if_not_found=False)
+
+        if cron:
+            cron.sudo()._trigger()
+            cron.sudo()._trigger(fields.Datetime.add(fields.Datetime.now(), minutes=2))
+
+        return True
