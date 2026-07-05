@@ -30,7 +30,9 @@ INGEST_PATH = "/adomi_platform/ingest"
 MODEL_BY_PLURAL: dict[str, str] = {
     "organizations": "adomi.organization",
     "clients": "adomi.client",
+    "domains": "adomi.domain",
     "environments": "adomi.environment",
+    "databaseservers": "adomi.database.server",
     "applications": "adomi.application",
     "applicationtypes": "adomi.application.type",
     "gitrepositories": "adomi.git.repository",

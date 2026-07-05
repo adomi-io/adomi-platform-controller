@@ -14,7 +14,12 @@ class PortalCase(TransactionCase):
             {"name": "Acme", "k8s_name": "acme", "organization_id": self.org.id}
         )
         self.environment = self.no_push["adomi.environment"].create(
-            {"name": "production", "k8s_name": "production", "client_id": self.client.id}
+            {
+                "name": "production",
+                "k8s_name": "production",
+                "client_id": self.client.id,
+                "environment_class": "production",
+            }
         )
         self.app_type = self.no_push["adomi.application.type"].create(
             {"name": "Odoo", "k8s_name": "odoo-portal"}

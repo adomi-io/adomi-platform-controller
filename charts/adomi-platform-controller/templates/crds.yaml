@@ -1508,6 +1508,18 @@ spec:
                   - server
                   type: object
                 type: array
+              domainRef:
+                description: |-
+                  domainRef names a Domain (same namespace) whose fqdn replaces the
+                  organization base domain when generating the hostname. An explicit
+                  ingress.host still wins over the generated name.
+                properties:
+                  name:
+                    minLength: 1
+                    type: string
+                required:
+                - name
+                type: object
               ingress:
                 description: ingress overrides ingress settings for the app.
                 properties:
