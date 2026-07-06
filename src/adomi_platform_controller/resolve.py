@@ -92,6 +92,7 @@ class Effective:
 
     # Base image for source builds / restore jobs (org images.odooRepository).
     image_repository: str
+    image_tag: str
 
     # The workload's effective env: scope-contributed variables (org -> client ->
     # environment -> application, nearest wins) with the app's explicit spec.env
@@ -280,6 +281,7 @@ def compute(
         host = f"{label}.{base_domain}"
 
     image_repository = org_images.get("odooRepository") or cfg.odoo_image_repository
+    image_tag = org_images.get("odooTag") or cfg.odoo_image_tag
 
     return Effective(
         client_slug=client_slug,
@@ -298,6 +300,7 @@ def compute(
         ),
         type_defaults=type_spec.get("defaultValues") or {},
         image_repository=image_repository,
+        image_tag=image_tag,
         env=merged_env(
             org_spec=org,
             client_spec=client_spec,

@@ -428,7 +428,7 @@ class ApplicationReconciler(Reconciler):
             eff.app_name,
             ref,
         )
-        base_image = source.get("baseImage") or f"{eff.image_repository}:latest"
+        base_image = source.get("baseImage") or f"{eff.image_repository}:{eff.image_tag}"
         git_secret = self._git_secret_name(eff.namespace, eff.app_name)
 
         try:
@@ -603,7 +603,7 @@ class ApplicationReconciler(Reconciler):
             if "sanitize" in restore_from
             else resolve.sanitize_default(eff.environment_class)
         )
-        odoo_image = built_image or f"{eff.image_repository}:latest"
+        odoo_image = built_image or f"{eff.image_repository}:{eff.image_tag}"
         wf_name = self._restore_workflow_name(eff.namespace, eff.app_name, snap_ref)
 
         try:

@@ -81,6 +81,8 @@ spec:
               value: {{ .Values.platform.argocd.project | quote }}
             - name: ODOO_IMAGE_REPOSITORY
               value: {{ .Values.platform.odoo.imageRepository | quote }}
+            - name: ODOO_IMAGE_TAG
+              value: {{ .Values.platform.odoo.imageTag | quote }}
             - name: PLATFORM_BASE_DOMAIN
               value: {{ .Values.platform.baseDomain | quote }}
             # Odoo management portal push (status changes -> portal ingest endpoint).

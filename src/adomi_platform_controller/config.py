@@ -90,6 +90,9 @@ class Config:
     # doesn't build from source / pin a version). The chart tag defaults to its
     # appVersion.
     odoo_image_repository: str = "ghcr.io/adomi-io/odoo"
+    # Tag of that image used when an Application doesn't build its own. Must be
+    # a published tag — the registry has the floating 19.0 nightly, not latest.
+    odoo_image_tag: str = "19.0"
 
     # Platform domain. Generated application hostnames are a single DNS label
     # "<app>-<environment>-<client>.<baseDomain>" (so a *.<baseDomain> wildcard
@@ -209,6 +212,7 @@ class Config:
             argocd_namespace=_env("ARGOCD_NAMESPACE", d.argocd_namespace),
             argocd_project=_env("ARGOCD_PROJECT", d.argocd_project),
             odoo_image_repository=_env("ODOO_IMAGE_REPOSITORY", d.odoo_image_repository),
+            odoo_image_tag=_env("ODOO_IMAGE_TAG", d.odoo_image_tag),
             base_domain=_env("PLATFORM_BASE_DOMAIN", d.base_domain),
             scoped_secrets_prefix=_env("SCOPED_SECRETS_PREFIX", d.scoped_secrets_prefix),
             argo_namespace=_env("ARGO_NAMESPACE", d.argo_namespace),

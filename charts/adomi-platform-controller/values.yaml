@@ -100,8 +100,10 @@ platform:
     project: default
   odoo:
     # Default Odoo container image (overridable per Application). Each app's chart
-    # comes from its ApplicationType (the catalog), not from here.
+    # comes from its ApplicationType (the catalog), not from here. The tag must be
+    # a published one — the registry carries the floating 19.0 nightly, not latest.
     imageRepository: ghcr.io/adomi-io/odoo
+    imageTag: "19.0"
   # Base domain for generated hostnames (<app>-<environment>-<client>.<baseDomain>,
   # a single label so a *.<baseDomain> wildcard cert/record covers it). Leave empty
   # to require an Organization with a base domain, or per-application spec.ingress.host.

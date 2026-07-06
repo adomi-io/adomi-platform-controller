@@ -90,3 +90,33 @@ def test_compute_domain_fqdn_overrides_base_domain():
     )
     assert eff.hostname == "erp-prod-acme.acme.example.com"
     assert eff.url == "https://erp-prod-acme.acme.example.com"
+
+
+def test_compute_image_tag_default_and_org_override():
+    cfg = Config()
+    base = dict(
+        org_spec=None,
+        client_name="acme",
+        client_spec={},
+        environment_name="production",
+        environment_spec={},
+        app_name="erp",
+        app_spec={},
+        type_spec={},
+    )
+
+    eff = resolve.compute(cfg, **base)
+    # The default tag must be a published one (the registry has the floating
+    # 19.0 nightly, not latest — :latest broke every non-built deploy).
+    assert eff.image_repository == "ghcr.io/adomi-io/odoo"
+    assert eff.image_tag == "19.0"
+
+    eff = resolve.compute(
+        cfg,
+        **{
+            **base,
+            "org_spec": {"images": {"odooRepository": "ghcr.io/acme/odoo", "odooTag": "20.0"}},
+        },
+    )
+    assert eff.image_repository == "ghcr.io/acme/odoo"
+    assert eff.image_tag == "20.0"
