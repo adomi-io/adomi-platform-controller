@@ -115,6 +115,15 @@ class Config:
     harbor_secret_path: str = "harbor-app"  # OpenBao KV path holding the push password
     harbor_secret_key: str = "admin-password"  # key within that path
 
+    # GitHub App used to clone private github.com repositories during builds:
+    # the controller mints a short-lived installation token per build (nothing
+    # durable is stored). The OpenBao path holds the App credentials; a missing
+    # path or empty setting disables App auth. An explicit credentialsSecretRef
+    # on the GitRepository always wins.
+    github_app_secret_path: str = "github-app"  # OpenBao KV path with the App credentials
+    github_app_id_key: str = "app-id"  # key holding the numeric App ID
+    github_app_private_key_key: str = "private-key"  # key holding the App's PEM
+
     def resolved_harbor_host(self) -> str:
         """The Harbor host, defaulting to harbor.<baseDomain> when not set."""
         if self.harbor_host:
@@ -210,6 +219,11 @@ class Config:
             harbor_username=_env("HARBOR_USERNAME", d.harbor_username),
             harbor_secret_path=_env("HARBOR_SECRET_PATH", d.harbor_secret_path),
             harbor_secret_key=_env("HARBOR_SECRET_KEY", d.harbor_secret_key),
+            github_app_secret_path=_env("GITHUB_APP_SECRET_PATH", d.github_app_secret_path),
+            github_app_id_key=_env("GITHUB_APP_ID_KEY", d.github_app_id_key),
+            github_app_private_key_key=_env(
+                "GITHUB_APP_PRIVATE_KEY_KEY", d.github_app_private_key_key
+            ),
             webhook_host=_env("WEBHOOK_HOST", d.webhook_host),
             cluster_issuer=_env("CLUSTER_ISSUER", d.cluster_issuer),
             preview_ingress_class=_env("PREVIEW_INGRESS_CLASS", d.preview_ingress_class),

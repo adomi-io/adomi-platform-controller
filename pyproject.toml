@@ -21,6 +21,8 @@ dependencies = [
     "authentik-client>=2024.2",
     # Standard Vault client; OpenBao is API-compatible.
     "hvac>=2.0",
+    # GitHub App auth: RS256-signed App JWTs for minting installation tokens.
+    "pyjwt[crypto]>=2.8",
 ]
 
 [project.optional-dependencies]

@@ -105,6 +105,39 @@ class ApplicationReconciler(Reconciler):
         return f"git-{namespace}"[:253]
 
     @staticmethod
+    def _github_app_token(cfg, bao, repo_url: str, logger) -> str:
+        """A fresh App installation token for a github.com repo, or "".
+
+        Empty means App auth does not apply (non-GitHub host, App not
+        configured, App not installed on the repo) — public repositories still
+        build fine without credentials; a private one surfaces the clone
+        failure on its build Workflow.
+        """
+        if not cfg.github_app_secret_path or not github.is_github_url(repo_url):
+            return ""
+
+        creds = bao.read(cfg.github_app_secret_path) or {}
+        app_id = str(creds.get(cfg.github_app_id_key) or "").strip()
+        private_key = creds.get(cfg.github_app_private_key_key) or ""
+
+        if not app_id or not private_key:
+            return ""
+
+        owner, repo = resolve.parse_owner_repo(repo_url)
+
+        if not owner or not repo:
+            return ""
+
+        try:
+            auth = github.app_auth(app_id, private_key, cfg.github_api_url)
+
+            return auth.installation_token_for(owner, repo)
+        except github.GitHubAppError as exc:
+            logger.warning(f"building {owner}/{repo} without credentials: {exc}")
+
+            return ""
+
+    @staticmethod
     def _build_workflow_name(namespace: str, app: str, ref: str) -> str:
         return f"build-{namespace}-{app}-{resolve.sanitize_tag(ref)}"[:253]
 
@@ -417,7 +450,6 @@ class ApplicationReconciler(Reconciler):
                 password,
             ).apply()
 
-            token = ""
             cred_ref = repo_spec.get("credentialsSecretRef") or {}
 
             if cred_ref.get("name"):
@@ -426,6 +458,8 @@ class ApplicationReconciler(Reconciler):
                     namespace,
                     cred_ref.get("key") or "token",
                 )
+            else:
+                token = self._github_app_token(cfg, bao, repo_url, logger)
 
             buildsecrets.ManagedSecret.token(git_secret, cfg.argo_namespace, token).apply()
         except kopf.TemporaryError:

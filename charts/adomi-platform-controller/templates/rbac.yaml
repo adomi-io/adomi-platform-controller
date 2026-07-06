@@ -81,11 +81,12 @@ rules:
   - apiGroups: [batch]
     resources: [jobs]
     verbs: [create, delete, get, list, patch, update, watch]
-  # Secrets: read referenced git credentials, and create the Harbor push /
-  # git-token Secrets the build Workflow consumes in the argo namespace.
+  # Secrets: read referenced git credentials, create the Harbor push / git-token
+  # Secrets the build Workflow consumes in the argo namespace, and delete the
+  # managed preview webhook/token Secrets on teardown (_delete_preview/finalize).
   - apiGroups: [""]
     resources: [secrets]
-    verbs: [create, get, list, patch, update]
+    verbs: [create, delete, get, list, patch, update]
   # ConfigMaps: deliver the database provisioning SQL as a mounted file the psql Job
   # runs with -f, so no shell ever interpolates the SQL content.
   - apiGroups: [""]

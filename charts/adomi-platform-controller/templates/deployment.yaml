@@ -107,6 +107,13 @@ spec:
               value: {{ .Values.platform.build.harbor.secretPath | quote }}
             - name: HARBOR_SECRET_KEY
               value: {{ .Values.platform.build.harbor.secretKey | quote }}
+            # GitHub App auth for private-repo builds (OpenBao path + key names).
+            - name: GITHUB_APP_SECRET_PATH
+              value: {{ .Values.platform.build.githubApp.secretPath | quote }}
+            - name: GITHUB_APP_ID_KEY
+              value: {{ .Values.platform.build.githubApp.appIdKey | quote }}
+            - name: GITHUB_APP_PRIVATE_KEY_KEY
+              value: {{ .Values.platform.build.githubApp.privateKeyKey | quote }}
             # Preview environments (Argo Events + webhook ingress + PR feedback).
             - name: WEBHOOK_HOST
               value: {{ .Values.platform.preview.webhookHost | quote }}

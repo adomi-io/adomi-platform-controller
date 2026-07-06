@@ -138,6 +138,17 @@ platform:
       username: admin
       secretPath: harbor-app
       secretKey: admin-password
+    # GitHub App used to clone private github.com repositories: the controller
+    # mints a short-lived installation token per build (scoped to that one repo,
+    # contents:read — nothing durable is ever stored). Seed the OpenBao path once
+    # with the App's identity, e.g.
+    #   bao kv put secret/github-app app-id=123456 private-key=@app.private-key.pem
+    # A missing path disables App auth; an explicit spec.credentialsSecretRef on
+    # the GitRepository always wins. Empty secretPath turns the feature off.
+    githubApp:
+      secretPath: github-app
+      appIdKey: app-id
+      privateKeyKey: private-key
 
   # Preview environments: when a GitRepository enables previews, the controller
   # generates a github EventSource + Sensor + webhook Ingress so pull requests
