@@ -60,7 +60,19 @@ class DeployWizard(models.TransientModel):
     # --- step: app (what) ---
     type_id = fields.Many2one("adomi.application.type", string="Application type")
     app_name = fields.Char(string="Application name")
-    hostname = fields.Char(string="Hostname", help="Override the generated ingress host.")
+    # Where it's published: [subdomain].[domain], like the application form.
+    # Both optional — empty means a generated name under the organization domain.
+    domain_id = fields.Many2one(
+        "adomi.domain",
+        string="Domain",
+        domain="[('client_id', '=', client_id)]",
+    )
+    subdomain = fields.Char(string="Subdomain")
+    host_preview = fields.Char(compute="_compute_host_preview", string="Web address")
+    hostname = fields.Char(
+        string="Hostname override",
+        help="Advanced: full ingress host, bypassing the subdomain + domain pair.",
+    )
     type_needs_database = fields.Boolean(related="type_id.database_required")
 
     # --- step: database (only when the type needs one) ---
@@ -75,6 +87,7 @@ class DeployWizard(models.TransientModel):
 
     # --- step: config (variables & secrets at app scope) ---
     config_line_ids = fields.One2many("adomi.deploy.wizard.config", "wizard_id")
+    provided_summary = fields.Html(compute="_compute_provided_summary")
 
     # --- review summary ---
     review_summary = fields.Html(compute="_compute_review_summary")
@@ -150,6 +163,20 @@ class DeployWizard(models.TransientModel):
         if len(orgs) == 1:
             vals.setdefault("organization_id", orgs.id)
 
+        # Derive, don't ask: a single-customer install never needs the picker.
+        if not vals.get("client_id"):
+            clients = self.env["adomi.client"].search([])
+            if len(clients) == 1:
+                vals["client_id"] = clients.id
+
+        # Same for the environment once the customer is known.
+        if vals.get("client_id") and not vals.get("environment_id"):
+            environments = self.env["adomi.environment"].search(
+                [("client_id", "=", vals["client_id"])]
+            )
+            if len(environments) == 1:
+                vals["environment_id"] = environments.id
+
         # Guided-setup cards preselect a catalog entry by its k8s name.
         type_slug = self.env.context.get("default_type_k8s_name")
         if type_slug and not vals.get("type_id"):
@@ -177,6 +204,40 @@ class DeployWizard(models.TransientModel):
                 self.organization_id = self.client_id.organization_id
             if self.environment_id and self.environment_id.client_id != self.client_id:
                 self.environment_id = False
+            if self.domain_id and self.domain_id.client_id != self.client_id:
+                self.domain_id = False
+            # One environment -> it's the one.
+            if not self.environment_id:
+                environments = self.env["adomi.environment"].search(
+                    [("client_id", "=", self.client_id.id)]
+                )
+                if len(environments) == 1:
+                    self.environment_id = environments
+
+    @api.onchange("type_id")
+    def _onchange_type_id(self):
+        # Picking "Odoo" in the catalog is already the name most people want.
+        if self.type_id and not self.app_name:
+            self.app_name = self.type_id.name
+
+    @api.onchange("app_name")
+    def _onchange_app_name(self):
+        if self.app_name and not self.subdomain:
+            self.subdomain = k8s.slugify(self.app_name)
+
+    @api.depends(
+        "hostname", "subdomain", "domain_id.fqdn", "client_id.organization_id.base_domain"
+    )
+    def _compute_host_preview(self):
+        for rec in self:
+            if rec.hostname:
+                rec.host_preview = rec.hostname.strip().lower()
+            elif rec.subdomain and rec.domain_id.fqdn:
+                rec.host_preview = (
+                    "%s.%s" % (rec.subdomain.strip(), rec.domain_id.fqdn.strip())
+                ).lower()
+            else:
+                rec.host_preview = _("(generated under the organization domain)")
 
     # ------------------------------------------------------------------ review
     def _review_lines(self):
@@ -186,9 +247,8 @@ class DeployWizard(models.TransientModel):
             (_("Customer"), self.client_id.name or ""),
             (_("Environment"), self.environment_id.name or ""),
             (_("Application"), "%s (%s)" % (self.app_name or "", self.type_id.name or "")),
+            (_("Web address"), self.host_preview or ""),
         ]
-        if self.hostname:
-            lines.append((_("Hostname"), self.hostname))
         if self.type_needs_database and self.database_server_id:
             lines.append((_("Database"), "%s on %s" % (
                 self.database_name or k8s.slugify(self.app_name or ""),
@@ -200,6 +260,40 @@ class DeployWizard(models.TransientModel):
                 ", ".join(self.config_line_ids.mapped("name")),
             ))
         return lines
+
+    def _provided_lines(self):
+        """(label, value) pairs describing what the launcher wires up itself,
+        shown on the variables step so users don't re-enter platform config.
+        Addons append what their product contributes."""
+        self.ensure_one()
+        lines = [(_("Web address"), self.host_preview or "")]
+        if self.type_needs_database and self.database_server_id:
+            lines.append((
+                _("Database connection"),
+                _("%(db)s on %(server)s — host, port, credentials injected as "
+                  "environment variables from the platform vault")
+                % {
+                    "db": self.database_name or k8s.slugify(self.app_name or ""),
+                    "server": self.database_server_id.name,
+                },
+            ))
+        if self.type_id.sso_protocol:
+            lines.append((
+                _("Single sign-on"),
+                _("An identity client is provisioned and its credentials injected"),
+            ))
+        return lines
+
+    @api.depends("state")
+    def _compute_provided_summary(self):
+        for rec in self:
+            rows = "".join(
+                "<tr><td class='fw-bold pe-3 text-nowrap'>%s</td><td>%s</td></tr>" % pair
+                for pair in rec._provided_lines()
+            )
+            rec.provided_summary = (
+                "<table class='table table-sm mb-0'>%s</table>" % rows
+            )
 
     @api.depends("state")
     def _compute_review_summary(self):
@@ -219,6 +313,8 @@ class DeployWizard(models.TransientModel):
             "k8s_name": slug,
             "environment_id": environment.id,
             "type_id": self.type_id.id,
+            "domain_id": self.domain_id.id or False,
+            "subdomain": (self.subdomain or "").strip().lower() or False,
             "hostname": self.hostname or False,
         }
         if self.type_needs_database and self.database_server_id:

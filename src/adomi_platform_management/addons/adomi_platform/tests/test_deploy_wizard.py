@@ -80,6 +80,88 @@ class TestDeployWizard(TransactionCase):
         wiz._onchange_client_id()
         self.assertFalse(wiz.environment_id)
 
+    # --- derive, don't ask ---
+    def test_deploy_action_prefills_customer_without_organization(self):
+        # Kyle's repro: a customer with no organization must still arrive
+        # pre-selected, and the action must carry explicit views (the customer
+        # portal feeds it straight to doAction).
+        lone = self.no_push["adomi.client"].create({"name": "Lone", "k8s_name": "lone"})
+        action = lone.action_open_deploy_wizard()
+        self.assertEqual(action["views"], [[False, "form"]])
+        vals = (
+            self.no_push["adomi.deploy.wizard"]
+            .with_context(**action["context"])
+            .default_get(["organization_id", "client_id", "environment_id"])
+        )
+        self.assertEqual(vals.get("client_id"), lone.id)
+
+    def test_lone_customer_and_environment_default(self):
+        vals = self.no_push["adomi.deploy.wizard"].default_get(
+            ["organization_id", "client_id", "environment_id"]
+        )
+        self.assertEqual(vals.get("client_id"), self.client.id)
+        self.assertEqual(vals.get("environment_id"), self.environment.id)
+
+    def test_picking_customer_defaults_its_only_environment(self):
+        wiz = self._wizard(client_id=self.client.id)
+        wiz._onchange_client_id()
+        self.assertEqual(wiz.environment_id, self.environment)
+
+    def test_type_choice_prefills_name_and_subdomain(self):
+        wiz = self._wizard(client_id=self.client.id, environment_id=self.environment.id)
+        wiz.type_id = self.app_type
+        wiz._onchange_type_id()
+        self.assertEqual(wiz.app_name, "Uptime")
+        wiz._onchange_app_name()
+        self.assertEqual(wiz.subdomain, "uptime")
+
+    # --- published address ---
+    def test_host_preview_composes_subdomain_and_domain(self):
+        domain = self.no_push["adomi.domain"].create(
+            {"client_id": self.client.id, "fqdn": "acme.com"}
+        )
+        wiz = self._wizard(
+            client_id=self.client.id,
+            environment_id=self.environment.id,
+            type_id=self.app_type.id,
+            app_name="Status Page",
+            subdomain="status",
+            domain_id=domain.id,
+        )
+        self.assertEqual(wiz.host_preview, "status.acme.com")
+
+        action = wiz.action_launch()
+        application = self.env["adomi.application"].browse(action["res_id"])
+        self.assertEqual(application.domain_id, domain)
+        self.assertEqual(application.subdomain, "status")
+        self.assertEqual(application.host_effective, "status.acme.com")
+
+    # --- the variables step explains what's already wired ---
+    def test_provided_summary_lists_platform_wiring(self):
+        db_type = self.no_push["adomi.application.type"].create(
+            {
+                "name": "ERPish",
+                "k8s_name": "erpish",
+                "database_required": True,
+                "sso_protocol": "oauth2",
+            }
+        )
+        server = self.no_push["adomi.database.server"].create(
+            {"name": "Acme DB", "k8s_name": "acme-db", "client_id": self.client.id}
+        )
+        wiz = self._wizard(
+            client_id=self.client.id,
+            environment_id=self.environment.id,
+            type_id=db_type.id,
+            app_name="ERP",
+            database_server_id=server.id,
+        )
+        lines = dict(wiz._provided_lines())
+        self.assertIn("Web address", lines)
+        self.assertIn("Database connection", lines)
+        self.assertIn("Acme DB", lines["Database connection"])
+        self.assertIn("Single sign-on", lines)
+
     # --- launch ---
     def test_launch_creates_application_on_target(self):
         wiz = self._wizard(

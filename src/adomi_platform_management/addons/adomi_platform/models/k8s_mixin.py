@@ -29,13 +29,29 @@ class K8sMixin(models.AbstractModel):
     _k8s_kind = None
     _k8s_cluster_scoped = False
 
+    # Computed-editable: fills itself from the record's name as the user types,
+    # so no form ever demands it. Once set it never recomputes — it is the CR's
+    # immutable identity in the cluster and the infrastructure repository.
     k8s_name = fields.Char(
         string="Resource name",
+        compute="_compute_k8s_name",
+        store=True,
+        readonly=False,
+        precompute=True,
         required=True,
         copy=False,
         index=True,
-        help="metadata.name of the Kubernetes custom resource (DNS-1123 label).",
+        help="Technical name used in the cluster and the infrastructure "
+        "repository. Generated from the name automatically.",
     )
+
+    # Callable depends: the mixin is abstract and does not define `name` itself
+    # (every concrete platform model does).
+    @api.depends(lambda self: ("name",) if "name" in self._fields else ())
+    def _compute_k8s_name(self):
+        for rec in self:
+            if not rec.k8s_name and rec.name:
+                rec.k8s_name = k8s.slugify(rec.name)
     # Selection order IS the statusbar display order (left -> right): the happy
     # path reads Pending -> Ready, with the exceptional states in between.
     k8s_state = fields.Selection(

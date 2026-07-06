@@ -102,7 +102,8 @@
                     <group>
                         <group string="Deployment">
                             <field name="client_id" readonly="1"/>
-                            <field name="environment_id"/>
+                            <field name="environment_id"
+                                   context="{'default_client_id': client_id}"/>
                             <field name="type_id"/>
                             <field name="replicas"/>
                             <field name="domain_id"/>
@@ -152,10 +153,18 @@
                         <page string="Observability">
                             <field name="namespace" widget="adomi_observability" nolabel="1" class="w-100"/>
                         </page>
-                        <page string="Build from source">
+                        <page string="Source code" name="source">
+                            <p class="text-muted">
+                                Link the repository this application is built from. The
+                                platform builds an image from it and deploys every push —
+                                leave empty to run the standard catalog image.
+                            </p>
                             <group>
-                                <field name="git_repository_id"/>
-                                <field name="source_ref"/>
+                                <field name="git_repository_id" string="Repository"
+                                       domain="['|', ('client_id', '=', client_id), ('client_id', '=', False)]"
+                                       context="{'default_client_id': client_id}"/>
+                                <field name="source_ref" string="Branch or tag"
+                                       placeholder="(default branch)"/>
                             </group>
                         </page>
                         <page string="Advanced">

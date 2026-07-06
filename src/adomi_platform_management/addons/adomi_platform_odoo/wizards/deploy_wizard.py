@@ -28,15 +28,16 @@ class DeployWizard(models.TransientModel):
     )
     odoo_repo_mode = fields.Selection(
         [
-            ("generate", "Create a new repository from our boilerplate"),
-            ("existing", "Use an existing repository"),
-            ("none", "Skip for now"),
+            ("generate", "Create a new repository for this customer (recommended)"),
+            ("existing", "Use a repository you already have"),
+            ("none", "Decide later"),
         ],
-        string="Pipeline repository",
+        string="Code repository",
         default="generate",
         required=True,
-        help="Generate the customer's Odoo pipeline repo from %s on their GitHub, "
-        "or pick one they already have." % BOILERPLATE_TEMPLATE,
+        help="Every Odoo project lives in a git repository: its addons, "
+        "configuration and build. New repositories are created ready-to-go on "
+        "the customer's GitHub (from %s)." % BOILERPLATE_TEMPLATE,
     )
     odoo_github_installation_id = fields.Many2one(
         "adomi.github.installation", string="GitHub account"
@@ -75,7 +76,7 @@ class DeployWizard(models.TransientModel):
     def _wizard_steps(self):
         steps = super()._wizard_steps()
         idx = [k for k, _label in steps].index("app") + 1
-        steps.insert(idx, ("odoo", _("Odoo pipeline")))
+        steps.insert(idx, ("odoo", _("Your Odoo project")))
         return steps
 
     def _step_visible(self, step):
@@ -149,6 +150,9 @@ class DeployWizard(models.TransientModel):
             {
                 "name": full_name,
                 "k8s_name": k8s.slugify(full_name.rsplit("/", 1)[-1]),
+                # Scoped to the customer: the GitRepository CR is committed to
+                # their infrastructure repo, where the application resolves it.
+                "client_id": application.client_id.id,
                 "url": repo_url,
                 "default_branch": default_branch or "main",
             }
@@ -168,6 +172,19 @@ class DeployWizard(models.TransientModel):
         super()._after_launch(application)
         if not self.is_odoo_type:
             return
+
+        # The product's own record of this deployment: edition + repo + app in
+        # one place (Odoo -> Projects), the anchor for the product dashboard.
+        project = self.env["adomi.odoo.project"].create(
+            {
+                "name": "%s — %s" % (self.client_id.name, application.name),
+                "application_id": application.id,
+                "edition": self.odoo_edition,
+            }
+        )
+        project.message_post(
+            body=_("Created by the launch wizard (%s edition).") % self.odoo_edition
+        )
 
         if self.odoo_repo_mode == "existing" and self.odoo_existing_repo_id:
             repo = self.odoo_existing_repo_id

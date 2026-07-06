@@ -449,6 +449,8 @@ def _get_namespaced(plural: str, name: str, namespace: str) -> dict:
         return api.get_namespaced_custom_object(GROUP, VERSION, namespace, plural, name)
     except ApiException as exc:
         if exc.status == 404:
-            raise NotFound(f"{plural[:-1]} {namespace}/{name!r} not found") from exc
+            raise NotFound(
+                f"referenced {plural}/{name} not found in namespace {namespace}"
+            ) from exc
 
         raise

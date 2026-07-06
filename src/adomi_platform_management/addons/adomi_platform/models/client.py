@@ -329,6 +329,9 @@ class Client(models.Model):
             "name": _("Deploy Application"),
             "res_model": "adomi.deploy.wizard",
             "view_mode": "form",
+            # The customer portal feeds this straight to doAction, which (unlike
+            # a form button) does not normalize view_mode into views itself.
+            "views": [[False, "form"]],
             "target": "new",
             "context": {
                 "default_client_id": self.id,

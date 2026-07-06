@@ -66,6 +66,11 @@ class Domain(models.Model):
         string="CNAME target",
         help="Where the customer points their DNS record (the platform edge).",
     )
+    base_domain = fields.Char(
+        compute="_compute_base_domain",
+        help="The domain platform-managed names are generated under; the view "
+        "uses it to know whether 'Run on our domain' can derive the result.",
+    )
     host = fields.Char(string="Resolved host", readonly=True, copy=False)
     application_ids = fields.One2many("adomi.application", "domain_id", string="Applications")
 
@@ -84,8 +89,23 @@ class Domain(models.Model):
         return (icp.get_param("adomi_platform.edge_host") or "").strip()
 
     def _org_base_domain(self):
+        """The domain to generate platform-managed names under.
+
+        The customer's organization wins; a platform-level parameter backs it
+        so customers without an organization still get 'Run on our domain'.
+        """
         self.ensure_one()
-        return (self.client_id.organization_id.base_domain or "").strip()
+        icp = self.env["ir.config_parameter"].sudo()
+        return (
+            self.client_id.organization_id.base_domain
+            or icp.get_param("adomi_platform.base_domain")
+            or ""
+        ).strip()
+
+    @api.depends("client_id.organization_id.base_domain")
+    def _compute_base_domain(self):
+        for rec in self:
+            rec.base_domain = rec._org_base_domain() or False
 
     @api.depends("mode", "client_id.organization_id.base_domain")
     def _compute_cname_target(self):
@@ -177,7 +197,10 @@ class Domain(models.Model):
             return None  # the customer must be imported first
 
         fqdn = (spec.get("fqdn") or "").strip().lower()
-        base = (client.organization_id.base_domain or "").strip().lower()
+        icp = self.env["ir.config_parameter"].sudo()
+        base = (
+            client.organization_id.base_domain or icp.get_param("adomi_platform.base_domain") or ""
+        ).strip().lower()
         mode = "platform" if base and fqdn.endswith("." + base) else "byo"
 
         vals = {

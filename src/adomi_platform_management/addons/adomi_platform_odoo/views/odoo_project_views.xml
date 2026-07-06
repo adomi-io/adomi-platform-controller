@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_adomi_odoo_project_list" model="ir.ui.view">
+        <field name="name">adomi.odoo.project.list</field>
+        <field name="model">adomi.odoo.project</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="client_id"/>
+                <field name="environment_id"/>
+                <field name="edition"/>
+                <field name="repo_url" widget="url"/>
+                <field name="k8s_state" widget="badge"
+                       decoration-success="k8s_state == 'ready'"
+                       decoration-danger="k8s_state == 'not_ready'"
+                       decoration-warning="k8s_state == 'pending'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_adomi_odoo_project_form" model="ir.ui.view">
+        <field name="name">adomi.odoo.project.form</field>
+        <field name="model">adomi.odoo.project</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_open_application" type="object"
+                            string="Open application" class="btn-primary"/>
+                    <button name="action_open_repo" type="object" string="Open repository"
+                            class="btn-secondary" invisible="not repo_url"/>
+                    <field name="k8s_state" widget="statusbar" statusbar_visible="pending,ready"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Project name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="application_id"/>
+                            <field name="client_id"/>
+                            <field name="environment_id"/>
+                            <field name="edition"/>
+                        </group>
+                        <group>
+                            <field name="repo_url" widget="url"/>
+                            <field name="pipeline_synced_at"/>
+                            <field name="url" widget="url"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_adomi_odoo_project" model="ir.actions.act_window">
+        <field name="name">Odoo Projects</field>
+        <field name="res_model">adomi.odoo.project</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No Odoo projects yet</p>
+            <p>Launch Odoo for a customer and its project — deployment, edition and
+               code repository — is tracked here.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_adomi_odoo" name="Odoo"
+              parent="adomi_platform.menu_adomi_root" sequence="45"/>
+    <menuitem id="menu_adomi_odoo_projects" name="Projects"
+              parent="menu_adomi_odoo" action="action_adomi_odoo_project" sequence="10"/>
+</odoo>

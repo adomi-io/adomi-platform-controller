@@ -1,6 +1,6 @@
 {
     "name": "Adomi Platform — Odoo Pipeline",
-    "version": "19.0.3.0.0",
+    "version": "19.0.4.0.0",
     "summary": "Guided setup for a customer's Odoo pipeline (boilerplate repo, edition, launch)",
     "description": """
 Extends the platform launch wizard with an Odoo product step: pick Community or
@@ -18,6 +18,7 @@ adomi-pipeline.yaml plus a generated Dockerfile.
         "security/ir.model.access.csv",
         "views/deploy_wizard_views.xml",
         "views/application_views.xml",
+        "views/odoo_project_views.xml",
         "data/setup_guides.xml",
     ],
     "installable": True,

@@ -31,18 +31,30 @@
 
                     <!-- Step: application -->
                     <div invisible="state != 'app'">
-                        <group>
-                            <field name="app_name" placeholder="e.g. ERP, Reporting, Mail…"/>
-                            <field name="hostname"/>
-                        </group>
                         <separator string="Choose an application"/>
                         <field name="type_id" widget="adomi_app_catalog" nolabel="1"/>
+                        <group>
+                            <group>
+                                <field name="app_name" placeholder="e.g. ERP, Reporting, Mail…"/>
+                            </group>
+                            <group string="Published at">
+                                <field name="subdomain" placeholder="erp"/>
+                                <field name="domain_id" options="{'no_create': True}"/>
+                                <field name="host_preview" readonly="1"/>
+                                <field name="hostname" groups="base.group_no_one"/>
+                            </group>
+                        </group>
+                        <p class="text-muted">
+                            Leave the address empty and the platform generates one under the
+                            organization domain. You can change it any time after launch.
+                        </p>
                     </div>
 
                     <!-- Step: database -->
                     <group invisible="state != 'database'">
                         <group>
-                            <field name="database_server_id"/>
+                            <field name="database_server_id"
+                                   context="{'default_client_id': client_id}"/>
                             <field name="database_name" placeholder="Defaults to the app name"/>
                         </group>
                         <group>
@@ -56,10 +68,13 @@
 
                     <!-- Step: variables & secrets -->
                     <div invisible="state != 'config'">
+                        <separator string="Wired up for you"/>
+                        <field name="provided_summary" readonly="1" nolabel="1"/>
+                        <separator string="Anything specific to this app?"/>
                         <p class="text-muted">
-                            Applied to this application only. Secret values go straight to the
-                            platform vault. Shared values are better placed on the customer,
-                            environment, or organization afterwards.
+                            Only values this application needs beyond the platform wiring —
+                            an API key, a feature flag. Secret values go straight to the
+                            platform vault. Most launches add nothing here.
                         </p>
                         <field name="config_line_ids" nolabel="1">
                             <list editable="bottom">

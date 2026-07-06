@@ -404,6 +404,9 @@ class Application(models.Model):
             "name": _("Who can open %s?") % self.name,
             "res_model": "adomi.app.access.wizard",
             "view_mode": "form",
+            # Fed straight to doAction by the customer portal, which does not
+            # normalize view_mode into views itself.
+            "views": [[False, "form"]],
             "target": "new",
             "context": {"default_application_id": self.id},
         }

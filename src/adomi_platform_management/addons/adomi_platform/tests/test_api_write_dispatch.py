@@ -74,6 +74,29 @@ class TestApiWriteDispatch(TransactionCase):
         self.assertEqual(call["body"]["databases"][0]["server"], "acme-prod-db")
         self.assertEqual(call["body"]["databases"][0]["credentials"], {"secret": "erp-db"})
 
+    def test_git_repository_routes_to_client_repo(self):
+        # Customer-scoped: the GitRepository CR must be committed to the
+        # customer's infrastructure repo (client namespace), where that
+        # customer's applications resolve their sourceRepositoryRef — NOT to
+        # the shared platform namespace.
+        client = self._new_client()
+        self.api.upserts.clear()
+        self.env["adomi.git.repository"].create(
+            {
+                "name": "acme/acme-odoo",
+                "k8s_name": "acme-odoo",
+                "client_id": client.id,
+                "url": "https://github.com/acme/acme-odoo",
+                "default_branch": "main",
+            }
+        )
+        call = self.api.upserts[-1]
+        self.assertEqual(call["path"], "/v1/clients/acme/gitrepositories/acme-odoo")
+        self.assertEqual(
+            call["body"],
+            {"url": "https://github.com/acme/acme-odoo", "default_branch": "main"},
+        )
+
     def test_unlink_calls_delete(self):
         self._new_client().unlink()
         self.assertTrue(any(d["path"] == "/v1/clients/acme" for d in self.api.deletes))

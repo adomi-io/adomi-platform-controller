@@ -40,7 +40,8 @@
                             <field name="k8s_name"/>
                             <field name="client_id"/>
                             <field name="environment_id"
-                                   domain="[('client_id', '=', client_id)]"/>
+                                   domain="[('client_id', '=', client_id)]"
+                                   context="{'default_client_id': client_id}"/>
                         </group>
                         <group string="Server">
                             <field name="engine"/>

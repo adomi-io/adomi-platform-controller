@@ -88,6 +88,17 @@ class TestOdooWizard(TransactionCase):
         self.assertEqual(fake.generated[0]["name"], "acme-odoo")
         self.assertTrue(application.git_repository_id)
         self.assertIn("github.com/acme-org/acme-odoo", application.git_repository_id.url)
+        # Customer-scoped, so the CR lands in the customer's infrastructure
+        # repo where the application resolves it.
+        self.assertEqual(application.git_repository_id.client_id, self.client)
+
+        project = self.env["adomi.odoo.project"].search(
+            [("application_id", "=", application.id)]
+        )
+        self.assertEqual(len(project), 1)
+        self.assertEqual(project.client_id, self.client)
+        self.assertEqual(project.edition, "community")
+        self.assertEqual(project.git_repository_id, application.git_repository_id)
 
     def test_after_launch_links_existing_repo(self):
         installation = self._installation()
@@ -121,6 +132,12 @@ class TestOdooWizard(TransactionCase):
         self.assertTrue(application.git_repository_id)
         self.assertEqual(
             application.git_repository_id.url, "https://github.com/acme-org/acme-erp"
+        )
+        self.assertEqual(application.git_repository_id.client_id, self.client)
+        self.assertTrue(
+            self.env["adomi.odoo.project"].search(
+                [("application_id", "=", application.id)]
+            )
         )
 
     def test_existing_mode_requires_a_repo(self):

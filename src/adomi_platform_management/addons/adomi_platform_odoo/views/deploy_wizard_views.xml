@@ -16,7 +16,7 @@
                                    invisible="odoo_edition != 'enterprise'"
                                    placeholder="your-org/enterprise"/>
                         </group>
-                        <group string="Pipeline repository">
+                        <group string="Code repository">
                             <field name="odoo_repo_mode" widget="radio" nolabel="1" colspan="2"/>
                             <field name="odoo_github_installation_id"
                                    invisible="odoo_repo_mode == 'none'"
@@ -30,11 +30,10 @@
                         </group>
                     </group>
                     <p class="text-muted">
-                        The pipeline repository holds the customer's addons, config and CI —
-                        the platform builds and deploys from it. New repositories are
-                        generated on their GitHub from <code>adomi-io/odoo-boilerplate</code>;
-                        picking an existing one lists the repositories the GitHub connection
-                        can reach.
+                        Every Odoo project lives in a git repository — the customer's
+                        addons and configuration. The platform builds and deploys it on
+                        every push. New repositories are created ready-to-go on the
+                        customer's GitHub.
                     </p>
                 </div>
             </xpath>

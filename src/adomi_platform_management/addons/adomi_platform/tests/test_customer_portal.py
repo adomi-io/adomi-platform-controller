@@ -55,6 +55,25 @@ class TestDomain(PortalCase):
         domain._onchange_platform_fqdn()
         self.assertEqual(domain.fqdn, "acme.adomi.app")
 
+    def test_platform_mode_falls_back_to_param_base_domain(self):
+        # A customer without an organization can still "run on our domain"
+        # once the platform-level base domain parameter is set.
+        loner = self.no_push["adomi.client"].create({"name": "Loner", "k8s_name": "loner"})
+        domain = self.no_push["adomi.domain"].new(
+            {"client_id": loner.id, "mode": "platform", "platform_label": "loner"}
+        )
+        self.assertFalse(domain.base_domain)
+
+        self.env["ir.config_parameter"].sudo().set_param(
+            "adomi_platform.base_domain", "apps.example.com"
+        )
+        domain = self.no_push["adomi.domain"].new(
+            {"client_id": loner.id, "mode": "platform", "platform_label": "loner"}
+        )
+        self.assertEqual(domain.base_domain, "apps.example.com")
+        domain._onchange_platform_fqdn()
+        self.assertEqual(domain.fqdn, "loner.apps.example.com")
+
     def test_cname_target_falls_back_to_org_base_domain(self):
         domain = self.no_push["adomi.domain"].create(
             {"client_id": self.client.id, "fqdn": "acme.com"}

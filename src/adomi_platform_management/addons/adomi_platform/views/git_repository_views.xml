@@ -6,6 +6,7 @@
         <field name="arch" type="xml">
             <list>
                 <field name="name"/>
+                <field name="client_id"/>
                 <field name="url" widget="url"/>
                 <field name="default_branch"/>
                 <field name="preview_enabled"/>
@@ -32,6 +33,7 @@
                         <group>
                             <field name="name"/>
                             <field name="k8s_name"/>
+                            <field name="client_id"/>
                             <field name="url"/>
                             <field name="default_branch"/>
                             <field name="credentials_secret"/>

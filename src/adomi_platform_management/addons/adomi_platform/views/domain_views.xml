@@ -30,9 +30,10 @@
                         <field name="mode" widget="radio"/>
                         <field name="platform_label" invisible="mode != 'platform'"
                                placeholder="acme"/>
-                        <field name="fqdn" readonly="mode == 'platform'"
+                        <field name="fqdn" readonly="mode == 'platform' and base_domain"
                                placeholder="acme.com"/>
                         <field name="cname_target" invisible="1"/>
+                        <field name="base_domain" invisible="1"/>
                     </group>
                     <div class="alert alert-info" role="alert"
                          invisible="mode != 'byo' or not cname_target">
@@ -41,9 +42,16 @@
                         The platform takes it from there — routing and certificates included.
                     </div>
                     <div class="alert alert-success" role="alert"
-                         invisible="mode != 'platform'">
+                         invisible="mode != 'platform' or not base_domain">
                         Nothing to do on the customer's side: DNS and certificates are
                         fully managed by the platform.
+                    </div>
+                    <div class="alert alert-warning" role="alert"
+                         invisible="mode != 'platform' or base_domain">
+                        No base domain is configured to generate names under. Set one on
+                        the customer's organization (or the
+                        <code>adomi_platform.base_domain</code> system parameter), or type
+                        the full domain above.
                     </div>
                     <group string="Advanced">
                         <field name="wildcard"/>
