@@ -154,7 +154,8 @@ class DeployWizard(models.TransientModel):
                 # their infrastructure repo, where the application resolves it.
                 "client_id": application.client_id.id,
                 "url": repo_url,
-                "default_branch": default_branch or "main",
+                # odoo-boilerplate (the generate template) defaults to master.
+                "default_branch": default_branch or "master",
             }
         )
         application.with_context(adomi_no_push=False).write(

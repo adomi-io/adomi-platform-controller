@@ -46,7 +46,9 @@ class TestDeployWizard(TransactionCase):
 
     # --- cascading target step ---
     def test_target_step_requires_customer_and_environment(self):
-        wiz = self._wizard()
+        # Explicitly empty: with a single customer in the database the wizard
+        # would otherwise derive it (and its lone environment) as defaults.
+        wiz = self._wizard(client_id=False, environment_id=False)
         with self.assertRaises(UserError):
             wiz._validate_step("target")
         wiz.client_id = self.client
