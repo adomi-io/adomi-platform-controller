@@ -63,8 +63,10 @@ spec:
           # Rootless mode without a nested process sandbox (no privileged needed).
           - name: BUILDKITD_FLAGS
             value: --oci-worker-no-process-sandbox
-          # Used by BuildKit's git source to clone private repositories. Empty for
-          # public repos (the secret always exists; the token may be blank).
+          # Git token for cloning private repositories. Empty for public repos
+          # (the secret always exists; the token may be blank). The env var
+          # alone is NOT enough — BuildKit's git source only reads it as a
+          # session secret, so the build step forwards it via --secret below.
           - name: GIT_AUTH_TOKEN
             valueFrom:
               secretKeyRef:
@@ -85,10 +87,20 @@ spec:
               CONTEXT="$CONTEXT:$CTXPATH"
             fi
             echo "Building $CONTEXT -> {{`{{inputs.parameters.outputImage}}`}}"
+            # Hand the git token to BuildKit as the GIT_AUTH_TOKEN session
+            # secret (sent as basic auth, username x-access-token). Only when a
+            # token is present — public repos must keep cloning anonymously.
+            SECRET_ARGS=""
+            if [ -n "${GIT_AUTH_TOKEN:-}" ]; then
+              umask 077
+              printf '%s' "$GIT_AUTH_TOKEN" > /tmp/git-auth-token
+              SECRET_ARGS="--secret id=GIT_AUTH_TOKEN,src=/tmp/git-auth-token"
+            fi
             buildctl-daemonless.sh build \
               --frontend dockerfile.v0 \
               --opt context="$CONTEXT" \
               --opt filename="{{`{{inputs.parameters.dockerfile}}`}}" \
               --opt build-arg:ODOO_BASE_IMAGE="{{`{{inputs.parameters.baseImage}}`}}" \
-              --output type=image,name="{{`{{inputs.parameters.outputImage}}`}}",push=true
+              --output type=image,name="{{`{{inputs.parameters.outputImage}}`}}",push=true \
+              $SECRET_ARGS
 {{- end }}
