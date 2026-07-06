@@ -282,13 +282,12 @@ class TestAppAccess(PortalCase):
         self.patch(
             type(self.env["adomi.application"]), "_platform_api", lambda s: self.stub
         )
-        wizard = self.no_push["adomi.app.access.wizard"].create(
-            {"application_id": self.app.id}
-        )
+        Wizard = self.no_push["adomi.app.access.wizard"]
+        Wizard.default_get(["application_id", "user_id"])  # opening the dialog syncs
         user = self.env["adomi.authentik.user"].search([("authentik_pk", "=", 8)])
         self.assertTrue(user, "default_get should have synced the directory")
         self.assertEqual(user.name, "cory")  # falls back to the username
-        wizard.user_id = user
+        wizard = Wizard.create({"application_id": self.app.id, "user_id": user.id})
         wizard.action_grant()
         self.assertEqual(
             self.stub.puts,

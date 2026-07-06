@@ -130,7 +130,11 @@ class PipelineCase(TransactionCase):
             {"app_id": app_rec.id, "installation_id": "42", "account_login": "acme"}
         )
         self.env["adomi.github.repository"].create(
-            {"installation_id": installation.id, "full_name": "acme/acme-odoo"}
+            {
+                "installation_id": installation.id,
+                "name": "acme-odoo",
+                "full_name": "acme/acme-odoo",
+            }
         )
         self.patch(type(installation), "_client", lambda inst: self.github)
 

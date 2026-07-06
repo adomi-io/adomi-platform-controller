@@ -156,8 +156,17 @@ class AuthentikAdmin:
 
     # --- application access bindings -------------------------------------------
     def application_by_slug(self, slug: str) -> dict | None:
+        # superuser_full_list is load-bearing: Authentik access-filters the
+        # applications list by default, so the moment our group binding gates an
+        # app it would DISAPPEAR from this query — restricted detection would
+        # report "everyone" and revoking the last user could never find the app
+        # to unbind (leaving an empty bound group locking everyone out).
         data = self._json(
-            self._request("GET", "core/applications/", params={"slug": slug}),
+            self._request(
+                "GET",
+                "core/applications/",
+                params={"slug": slug, "superuser_full_list": "true"},
+            ),
             f"Reading application {slug!r}",
         )
         for app in data.get("results") or []:

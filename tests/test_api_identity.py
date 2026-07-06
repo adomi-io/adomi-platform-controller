@@ -141,6 +141,21 @@ def test_remove_binding_deletes_only_our_group():
     assert len(deletes) == 1 and "bindings/b1/" in deletes[0]["url"]
 
 
+def test_application_lookup_uses_superuser_full_list():
+    """Regression: a gated app disappears from the default (access-filtered)
+    applications list, breaking restricted-detection and last-revoke unbinding."""
+    session = _StubSession(
+        [
+            (
+                ("GET", "core/applications/"),
+                _Resp(200, {"results": [{"pk": "app-1", "slug": "erp-sso"}]}),
+            ),
+        ]
+    )
+    assert _admin(session).application_by_slug("erp-sso")["pk"] == "app-1"
+    assert "superuser_full_list=true" in session.calls[0]["url"]
+
+
 def test_missing_config_raises():
     with pytest.raises(IdentityError):
         AuthentikAdmin("", "tok", session=_StubSession([]))
