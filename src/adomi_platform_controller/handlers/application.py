@@ -101,8 +101,11 @@ class ApplicationReconciler(Reconciler):
         return descriptor, True
 
     @staticmethod
-    def _git_secret_name(namespace: str) -> str:
-        return f"git-{namespace}"[:253]
+    def _git_secret_name(namespace: str, app: str) -> str:
+        # One Secret per Application: GitHub App tokens are minted per
+        # repository, so applications in the same namespace building different
+        # repositories must never share a git secret (last mint would win).
+        return f"git-{namespace}-{app}"[:253]
 
     @staticmethod
     def _github_app_token(cfg, bao, repo_url: str, logger) -> str:
@@ -426,7 +429,7 @@ class ApplicationReconciler(Reconciler):
             ref,
         )
         base_image = source.get("baseImage") or f"{eff.image_repository}:latest"
-        git_secret = self._git_secret_name(eff.namespace)
+        git_secret = self._git_secret_name(eff.namespace, eff.app_name)
 
         try:
             bao = state.provider().openbao()

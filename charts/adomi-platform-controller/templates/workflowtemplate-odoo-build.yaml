@@ -81,7 +81,15 @@ spec:
         args:
           - |
             set -eu
-            CONTEXT="{{`{{inputs.parameters.repoURL}}`}}#{{`{{inputs.parameters.ref}}`}}"
+            # BuildKit only treats an https context as a GIT remote when it
+            # ends in .git — otherwise it plain-HTTP-downloads the URL (a
+            # GitHub HTML page; 404 for private repos) and git auth secrets
+            # never apply.
+            REPO_URL="{{`{{inputs.parameters.repoURL}}`}}"
+            if [ "${REPO_URL%.git}" = "$REPO_URL" ]; then
+              REPO_URL="$REPO_URL.git"
+            fi
+            CONTEXT="$REPO_URL#{{`{{inputs.parameters.ref}}`}}"
             CTXPATH="{{`{{inputs.parameters.contextPath}}`}}"
             if [ -n "$CTXPATH" ] && [ "$CTXPATH" != "." ]; then
               CONTEXT="$CONTEXT:$CTXPATH"
