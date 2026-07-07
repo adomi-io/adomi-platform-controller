@@ -117,6 +117,14 @@ class Config:
     harbor_username: str = "admin"  # registry push user
     harbor_secret_path: str = "harbor-app"  # OpenBao KV path holding the push password
     harbor_secret_key: str = "admin-password"  # key within that path
+    # Registry endpoint builds PUSH through, e.g. http://harbor-core.harbor.svc.
+    # In-cluster builds should reach the registry over the cluster's own service
+    # DNS like every other in-cluster call — the public host may sit behind a
+    # CDN proxy that caps upload bodies (Cloudflare 413s image layers). Images
+    # are still DEPLOYED under the public Harbor host: a registry serves the
+    # same content under any of its names. An http:// scheme marks the endpoint
+    # insecure for BuildKit. Empty pushes via the public host.
+    harbor_push_endpoint: str = ""
 
     # GitHub App used to clone private github.com repositories during builds:
     # the controller mints a short-lived installation token per build (nothing
@@ -223,6 +231,7 @@ class Config:
             harbor_username=_env("HARBOR_USERNAME", d.harbor_username),
             harbor_secret_path=_env("HARBOR_SECRET_PATH", d.harbor_secret_path),
             harbor_secret_key=_env("HARBOR_SECRET_KEY", d.harbor_secret_key),
+            harbor_push_endpoint=_env("HARBOR_PUSH_ENDPOINT", d.harbor_push_endpoint),
             github_app_secret_path=_env("GITHUB_APP_SECRET_PATH", d.github_app_secret_path),
             github_app_id_key=_env("GITHUB_APP_ID_KEY", d.github_app_id_key),
             github_app_private_key_key=_env(

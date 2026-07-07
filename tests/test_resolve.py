@@ -120,3 +120,23 @@ def test_compute_image_tag_default_and_org_override():
     )
     assert eff.image_repository == "ghcr.io/acme/odoo"
     assert eff.image_tag == "20.0"
+
+
+def test_push_image_ref_rewrites_host_for_internal_endpoint():
+    public = "harbor.example.com/previews/acme-erp:master"
+
+    # No endpoint: push exactly what will be deployed.
+    assert resolve.push_image_ref(public, "") == (public, False)
+
+    # In-cluster plain-HTTP endpoint: swap the host, flag insecure. The deploy
+    # reference keeps the public host — same registry, same content.
+    assert resolve.push_image_ref(public, "http://harbor-core.harbor.svc") == (
+        "harbor-core.harbor.svc/previews/acme-erp:master",
+        True,
+    )
+
+    # TLS endpoint (or one with a port) stays secure.
+    assert resolve.push_image_ref(public, "https://registry.internal:5443/") == (
+        "registry.internal:5443/previews/acme-erp:master",
+        False,
+    )

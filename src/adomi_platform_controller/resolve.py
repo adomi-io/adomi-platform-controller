@@ -140,6 +140,27 @@ def parse_owner_repo(url: str) -> tuple[str, str]:
     return "", ""
 
 
+def push_image_ref(image_ref: str, push_endpoint: str) -> tuple[str, bool]:
+    """Rewrite an image reference to push through an internal registry endpoint.
+
+    Returns ``(push_ref, insecure)``. The deploy reference keeps the public
+    host — a registry serves the same content under any of its names, so a blob
+    pushed via the in-cluster service is pullable via the public host. An
+    ``http://`` endpoint is flagged insecure for BuildKit (in-cluster service
+    traffic, same trust boundary as every other svc-to-svc call).
+    """
+    endpoint = (push_endpoint or "").strip().rstrip("/")
+
+    if not endpoint:
+        return image_ref, False
+
+    insecure = endpoint.startswith("http://")
+    host = re.sub(r"^[a-z]+://", "", endpoint)
+    _, rest = image_ref.split("/", 1)
+
+    return f"{host}/{rest}", insecure
+
+
 def sanitize_tag(ref: str) -> str:
     """Reduce a git ref to a valid Docker image tag."""
     tag = re.sub(r"[^A-Za-z0-9_.-]", "-", (ref or "").strip())

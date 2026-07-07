@@ -429,6 +429,9 @@ class ApplicationReconciler(Reconciler):
             ref,
         )
         base_image = source.get("baseImage") or f"{eff.image_repository}:{eff.image_tag}"
+        # Push through the in-cluster registry endpoint when configured; the
+        # Application still deploys built_image under the public Harbor host.
+        push_image, push_insecure = resolve.push_image_ref(built_image, cfg.harbor_push_endpoint)
         git_secret = self._git_secret_name(eff.namespace, eff.app_name)
 
         try:
@@ -445,10 +448,12 @@ class ApplicationReconciler(Reconciler):
                     generation,
                 )
 
+            # BuildKit resolves credentials by the registry host in the image
+            # name, so the docker config must carry the PUSH host.
             buildsecrets.ManagedSecret.dockerconfig(
                 PUSH_SECRET_NAME,
                 cfg.argo_namespace,
-                harbor_host,
+                push_image.split("/", 1)[0],
                 cfg.harbor_username,
                 password,
             ).apply()
@@ -490,7 +495,8 @@ class ApplicationReconciler(Reconciler):
                     "contextPath": source.get("contextPath") or ".",
                     "dockerfile": source.get("dockerfile") or "Dockerfile",
                     "baseImage": base_image,
-                    "outputImage": built_image,
+                    "outputImage": push_image,
+                    "insecurePush": "true" if push_insecure else "false",
                     "pushSecret": PUSH_SECRET_NAME,
                     "gitSecret": git_secret,
                 },

@@ -23,6 +23,9 @@ spec:
       - { name: dockerfile, value: Dockerfile }
       - { name: baseImage }
       - { name: outputImage }
+      # "true" when outputImage points at a plain-HTTP (in-cluster) registry
+      # endpoint rather than the public TLS host.
+      - { name: insecurePush, value: "false" }
       - { name: pushSecret, value: harbor-push }
       - { name: gitSecret }
   templates:
@@ -35,6 +38,7 @@ spec:
           - { name: dockerfile }
           - { name: baseImage }
           - { name: outputImage }
+          - { name: insecurePush, value: "false" }
           - { name: pushSecret }
           - { name: gitSecret }
       metadata:
@@ -104,11 +108,15 @@ spec:
               printf '%s' "$GIT_AUTH_TOKEN" > /tmp/git-auth-token
               SECRET_ARGS="--secret id=GIT_AUTH_TOKEN,src=/tmp/git-auth-token"
             fi
+            OUTPUT="type=image,name={{`{{inputs.parameters.outputImage}}`}},push=true"
+            if [ "{{`{{inputs.parameters.insecurePush}}`}}" = "true" ]; then
+              OUTPUT="$OUTPUT,registry.insecure=true"
+            fi
             buildctl-daemonless.sh build \
               --frontend dockerfile.v0 \
               --opt context="$CONTEXT" \
               --opt filename="{{`{{inputs.parameters.dockerfile}}`}}" \
               --opt build-arg:ODOO_BASE_IMAGE="{{`{{inputs.parameters.baseImage}}`}}" \
-              --output type=image,name="{{`{{inputs.parameters.outputImage}}`}}",push=true \
+              --output "$OUTPUT" \
               $SECRET_ARGS
 {{- end }}
