@@ -24,6 +24,7 @@ from .. import (
     dbjobs,
     externalsecrets,
     github,
+    harbor,
     namespaces,
     oidc,
     resolve,
@@ -33,6 +34,11 @@ from .. import (
 from ._common import Reconciler, fail
 
 PUSH_SECRET_NAME = "harbor-push"
+PULL_SECRET_NAME = "harbor-pull"
+
+# Harbor projects already ensured this process lifetime, keyed (api_base, project) —
+# skips a per-reconcile API round-trip; a restart just re-ensures (idempotent).
+_ensured_projects: set[tuple[str, str]] = set()
 
 BUILD_POLL_DELAY = 15
 BUILD_FAIL_DELAY = 120
@@ -235,6 +241,11 @@ class ApplicationReconciler(Reconciler):
                 env=eff.env,
                 oidc=oidc_values,
                 env_from_secret=env_from_secret,
+                # Built images sit in a private Harbor project; the matching pull
+                # credential is delivered by _ensure_pull_secret during the build.
+                image_pull_secret=(
+                    PULL_SECRET_NAME if built_image and cfg.harbor_pull_secret_path else ""
+                ),
             ),
             spec.get("values") or {},
         )
@@ -325,6 +336,49 @@ class ApplicationReconciler(Reconciler):
         except Exception as exc:  # noqa: BLE001 - scoped secrets are additive
             logger.warning("scoped secrets for %s not delivered: %s", eff.app_name, exc)
             return ""
+
+    @staticmethod
+    def _ensure_pull_secret(cfg, bao, eff, harbor_host, admin_password, labels) -> None:
+        """Make the app namespace able to pull its built (private-project) images.
+
+        Ensures the Harbor project exists and a project-scoped pull-only robot
+        account backs it; the robot credential is stored in OpenBao at creation
+        (Harbor reveals a robot secret exactly once) and delivered into the app
+        namespace as a dockerconfigjson Secret via an ExternalSecret. The Secret
+        is keyed to the public Harbor host — kubelets resolve pull credentials by
+        the deployed image's registry host.
+        """
+        if not cfg.harbor_pull_secret_path:
+            return
+
+        api_base = cfg.harbor_push_endpoint or f"https://{harbor_host}"
+        registry = harbor.HarborClient(api_base, cfg.harbor_username, admin_password)
+
+        if (api_base, cfg.harbor_project) not in _ensured_projects:
+            registry.ensure_project(cfg.harbor_project)
+            _ensured_projects.add((api_base, cfg.harbor_project))
+
+        creds = bao.read(cfg.harbor_pull_secret_path) or {}
+
+        if not (creds.get("username") and creds.get("password")):
+            username, secret = registry.ensure_pull_robot(cfg.harbor_project)
+            bao.write(
+                cfg.harbor_pull_secret_path,
+                {"username": username, "password": secret},
+            )
+
+        externalsecrets.ExternalSecret(
+            name=PULL_SECRET_NAME,
+            namespace=eff.namespace,
+            store_name=cfg.cluster_secret_store,
+            remote_path=cfg.harbor_pull_secret_path,
+            data_map={"username": "username", "password": "password"},
+            template_type="kubernetes.io/dockerconfigjson",
+            template_data={
+                ".dockerconfigjson": externalsecrets.dockerconfigjson_template(harbor_host),
+            },
+            labels=labels,
+        ).apply()
 
     def _resolve(self, cfg, spec, name, namespace, patch, status, generation) -> resolve.Effective:
         environment_ref = (spec.get("environmentRef") or {}).get("name")
@@ -457,6 +511,8 @@ class ApplicationReconciler(Reconciler):
                 cfg.harbor_username,
                 password,
             ).apply()
+
+            self._ensure_pull_secret(cfg, bao, eff, harbor_host, password, labels)
 
             cred_ref = repo_spec.get("credentialsSecretRef") or {}
 

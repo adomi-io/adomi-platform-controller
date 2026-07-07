@@ -12,6 +12,19 @@ from dataclasses import dataclass, field
 from .kube import CustomResource
 
 
+def dockerconfigjson_template(host: str) -> str:
+    """The ESO Go template rendering a docker config for one registry host.
+
+    Expects ``username`` / ``password`` among the fetched keys; pairs with
+    ``template_type=kubernetes.io/dockerconfigjson`` so the delivered Secret is a
+    kubelet-usable image pull secret.
+    """
+    return (
+        '{"auths":{"%s":{"username":"{{ .username }}","password":"{{ .password }}",'
+        '"auth":"{{ printf "%%s:%%s" .username .password | b64enc }}"}}}' % host
+    )
+
+
 @dataclass
 class ExternalSecret(CustomResource):
     """A credential-delivery ExternalSecret.
@@ -40,6 +53,11 @@ class ExternalSecret(CustomResource):
     # consumer can wire every connection field from one Secret — the fetched secret
     # values are carried through automatically.
     template_data: dict[str, str] = field(default_factory=dict)
+    # Secret type for templated output (e.g. kubernetes.io/dockerconfigjson). With a
+    # type set, template_data fully defines the Secret payload — the fetched keys are
+    # template inputs only, not carried through (a dockerconfigjson Secret must hold
+    # exactly its .dockerconfigjson key).
+    template_type: str = ""
     # When set, pull EVERY key from each of these OpenBao paths instead of named
     # properties (spec.dataFrom). ESO merges the maps in order - later paths
     # override earlier keys - which is exactly the scoped-secrets precedence.
@@ -91,9 +109,15 @@ class ExternalSecret(CustomResource):
             # hyphenated keys like client-id work — Go templates read `.client-id` as a
             # subtraction.
             template = dict(self.template_data)
-            for key in self._fetched_keys():
-                template.setdefault(key, '{{ index . "%s" }}' % key)
+
+            if not self.template_type:
+                for key in self._fetched_keys():
+                    template.setdefault(key, '{{ index . "%s" }}' % key)
+
             target["template"] = {"engine": "v2", "data": template}
+
+            if self.template_type:
+                target["template"]["type"] = self.template_type
 
         spec: dict = {
             "refreshInterval": self.refresh_interval,

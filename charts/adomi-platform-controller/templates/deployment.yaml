@@ -111,6 +111,8 @@ spec:
               value: {{ .Values.platform.build.harbor.secretKey | quote }}
             - name: HARBOR_PUSH_ENDPOINT
               value: {{ .Values.platform.build.harbor.pushEndpoint | quote }}
+            - name: HARBOR_PULL_SECRET_PATH
+              value: {{ .Values.platform.build.harbor.pullSecretPath | quote }}
             # GitHub App auth for private-repo builds (OpenBao path + key names).
             - name: GITHUB_APP_SECRET_PATH
               value: {{ .Values.platform.build.githubApp.secretPath | quote }}

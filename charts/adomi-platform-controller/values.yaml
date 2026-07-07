@@ -150,6 +150,12 @@ platform:
       # Harbor advertises an https token realm with no in-cluster listener and
       # pushes fail fetching an auth token. Empty pushes via the public host.
       pushEndpoint: ""
+      # OpenBao KV path for the pull-only robot credential app namespaces use
+      # as their imagePullSecret. The controller creates the robot (scoped to
+      # the project above, pull-only), stores its credential here once, and
+      # delivers it into each building app's namespace via an ExternalSecret.
+      # Empty disables delivery (the project must then be public to pull).
+      pullSecretPath: harbor-pull
     # GitHub App used to clone private github.com repositories: the controller
     # mints a short-lived installation token per build (scoped to that one repo,
     # contents:read — nothing durable is ever stored). Seed the OpenBao path once

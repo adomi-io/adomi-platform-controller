@@ -50,9 +50,28 @@ def test_build_chart_values_minimal_omits_image_and_ingress():
 
     assert "image" not in v
     assert "ingress" not in v
+    assert "imagePullSecrets" not in v
     assert v["databases"] == []
     assert v["sso"] == []
     assert v["env"] == []
+
+
+def test_build_chart_values_image_pull_secret():
+    v = build_chart_values(
+        client_slug="acme",
+        replicas=1,
+        image="harbor.example.com/previews/acme-erp-odoo:master",
+        ingress_host="",
+        ingress_class_name="",
+        ingress_tls=[],
+        ingress_annotations=None,
+        databases=[],
+        sso=[],
+        env=[],
+        image_pull_secret="harbor-pull",
+    )
+
+    assert v["imagePullSecrets"] == [{"name": "harbor-pull"}]
 
 
 def test_build_chart_values_image_without_tag():

@@ -125,6 +125,13 @@ class Config:
     # same content under any of its names. An http:// scheme marks the endpoint
     # insecure for BuildKit. Empty pushes via the public host.
     harbor_push_endpoint: str = ""
+    # OpenBao KV path for the pull-only robot credential app namespaces use as
+    # their imagePullSecret. The controller creates the robot (project-scoped,
+    # pull-only) and stores its credential here once — Harbor only reveals a
+    # robot secret at creation — then delivers it to each building app's
+    # namespace via an ExternalSecret. Empty disables pull-secret delivery
+    # (the Harbor project must then be public for nodes to pull).
+    harbor_pull_secret_path: str = "harbor-pull"
 
     # GitHub App used to clone private github.com repositories during builds:
     # the controller mints a short-lived installation token per build (nothing
@@ -232,6 +239,10 @@ class Config:
             harbor_secret_path=_env("HARBOR_SECRET_PATH", d.harbor_secret_path),
             harbor_secret_key=_env("HARBOR_SECRET_KEY", d.harbor_secret_key),
             harbor_push_endpoint=_env("HARBOR_PUSH_ENDPOINT", d.harbor_push_endpoint),
+            harbor_pull_secret_path=_env(
+                "HARBOR_PULL_SECRET_PATH",
+                d.harbor_pull_secret_path,
+            ),
             github_app_secret_path=_env("GITHUB_APP_SECRET_PATH", d.github_app_secret_path),
             github_app_id_key=_env("GITHUB_APP_ID_KEY", d.github_app_id_key),
             github_app_private_key_key=_env(

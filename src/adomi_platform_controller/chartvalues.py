@@ -25,6 +25,7 @@ def build_chart_values(
     env: list,
     oidc: dict | None = None,
     env_from_secret: str = "",
+    image_pull_secret: str = "",
 ) -> dict:
     """Map the explicit intent onto the per-app chart's value contract (pure).
 
@@ -57,6 +58,11 @@ def build_chart_values(
     if image:
         repo, _, tag = image.partition(":")
         values["image"] = {"repository": repo, "tag": tag} if tag else {"repository": repo}
+
+    if image_pull_secret:
+        # Built images live in a private Harbor project; the controller delivers
+        # this pull credential into the app namespace (see the pull-robot flow).
+        values["imagePullSecrets"] = [{"name": image_pull_secret}]
 
     if ingress_host:
         ingress: dict = {
