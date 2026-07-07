@@ -140,13 +140,15 @@ platform:
       username: admin
       secretPath: harbor-app
       secretKey: admin-password
-      # Registry endpoint builds PUSH through, e.g. http://harbor-core.harbor.svc —
+      # Registry endpoint builds PUSH through, e.g. http://harbor-core.harbor.svc:80 —
       # in-cluster builds should reach the registry over the cluster's own service
       # DNS like every other in-cluster call (the public host may sit behind a CDN
       # proxy that caps upload bodies; Cloudflare 413s image layers). Images are
       # still deployed under the public host above — a registry serves the same
       # content under any of its names. http:// marks it insecure for BuildKit.
-      # Empty pushes via the public host.
+      # The host (including any :port) must exactly match Harbor's CORE_URL, or
+      # Harbor advertises an https token realm with no in-cluster listener and
+      # pushes fail fetching an auth token. Empty pushes via the public host.
       pushEndpoint: ""
     # GitHub App used to clone private github.com repositories: the controller
     # mints a short-lived installation token per build (scoped to that one repo,
