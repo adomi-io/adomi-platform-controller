@@ -18,7 +18,7 @@ def _http_error(code: int) -> urllib.error.HTTPError:
 def test_client_sends_basic_auth_and_api_prefix(monkeypatch):
     calls = []
 
-    def fake_request(base, auth, method, path, body=None):
+    def fake_request(base, auth, method, path, body=None, headers=None):
         calls.append((base, auth, method, path, body))
         return None
 
@@ -35,7 +35,7 @@ def test_client_sends_basic_auth_and_api_prefix(monkeypatch):
 
 
 def test_ensure_project_tolerates_conflict(monkeypatch):
-    def fake_request(base, auth, method, path, body=None):
+    def fake_request(base, auth, method, path, body=None, headers=None):
         raise _http_error(409)
 
     monkeypatch.setattr(harbor, "_api_request", fake_request)
@@ -43,7 +43,7 @@ def test_ensure_project_tolerates_conflict(monkeypatch):
 
 
 def test_ensure_project_raises_on_other_errors(monkeypatch):
-    def fake_request(base, auth, method, path, body=None):
+    def fake_request(base, auth, method, path, body=None, headers=None):
         raise _http_error(401)
 
     monkeypatch.setattr(harbor, "_api_request", fake_request)
@@ -55,10 +55,13 @@ def test_ensure_project_raises_on_other_errors(monkeypatch):
 def test_ensure_pull_robot_recreates_and_returns_credentials(monkeypatch):
     calls = []
 
-    def fake_request(base, auth, method, path, body=None):
+    def fake_request(base, auth, method, path, body=None, headers=None):
         calls.append((method, path))
 
         if method == "GET":
+            # Name-based project paths 404 without this header (Harbor parses
+            # the segment as an integer id otherwise).
+            assert headers == {"X-Is-Resource-Name": "true"}
             # An existing pull robot (stale: its secret is unrecoverable) plus an
             # unrelated robot that must be left alone.
             return [
@@ -85,7 +88,7 @@ def test_ensure_pull_robot_recreates_and_returns_credentials(monkeypatch):
 
 
 def test_ensure_pull_robot_requires_returned_secret(monkeypatch):
-    def fake_request(base, auth, method, path, body=None):
+    def fake_request(base, auth, method, path, body=None, headers=None):
         return {"name": "robot$previews+pull"} if method == "POST" else []
 
     monkeypatch.setattr(harbor, "_api_request", fake_request)

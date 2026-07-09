@@ -54,6 +54,16 @@ authentik:
   secretPath: authentik
   tokenKey: bootstrap-token
 
+# Images (the portal's per-client built-image listing). host is the PUBLIC
+# registry host references are shown under; empty disables the wiring. Reads
+# go over the in-cluster core URL; the admin password comes from OpenBao
+# (same path the controller pushes with — the API's policy must allow it).
+harbor:
+  host: ""
+  url: http://harbor-core.harbor.svc.cluster.local
+  project: previews
+  secretPath: harbor-app
+
 forgejo:
   url: http://forgejo-http.forgejo.svc.cluster.local:3000
   org: clients

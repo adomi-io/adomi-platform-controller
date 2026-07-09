@@ -319,6 +319,28 @@ class Client(models.Model):
             "commits": commits or [],
         }
 
+    def get_images(self):
+        """The customer page's Images panel: built container images from Harbor.
+
+        Reads through the platform API (which owns the registry credential);
+        loaded lazily by the portal widget so the page never waits on the
+        registry. Unavailable (kubernetes write backend, no name, API error)
+        renders as a quiet panel note, never an error page.
+        """
+        self.ensure_one()
+
+        if self._k8s_write_backend() != "api" or not self.k8s_name:
+            return {"available": False, "reason": "no_api"}
+
+        from .api_client import PlatformApiError
+
+        try:
+            images = self._platform_api().get("/v1/clients/%s/images" % self.k8s_name)
+        except PlatformApiError as exc:
+            return {"available": False, "reason": "error", "error": str(exc)}
+
+        return {"available": True, "images": images or []}
+
     # --- customer-centric onboarding shortcuts ---
     def action_open_deploy_wizard(self):
         """Launch the guided deploy flow pre-scoped to this customer."""

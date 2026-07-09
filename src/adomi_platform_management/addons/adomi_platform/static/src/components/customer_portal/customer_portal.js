@@ -37,6 +37,8 @@ export class CustomerPortal extends Component {
             access: {},
             git: null,
             gitLoading: true,
+            images: null,
+            imagesLoading: true,
         });
 
         onWillStart(() => this.load());
@@ -50,6 +52,7 @@ export class CustomerPortal extends Component {
         if (!this.resId) {
             this.state.loading = false;
             this.state.gitLoading = false;
+            this.state.imagesLoading = false;
             return;
         }
         try {
@@ -59,9 +62,10 @@ export class CustomerPortal extends Component {
         } finally {
             this.state.loading = false;
         }
-        // Git reads go out to Forgejo — refresh them after the page, never
-        // instead of it.
+        // Git and registry reads go out to Forgejo / Harbor — refresh them
+        // after the page, never instead of it.
         this.loadGit();
+        this.loadImages();
     }
 
     async loadGit() {
@@ -74,6 +78,36 @@ export class CustomerPortal extends Component {
         } finally {
             this.state.gitLoading = false;
         }
+    }
+
+    async loadImages() {
+        try {
+            this.state.images = await this.orm.call("adomi.client", "get_images", [
+                [this.resId],
+            ]);
+        } catch {
+            this.state.images = {available: false, reason: "error"};
+        } finally {
+            this.state.imagesLoading = false;
+        }
+    }
+
+    imageSize(bytes) {
+        if (!bytes) {
+            return "—";
+        }
+        const units = ["B", "KiB", "MiB", "GiB"];
+        let i = 0;
+        let v = bytes;
+        while (v >= 1024 && i < units.length - 1) {
+            v /= 1024;
+            i++;
+        }
+        return `${v.toFixed(1)} ${units[i]}`;
+    }
+
+    imageAge(img) {
+        return img.pushed_at ? this.commitAge({date: img.pushed_at}) : "";
     }
 
     commitAge(commit) {

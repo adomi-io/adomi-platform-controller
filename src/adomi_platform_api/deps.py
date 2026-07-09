@@ -10,6 +10,7 @@ from .cluster import ClusterReader
 from .config import Settings, get_settings
 from .git import ForgejoWriter, GitWriter, Readiness
 from .identity import AuthentikAdmin
+from .registry import HarborRegistry
 from .secrets import ScopedSecretsStore
 from .service import ClientService
 
@@ -86,3 +87,31 @@ def _reader() -> ClusterReader:
 
 def get_reader() -> ClusterReader:
     return _reader()
+
+
+# The Harbor admin password lives in OpenBao; cached the same way as the
+# Authentik token — stale creds surface as 502 and the next request re-reads.
+_harbor_password: dict = {"value": "", "at": 0.0}
+_HARBOR_PASSWORD_TTL = 600.0  # seconds
+
+
+def get_registry(
+    settings: Settings = Depends(get_settings),
+    store: ScopedSecretsStore = Depends(get_secrets_store),
+) -> HarborRegistry:
+    import time
+
+    now = time.monotonic()
+    if not _harbor_password["value"] or now - _harbor_password["at"] > _HARBOR_PASSWORD_TTL:
+        _harbor_password["value"] = store.read_value(
+            settings.harbor_secret_path, settings.harbor_secret_key
+        )
+        _harbor_password["at"] = now
+
+    return HarborRegistry(
+        settings.harbor_url,
+        settings.harbor_username,
+        _harbor_password["value"],
+        timeout=settings.http_timeout,
+        verify=settings.harbor_verify_tls,
+    )

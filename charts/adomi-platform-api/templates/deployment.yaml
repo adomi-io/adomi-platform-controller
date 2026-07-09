@@ -71,6 +71,19 @@ spec:
             - name: ADOMI_API_AUTHENTIK_TOKEN_KEY
               value: {{ .Values.authentik.tokenKey | quote }}
             {{- end }}
+            {{- if .Values.harbor.host }}
+            # Images: the portal's per-client built-image listing. The admin
+            # password is read from OpenBao at harbor.secretPath (the API's
+            # policy must allow it).
+            - name: ADOMI_API_HARBOR_URL
+              value: {{ .Values.harbor.url | quote }}
+            - name: ADOMI_API_HARBOR_HOST
+              value: {{ .Values.harbor.host | quote }}
+            - name: ADOMI_API_HARBOR_PROJECT
+              value: {{ .Values.harbor.project | quote }}
+            - name: ADOMI_API_HARBOR_SECRET_PATH
+              value: {{ .Values.harbor.secretPath | quote }}
+            {{- end }}
             - name: ADOMI_API_AUTH_TOKEN
               valueFrom:
                 secretKeyRef:

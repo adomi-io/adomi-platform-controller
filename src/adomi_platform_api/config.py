@@ -54,6 +54,19 @@ class Settings(BaseSettings):
     # One Authentik group per app gates access: <prefix><runtime-namespace>-<app>.
     access_group_prefix: str = "app-access-"
 
+    # Container registry (Harbor): the portal's Images section. Reads go over
+    # the in-cluster core service; the admin credential lives in OpenBao (the
+    # same path the controller pushes with — the API's OpenBao policy must
+    # grant read on it). harbor_host is the PUBLIC registry host image
+    # references are shown under (what a docker pull would use).
+    harbor_url: str = "http://harbor-core.harbor.svc.cluster.local"
+    harbor_host: str = ""
+    harbor_project: str = "previews"
+    harbor_username: str = "admin"
+    harbor_secret_path: str = "harbor-app"
+    harbor_secret_key: str = "admin-password"
+    harbor_verify_tls: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:

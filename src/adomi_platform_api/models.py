@@ -156,6 +156,18 @@ class AccessState(BaseModel):
     users: list[AccessUser] = Field(default_factory=list)
 
 
+class ImageArtifact(BaseModel):
+    """One built image (a tagged Harbor artifact) of a client's repository."""
+
+    repository: str = Field(description="Repository name within the project, e.g. acme-erp.")
+    application: str = Field(default="", description="App part of the repository name.")
+    image: str = Field(description="Pullable reference (public host, first tag).")
+    tags: list[str] = Field(default_factory=list)
+    digest: str = ""
+    size_bytes: int = 0
+    pushed_at: str = Field(default="", description="Push time, RFC 3339.")
+
+
 class RepoFile(BaseModel):
     """One entry of the client repo's tree."""
 

@@ -237,6 +237,54 @@ class TestGitPanel(PortalCase):
         self.assertIn("/v1/clients/acme/repo/tree", stub.calls[0])
 
 
+class TestImagesPanel(PortalCase):
+    def test_unavailable_without_api_backend(self):
+        self.patch(type(self.client), "_k8s_write_backend", lambda s: "kubernetes")
+        panel = self.client.get_images()
+        self.assertFalse(panel["available"])
+        self.assertEqual(panel["reason"], "no_api")
+
+    def test_panel_lists_images(self):
+        stub = _StubApi(
+            {
+                "/images": [
+                    {
+                        "repository": "acme-erp",
+                        "application": "erp",
+                        "image": "harbor.example.com/previews/acme-erp:master",
+                        "tags": ["master"],
+                        "digest": "sha256:abc",
+                        "size_bytes": 1024,
+                        "pushed_at": "2026-07-07T20:26:00Z",
+                    }
+                ],
+            }
+        )
+        self.patch(type(self.client), "_k8s_write_backend", lambda s: "api")
+        self.patch(type(self.client), "_platform_api", lambda s: stub)
+
+        panel = self.client.get_images()
+
+        self.assertTrue(panel["available"])
+        self.assertEqual(panel["images"][0]["application"], "erp")
+        self.assertIn("/v1/clients/acme/images", stub.calls[0])
+
+    def test_panel_degrades_on_api_error(self):
+        from ..models.api_client import PlatformApiError
+
+        class _Boom:
+            def get(self, path):
+                raise PlatformApiError("502")
+
+        self.patch(type(self.client), "_k8s_write_backend", lambda s: "api")
+        self.patch(type(self.client), "_platform_api", lambda s: _Boom())
+
+        panel = self.client.get_images()
+
+        self.assertFalse(panel["available"])
+        self.assertEqual(panel["reason"], "error")
+
+
 class _AccessStubApi:
     def __init__(self):
         self.gets = []

@@ -101,6 +101,39 @@
                 </div>
             </div>
 
+            <!-- ============ Images ============ -->
+            <div class="o_adomi_portal_section">
+                <div class="o_adomi_portal_section_head">
+                    <h2>Images</h2>
+                    <span class="o_adomi_portal_section_sub">Container images built from this customer's repositories — what their deployments actually run.</span>
+                </div>
+                <div class="o_adomi_portal_card">
+                    <div t-if="state.imagesLoading" class="o_adomi_portal_empty">
+                        <i class="fa fa-circle-o-notch fa-spin me-2"/>Reading the registry…
+                    </div>
+                    <t t-elif="state.images and state.images.available">
+                        <div t-if="!state.images.images.length" class="o_adomi_portal_empty">
+                            No images yet — the first application build pushes one.
+                        </div>
+                        <div t-foreach="state.images.images" t-as="img" t-key="img.digest || img_index"
+                             class="o_adomi_portal_commit">
+                            <span class="fw-bold text-nowrap" t-esc="img.application || img.repository"/>
+                            <span class="o_adomi_mono o_adomi_portal_commit_msg user-select-all" t-esc="img.image"/>
+                            <span class="o_adomi_portal_meta text-nowrap">
+                                <t t-foreach="img.tags" t-as="tag" t-key="tag">
+                                    <span class="badge text-bg-light border me-1" t-esc="tag"/>
+                                </t>
+                                <t t-esc="imageSize(img.size_bytes)"/>
+                                <t t-if="imageAge(img)"> · <t t-esc="imageAge(img)"/></t>
+                            </span>
+                        </div>
+                    </t>
+                    <div t-else="" class="o_adomi_portal_empty">
+                        The registry view isn't available on this install.
+                    </div>
+                </div>
+            </div>
+
             <!-- ============ Domains ============ -->
             <div class="o_adomi_portal_section">
                 <div class="o_adomi_portal_section_head">

@@ -18,6 +18,7 @@ from . import (
     domains,
     gitrepositories,
     identity,
+    images,
     repo,
     scoped,
     snapshots,
@@ -37,6 +38,7 @@ for _module in (
     repo,
     snapshots,
     scoped,
+    images,
 ):
     api_router.include_router(_module.router)
 

@@ -21,13 +21,23 @@ class HarborError(RuntimeError):
     """A Harbor API call failed."""
 
 
-def _api_request(base: str, auth: str, method: str, path: str, body: dict | None = None):
+def _api_request(
+    base: str,
+    auth: str,
+    method: str,
+    path: str,
+    body: dict | None = None,
+    headers: dict | None = None,
+):
     """One basic-authenticated Harbor REST call; returns the decoded JSON body."""
     data = json.dumps(body).encode() if body is not None else None
 
     req = urllib.request.Request(f"{base}/api/v2.0{path}", data=data, method=method)
     req.add_header("Authorization", f"Basic {auth}")
     req.add_header("Accept", "application/json")
+
+    for key, value in (headers or {}).items():
+        req.add_header(key, value)
 
     if data is not None:
         req.add_header("Content-Type", "application/json")
@@ -49,9 +59,15 @@ class HarborClient:
         self._base = base_url.rstrip("/")
         self._auth = _basic_auth(username, password)
 
-    def _request(self, method: str, path: str, body: dict | None = None):
+    def _request(
+        self,
+        method: str,
+        path: str,
+        body: dict | None = None,
+        headers: dict | None = None,
+    ):
         try:
-            return _api_request(self._base, self._auth, method, path, body)
+            return _api_request(self._base, self._auth, method, path, body, headers)
         except urllib.error.HTTPError as exc:
             raise HarborError(f"harbor {method} {path}: HTTP {exc.code}") from exc
         except urllib.error.URLError as exc:
@@ -78,7 +94,16 @@ class HarborClient:
         name is deleted first, then recreated fresh. The returned username is
         the full prefixed account name (e.g. ``robot$previews+pull``).
         """
-        existing = self._request("GET", f"/projects/{project}/robots?page_size=100") or []
+        # The path parameter is name-or-id; without this header Harbor parses a
+        # non-integer name as an id and 404s.
+        existing = (
+            self._request(
+                "GET",
+                f"/projects/{project}/robots?page_size=100",
+                headers={"X-Is-Resource-Name": "true"},
+            )
+            or []
+        )
 
         for robot in existing:
             if (robot.get("name") or "").endswith(f"+{name}"):
