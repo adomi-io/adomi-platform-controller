@@ -6,8 +6,10 @@ Secret, which the deployment exposes as env vars. This model turns those into an
 ``auth.oauth.provider`` record (OCA ``auth_oidc``) so users can sign in to the portal
 with Authentik — no manual Authentik/Odoo clicking.
 
-Run on install (post_init_hook) and on upgrade (a migration), so it re-applies when
-the image is updated. Idempotent: it upserts a single provider via a stable xml id.
+Run on install (post_init_hook) and on every module update via data/oidc_setup.xml
+(a non-noupdate <function> record; the deployment runs ``-u adomi_platform`` each
+boot), so every pod start re-syncs the provider from the environment. Idempotent:
+it upserts a single provider via a stable xml id.
 
 Env (set by the kubernetes-provisioner):
   ADOMI_OIDC_CLIENT_ID / ADOMI_OIDC_CLIENT_SECRET  - from the management-sso Secret

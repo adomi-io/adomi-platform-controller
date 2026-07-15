@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Re-apply the env-derived Authentik OIDC provider on every module update.
+         Deliberately NOT noupdate: the deployment runs `-u adomi_platform` on each
+         boot, so every pod start re-syncs the provider from the management-sso env
+         vars. This keeps the provider correct after credential rotation and after
+         installs that predate the seed (post_init_hook only fires on fresh install,
+         migrations only on version bumps). setup_from_env is an idempotent upsert
+         and a no-op when the env vars are absent. -->
+    <function model="adomi.oidc.setup" name="setup_from_env"/>
+</odoo>
