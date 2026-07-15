@@ -76,10 +76,21 @@ class DatabaseReconciler(Reconciler):
             fail(patch, status, conditions.REASON_INVALID_SPEC, str(exc), generation)
 
         # Resolve the server and require it to be reconciled enough to provision into.
+        # Environment-scoped servers live alongside this Database; customer-scoped
+        # servers live in the client's CR namespace (this Database is typically
+        # chart-emitted into the environment namespace), so fall back there.
         try:
             server = resolve.get_database_server(server_ref, namespace)
         except resolve.NotFound as exc:
-            fail(patch, status, conditions.REASON_DEPENDENCY_NOT_MET, str(exc), generation)
+            client_ns = resolve.find_client_namespace(client_slug)
+
+            if not client_ns or client_ns == namespace:
+                fail(patch, status, conditions.REASON_DEPENDENCY_NOT_MET, str(exc), generation)
+
+            try:
+                server = resolve.get_database_server(server_ref, client_ns)
+            except resolve.NotFound as exc2:
+                fail(patch, status, conditions.REASON_DEPENDENCY_NOT_MET, str(exc2), generation)
 
         srv_status = server.get("status") or {}
         server_ns = srv_status.get("namespace")

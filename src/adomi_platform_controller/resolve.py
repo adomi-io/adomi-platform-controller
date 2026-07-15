@@ -412,6 +412,27 @@ def get_database_server(name: str, namespace: str) -> dict:
     return _get_namespaced(PLURAL_DATABASESERVERS, name, namespace)
 
 
+def find_client_namespace(slug: str) -> str | None:
+    """The namespace holding the Client CR with this slug (where its committed CRs live).
+
+    Chart-emitted capability CRs (e.g. a Database in the environment namespace) may
+    reference customer-scoped resources that live in the client's CR namespace; this
+    finds that namespace without assuming the provisioner's namespace prefix.
+    """
+    api = client.CustomObjectsApi()
+
+    listing = api.list_cluster_custom_object(GROUP, VERSION, PLURAL_CLIENTS)
+
+    for item in listing.get("items") or []:
+        meta = item.get("metadata") or {}
+        spec = item.get("spec") or {}
+
+        if meta.get("name") == slug or spec.get("slug") == slug:
+            return meta.get("namespace")
+
+    return None
+
+
 def get_domain(name: str, namespace: str) -> dict:
     return _get_namespaced(PLURAL_DOMAINS, name, namespace)
 
