@@ -149,3 +149,35 @@ class TestOdooWizard(TransactionCase):
         )
         with self.assertRaises(UserError):
             wiz._validate_step("odoo")
+
+    def test_database_line_wires_odoo_db_connect_env(self):
+        """The wizard must emit the explicit ODOO_DB_* connect env for the
+        database it provisions — the odoo chart wires nothing by itself, so an
+        Application without these env lines deploys with no database at all."""
+        self.odoo_type.database_required = True
+        server = self.env(context={"adomi_no_push": True})["adomi.database.server"].create(
+            {"name": "acme-prod-db", "client_id": self.client.id}
+        )
+        wiz = self._wizard(
+            self.odoo_type, odoo_repo_mode="none", database_server_id=server.id
+        )
+
+        vals = wiz._prepare_application_vals(self.client, self.environment)
+
+        secret = vals["database_ids"][0][2]["secret"]
+        env = {line[2]["name"]: line[2] for line in vals["env_ids"]}
+        expected = {
+            "ODOO_DB_HOST": "host",
+            "ODOO_DB_PORT": "port",
+            "ODOO_DB_USER": "user",
+            "ODOO_DB_NAME": "dbname",
+            "ODOO_DB_PASSWORD": "password",
+        }
+        self.assertEqual({n: e["secret_key"] for n, e in env.items()}, expected)
+        for line in env.values():
+            self.assertEqual(line["secret_name"], secret)
+
+    def test_no_database_line_means_no_db_env(self):
+        wiz = self._wizard(self.odoo_type, odoo_repo_mode="none")
+        vals = wiz._prepare_application_vals(self.client, self.environment)
+        self.assertNotIn("env_ids", vals)

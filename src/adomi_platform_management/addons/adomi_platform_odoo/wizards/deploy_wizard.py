@@ -107,10 +107,32 @@ class DeployWizard(models.TransientModel):
             values["odoo"]["enterpriseRepository"] = self.odoo_enterprise_repo
         return values
 
+    # The connect side of the chart contract: the odoo chart wires NOTHING by
+    # itself (.Values.env is fully explicit), so the wizard must emit the
+    # ODOO_DB_* env referencing the credentials Secret the Database CR delivers
+    # (keys: host/port/user/dbname/password). Without these the app deploys
+    # with no database connection at all.
+    _ODOO_DB_ENV = (
+        ("ODOO_DB_HOST", "host"),
+        ("ODOO_DB_PORT", "port"),
+        ("ODOO_DB_USER", "user"),
+        ("ODOO_DB_NAME", "dbname"),
+        ("ODOO_DB_PASSWORD", "password"),
+    )
+
     def _prepare_application_vals(self, client, environment):
         vals = super()._prepare_application_vals(client, environment)
         if self.is_odoo_type:
             vals["values"] = json.dumps(self._odoo_values())
+            for db in vals.get("database_ids") or []:
+                secret = db[2].get("secret")
+                if not secret:
+                    continue
+                vals.setdefault("env_ids", []).extend(
+                    (0, 0, {"name": name, "secret_name": secret, "secret_key": key})
+                    for name, key in self._ODOO_DB_ENV
+                )
+                break
         return vals
 
     def _review_lines(self):
